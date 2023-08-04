@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>1701;1702;CS8034</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Entities\" />
+    <None Remove="Events\" />
+    <None Remove="Integration\" />
+    <None Remove="Requests\" />
+    <None Remove="Driver\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Entities\" />
+    <Folder Include="Events\" />
+    <Folder Include="Integration\" />
+    <Folder Include="Requests\" />
+    <Folder Include="Driver\" />
+  </ItemGroup>
+</Project>
