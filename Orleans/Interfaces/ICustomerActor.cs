@@ -13,5 +13,6 @@ namespace Orleans.Interfaces
         public Task NotifyPaymentFailed(PaymentFailed paymentFailed);
         public Task NotifyDelivery(DeliveryNotification deliveryNotification);
 
+        public Task<int> GetNextOrderId();
     }
 }

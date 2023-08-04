@@ -36,9 +36,13 @@ namespace Orleans.Grains
             await this.item.WriteStateAsync();
         }
 
-        public Task<ItemStatus> AttemptReservation(int quantity)
+        public async Task<ItemStatus> AttemptReservation(int quantity)
         {
-            throw new NotImplementedException();
+            if (item is null || item.State is null) return ItemStatus.DELETED;
+            if (item.State.qty_reserved + quantity > item.State.qty_available) return ItemStatus.OUT_OF_STOCK;
+            item.State.qty_reserved += quantity;
+            await item.WriteStateAsync();
+            return ItemStatus.IN_STOCK;
         }
 
         public Task CancelReservation(int quantity)

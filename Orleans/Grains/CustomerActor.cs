@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Orleans.Grains
 {
@@ -61,5 +62,11 @@ namespace Orleans.Grains
             await this.customer.WriteStateAsync();
         }
 
+        public async Task<int> GetNextOrderId()
+        {
+            var next_order_id = customer.State.next_order_id++;
+            await customer.WriteStateAsync();
+            return next_order_id;
+        } 
     }
 }

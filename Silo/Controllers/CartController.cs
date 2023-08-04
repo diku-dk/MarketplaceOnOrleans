@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using Orleans.Controllers;
+using Orleans.Interfaces;
 
 namespace Silo.Controllers;
 
@@ -36,53 +37,21 @@ public class CartController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     [ProducesResponseType(typeof(Cart), (int)HttpStatusCode.MethodNotAllowed)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
-    public async Task<ActionResult> NotifyCheckout(long customerId, [FromBody] CustomerCheckout customerCheckout)
+    public async Task<ActionResult> NotifyCheckout([FromServices] IGrainFactory grains, long customerId, [FromBody] CustomerCheckout customerCheckout)
     {
-        return null;
-        /*
         this.logger.LogInformation("[NotifyCheckout] received request.");
 
-        if (customerId != customerCheckout.CustomerId)
+        // use customerId as cartGrainId and orderGrainId
+        var cartGrain = grains.GetGrain<ICartActor>(customerId, customerId.ToString());
+        try 
         {
-            logger.LogError("Customer checkout payload ({0}) does not match customer ID ({1}) in URL", customerId, customerCheckout.CustomerId);
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, "Customer checkout payload does not match customer ID in URL");
+            await cartGrain.NotifyCheckout(customerCheckout);
+            return Ok();
         }
-
-        Cart cart = this.cartRepository.GetCart(customerCheckout.CustomerId);
-
-        if (cart is null)
+        catch (Exception e)
         {
-            this.logger.LogWarning("Customer {0} cart cannot be found", customerCheckout.CustomerId);
-            return NotFound("Customer " + customerCheckout.CustomerId + " cart cannot be found");
+            return StatusCode((int)HttpStatusCode.MethodNotAllowed, e.Message);
         }
-
-        if (cart.status == CartStatus.CHECKOUT_SENT)
-        {
-            this.logger.LogWarning("Customer {0} cart has already been submitted to checkout", customerCheckout.CustomerId);
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, "Customer " + customerCheckout.CustomerId + " cart has already been submitted for checkout");
-        }
-
-        var items = this.cartRepository.GetItems(customerCheckout.CustomerId);
-        if (items is null || items.Count() == 0)
-        {
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, "Customer " + customerCheckout.CustomerId + " cart has no items to be submitted for checkout");
-        }
-
-        List<ProductStatus> divergencies = this.cartService.CheckCartForDivergencies(cart);
-        if (divergencies.Count() > 0)
-        {
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, new Cart()
-            {
-                customerId = cart.customer_id,
-                // items = cartItems,
-                status = cart.status,
-                divergencies = divergencies
-            });
-        }
-
-        await this.cartService.NotifyCheckout(customerCheckout, cart);
-        return Ok();
-        */
     }
 }
 

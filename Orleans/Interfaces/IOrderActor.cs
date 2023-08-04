@@ -1,9 +1,11 @@
 ﻿using Common.Events;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
 {
-    public interface IOrderActor : IGrainWithIntegerKey
+    public interface IOrderActor : IGrainWithIntegerCompoundKey
     {
-        public Task Checkout(ReserveStock reserveStock);
+        [OneWay]
+        Task Checkout(ReserveStock reserveStock);
     }
 }

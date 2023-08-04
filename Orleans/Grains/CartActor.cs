@@ -94,10 +94,13 @@ namespace Orleans.Grains
             if (this.customerId != customerCheckout.CustomerId)
                 throw new Exception("Cart " + this.customerId + " does not correspond to customr ID received: " + customerCheckout.CustomerId);
 
+            if (this.cart is null || this.cart.State is null)
+                throw new Exception($"Customer {customerId} cart cannot be found");
+
             if (this.cart.State.status == CartStatus.CHECKOUT_SENT)
                 throw new Exception("Cannot checkout a cart " + customerId + " that has a checkout in progress.");
 
-            if (this.cart.State.items.Count == 0)
+            if (this.cart.State.items is null || this.cart.State.items.Count == 0)
                 throw new Exception("Cart " + this.customerId + " is empty.");
 
             // TODO check if price divergence
@@ -118,16 +121,22 @@ namespace Orleans.Grains
                 }
             }
 
-            if(divergencies.Count == 0) {
-                ReserveStock checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
-                await this.stream.OnNextAsync(checkout);
+            if(divergencies.Count == 0) 
+            {
+                // get the next_order_id from the customer
+                var customerGrain = this.GrainFactory.GetGrain<ICustomerActor>(customerId);
+                var next_order_id = await customerGrain.GetNextOrderId();
+
+                // access the orderGrain for this specific order
+                var orderGrain = this.GrainFactory.GetGrain<IOrderActor>(customerId, next_order_id.ToString());
+                var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
+                await orderGrain.Checkout(checkout);    // TODO: need to check if the request returned immediately even with 'await'
                 await Seal();
                 return true;
             }
 
             await this.cart.WriteStateAsync();
             return false;
-            
         }
 
         public async Task Seal()
@@ -137,7 +146,5 @@ namespace Orleans.Grains
              this.cart.WriteStateAsync(),
              this.StopConsuming() );
         }
-
     }
-
 }

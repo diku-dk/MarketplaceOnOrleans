@@ -60,8 +60,9 @@ namespace Orleans.Grains
                      this.product.State.price,
                      false,
                      productToDelete.instanceId);
-                
-                await stream.OnNextAsync(productUpdate);
+
+                var stockGrain = this.GrainFactory.GetGrain<IStockActor>(productToDelete.sellerId, productToDelete.productId.ToString());
+                await stockGrain.DeleteItem();
                 return;
             }
             _logger.LogError("State not set in seller {0} product {1}", productToDelete.sellerId, productToDelete.productId);

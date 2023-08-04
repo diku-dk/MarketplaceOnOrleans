@@ -3,6 +3,7 @@ using Common.Entities;
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Interfaces;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Orleans.Controllers;
 
@@ -54,5 +55,14 @@ public class OrleansController : ControllerBase
         return Accepted();
     }
 
+    [HttpDelete]
+    [Route("/product")]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    public async Task<ActionResult> DeleteProduct([FromServices] IGrainFactory grains, [FromBody] DeleteProduct deleteProduct)
+    {
+        var grain = grains.GetGrain<IProductActor>(deleteProduct.sellerId, deleteProduct.productId.ToString());
+        await grain.DeleteProduct(deleteProduct);
+        return Accepted();
+    }
 }
 
