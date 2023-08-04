@@ -1,9 +1,5 @@
-﻿using System;
-namespace Common.Entities
+﻿namespace Common.Entities
 {
-    /**
-     * 
-     */
     public class Customer
     {
         // olist data set
@@ -43,15 +39,9 @@ namespace Common.Entities
 
         public int failed_payment_count { get; set; } = 0;
 
-        // public int pending_deliveries_count { get; set; }
-
         public int delivery_count { get; set; } = 0;
 
-        // public int abandoned_cart_count { get; set; }
-
-        // public float total_spent_items { get; set; }
-
-        // public float total_spent_freights { get; set; }
+        public int next_order_id { get; set; }
 
         // additional
         public string data { get; set; } = "";

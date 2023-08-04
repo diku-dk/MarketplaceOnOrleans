@@ -1,6 +1,7 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Orleans.Concurrency;
+using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 using System.Globalization;
@@ -25,9 +26,9 @@ namespace Orleans.Grains
         private int nextOrderId;
 
         public OrderActor(
-            [PersistentState(stateName: "order", storageName: "OrleansStorage")]
+            [PersistentState(stateName: "order", storageName: Constants.OrleansStorage)]
             IPersistentState<Order> orderState,
-            [PersistentState(stateName: "orderItems", storageName: "OrleansStorage")]
+            [PersistentState(stateName: "orderItems", storageName: Constants.OrleansStorage)]
             IPersistentState<List<OrderItem>> orderItemsState
             //[PersistentState(stateName: "customerOrder", storageName: "OrleansStorage")]
             //IPersistentState<Dictionary<int, CustomerOrder>> customerOrderState
@@ -114,6 +115,7 @@ namespace Orleans.Grains
                 totalPerItem.Add(item.ProductId, total_item);
             }
 
+            // TODO get from customer
             CustomerOrder customerOrder = null; // this.customerOrderState.State[reserveStock.customerCheckout.CustomerId];
 
             if (customerOrder is null)

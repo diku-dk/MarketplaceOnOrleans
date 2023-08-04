@@ -77,7 +77,7 @@ namespace Orleans.Grains
 
             this.cart.State.items.Add(item);
             await Task.WhenAll( this.cart.WriteStateAsync(),
-             BecomeConsumer(string.Format("{0}|{1}", item.SellerId, item.ProductId) ) );
+            BecomeConsumer(string.Format("{0}|{1}", item.SellerId, item.ProductId) ) );
         }
 
         public Task<Cart> GetCart()
@@ -87,7 +87,7 @@ namespace Orleans.Grains
         }
 
         // customer decided to checkout
-        public async Task NotifyCheckout(CustomerCheckout customerCheckout)
+        public async Task<bool> NotifyCheckout(CustomerCheckout customerCheckout)
         {
             this._logger.LogWarning("Cart {0} received checkout request.", this.customerId);
 
@@ -107,6 +107,7 @@ namespace Orleans.Grains
                 if (cachedProducts.ContainsKey((cartItem.SellerId, cartItem.ProductId)) &&
                     cachedProducts[(cartItem.SellerId, cartItem.ProductId)].price != cartItem.UnitPrice)
                 {
+                    cartItem.UnitPrice = cachedProducts[(cartItem.SellerId, cartItem.ProductId)].price;
                     divergencies.Add(new ProductStatus()
                     {
                         Id = cartItem.ProductId,
@@ -121,8 +122,11 @@ namespace Orleans.Grains
                 ReserveStock checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
                 await this.stream.OnNextAsync(checkout);
                 await Seal();
-                return;
+                return true;
             }
+
+            await this.cart.WriteStateAsync();
+            return false;
             
         }
 

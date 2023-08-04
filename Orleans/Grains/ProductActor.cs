@@ -74,7 +74,12 @@ namespace Orleans.Grains
 
         public async Task UpdatePrice(UpdatePrice updatePrice)
         {
-            // no way to know which carts contain the product, so require streaming it
+            if (this.product.State is null)
+            {
+                _logger.LogError("State not set in seller {0} product {1}", updatePrice.sellerId, updatePrice.productId);
+                return;
+            }
+
             this.product.State.price = updatePrice.price;
             ProductUpdate productUpdate = new ProductUpdate(
                      updatePrice.sellerId,
@@ -83,6 +88,7 @@ namespace Orleans.Grains
                      true,
                      updatePrice.instanceId);
 
+            // no way to know which carts contain the product, so require streaming it
             await Task.WhenAll(stream.OnNextAsync(productUpdate), this.product.WriteStateAsync() );
         }
     }

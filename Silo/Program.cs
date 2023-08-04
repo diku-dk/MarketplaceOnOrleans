@@ -20,7 +20,8 @@ builder.Host.UseOrleans(siloBuilder =>
          .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
-             options.ConnectionString = "Host=ep-ancient-wildflower-518871.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=rodrigolaigner;Password=uYsWSG1dm2QB";
+             // options.ConnectionString = "Host=ep-ancient-wildflower-518871.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=rodrigolaigner;Password=uYsWSG1dm2QB";
+             options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
          })
          .ConfigureLogging(logging =>
          {
@@ -34,9 +35,6 @@ builder.Host.UseOrleans(siloBuilder =>
          });
 });
 
-// prometheus
-// https://github.com/open-telemetry/opentelemetry-dotnet
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -47,16 +45,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
-
-/*
-app.Lifetime.ApplicationStarted.Register(async () => {
-
-    var serv = app.Services.GetService<IGrainFactory>();  
-    if(serv is not null)
-        await serv.GetGrain<IPersistentGrain>(0).SetUrl("teste");
-     
-});
-*/
 
 await app.StartAsync();
 
