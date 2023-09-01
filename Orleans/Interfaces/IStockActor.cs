@@ -1,4 +1,5 @@
 ﻿using Common.Entities;
+using Common.Events;
 
 namespace Orleans.Interfaces
 {
@@ -7,6 +8,10 @@ namespace Orleans.Interfaces
         public Task<ItemStatus> AttemptReservation(int quantity);
         public Task CancelReservation(int quantity);
         public Task ConfirmReservation(int quantity);
+
+
+        void ProcessPayment(PaymentConfirmed paymentConfirmed);
+        void ProcessPayment(PaymentFailed paymentFailed);
 
         public Task DeleteItem();
 

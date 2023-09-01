@@ -1,4 +1,5 @@
 ﻿using Common.Entities;
+using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Interfaces;
 using Orleans.Runtime;
@@ -60,6 +61,16 @@ namespace Orleans.Grains
             this.item.State.data = "false";
             await this.item.WriteStateAsync();
             // TODO publish transaction mark
+        }
+
+        public void ProcessPayment(PaymentConfirmed paymentConfirmed)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessPayment(PaymentFailed paymentFailed)
+        {
+            throw new NotImplementedException();
         }
     }
 }
