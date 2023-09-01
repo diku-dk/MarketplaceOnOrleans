@@ -20,10 +20,6 @@
     <None Remove="Infra\" />
     <None Remove="Interfaces\" />
   </ItemGroup>
-    <ItemGroup>
-    <Folder Include="Grains\" />
-    <Folder Include="Infra\" />
-  </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />

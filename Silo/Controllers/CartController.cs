@@ -27,9 +27,11 @@ public class CartController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     [ProducesResponseType((int)HttpStatusCode.MethodNotAllowed)]
     [ProducesResponseType((int)HttpStatusCode.Conflict)]
-    public ActionResult AddItem(long customerId, [FromBody] CartItem item)
+    public async Task<ActionResult> AddItem([FromServices] IGrainFactory grains, long customerId, [FromBody] CartItem item)
     {
-        return null;
+        var cartGrain = grains.GetGrain<ICartActor>(customerId);
+        await cartGrain.AddItem(item);
+        return Ok();
     }
 
     [Route("/cart/{customerId}/checkout")]
@@ -42,7 +44,7 @@ public class CartController : ControllerBase
         this.logger.LogInformation("[NotifyCheckout] received request.");
 
         // use customerId as cartGrainId and orderGrainId
-        var cartGrain = grains.GetGrain<ICartActor>(customerId, customerId.ToString());
+        var cartGrain = grains.GetGrain<ICartActor>(customerId);
         try 
         {
             await cartGrain.NotifyCheckout(customerCheckout);

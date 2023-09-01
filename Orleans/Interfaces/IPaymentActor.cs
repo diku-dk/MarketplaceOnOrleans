@@ -1,13 +1,8 @@
-﻿using System;
-using Common.Events;
+﻿using Common.Events;
 
-namespace Orleans.Interfaces
+namespace Orleans.Interfaces;
+
+public interface IPaymentActor : IGrainWithIntegerKey
 {
-	public interface IPaymentActor
-	{
-
-		void ProcessPayment(InvoiceIssued invoiceIssued);
-
-	}
+	Task ProcessPayment(InvoiceIssued invoiceIssued);
 }
-

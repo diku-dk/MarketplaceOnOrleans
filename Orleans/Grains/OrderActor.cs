@@ -1,9 +1,11 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Common.Requests;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Orleans.Grains
@@ -11,14 +13,10 @@ namespace Orleans.Grains
     [Reentrant]
     public class OrderActor : Grain, IOrderActor
     {
-        private static readonly CultureInfo enUS = CultureInfo.CreateSpecificCulture("en-US");
-        private static readonly DateTimeFormatInfo dtfi = enUS.DateTimeFormat;
-
-        private readonly IPersistentState<Order> orderState;
-        private readonly IPersistentState<List<OrderItem>> orderItemsState;
+        Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
         private int customerId;
-        private int orderId;
+        private int nextOrderId;
 
         public OrderActor(
             [PersistentState(stateName: "order", storageName: Constants.OrleansStorage)]
@@ -29,14 +27,13 @@ namespace Orleans.Grains
             //IPersistentState<Dictionary<int, CustomerOrder>> customerOrderState
             ) 
         { 
-            this.orderState = orderState;
-            this.orderItemsState = orderItemsState;
         }
 
         public override async Task OnActivateAsync(CancellationToken token)
         {
-            this.customerId = (int)this.GetPrimaryKeyLong();
-            this.orderId = int.Parse(this.GetPrimaryKeyString());
+            nextOrderId = 1;
+            customerId = (int)this.GetPrimaryKeyLong();
+            orders = new Dictionary<int, (Order, List<OrderItem>)>();
             await base.OnActivateAsync(token);
         }
 
@@ -49,26 +46,19 @@ namespace Orleans.Grains
 
             foreach (var item in reserveStock.items)
             {
-                var stockActor = GrainFactory.GetGrain<IStockActor>(item.SellerId, item.ProductId.ToString(), null);
+                var stockActor = GrainFactory.GetGrain<IStockActor>(item.SellerId, item.ProductId.ToString());
                 statusResp.Add(stockActor.AttemptReservation(item.Quantity));
             }
             await Task.WhenAll(statusResp);
 
-            int idx = 0;
-            var itemsToCheckout = new List<CartItem>(reserveStock.items.Count());
-            //List<Task> stockTasks= new List<Task>();
-            foreach (var item in reserveStock.items)
+            // collect all items that are in stock
+            var itemsToCheckout = new List<CartItem>();
+            for (var idx = 0; idx < reserveStock.items.Count; idx++)
             {
-                if (statusResp[idx].Result == ItemStatus.IN_STOCK)
-                {
-                    itemsToCheckout.Add(item);
-                    //var stockActor = GrainFactory.GetGrain<IStockActor>(item.SellerId, item.ProductId.ToString(), null);
-                    //stockTasks.Add(stockActor.ConfirmReservation(item.Quantity));
-                }
+                if (statusResp[idx].Result == ItemStatus.IN_STOCK) 
+                    itemsToCheckout.Add(reserveStock.items[idx]);
             }
-
-            //await Task.WhenAll(stockTasks);
-            
+                
             // calculate total freight_value
             float total_freight = 0;
             foreach (var item in itemsToCheckout)
@@ -133,7 +123,8 @@ namespace Orleans.Grains
                                                              .Append("-").Append(nextOrderId);
             */
 
-            orderState.State = new Order()
+            var orderId = nextOrderId++;
+            var order = new Order()
             {
                 id = orderId,
                 customer_id = reserveStock.customerCheckout.CustomerId,
@@ -147,8 +138,7 @@ namespace Orleans.Grains
                 total_invoice = total_amount + total_freight,
                 count_items = itemsToCheckout.Count()
             };
-            await orderState.WriteStateAsync();
-
+            
             List<OrderItem> items = new();
             itemsToCheckout.ForEach(x =>
             {
@@ -168,12 +158,21 @@ namespace Orleans.Grains
                     vouchers = x.Vouchers,
                 });
             });
-            orderItemsState.State = items;
-            await orderItemsState.WriteStateAsync();
 
-            // TODO: call payment actor --> shipment actor
-            
-            return;
+            orders.Add(orderId, (order, items));
+
+            var invoice = new InvoiceIssued
+            (
+                reserveStock.customerCheckout,
+                orderId,
+                Helper.GetInvoiceNumber(customerId, now, orderId),
+                DateTime.UtcNow,
+                total_amount,
+                items,
+                reserveStock.instanceId
+            );
+            var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
+            await paymentActor.ProcessPayment(invoice);
         }
 
         public class CustomerOrder

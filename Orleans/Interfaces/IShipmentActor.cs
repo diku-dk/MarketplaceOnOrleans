@@ -1,15 +1,8 @@
-﻿using System;
-using Common.Events;
+﻿using Common.Events;
 
 namespace Orleans.Interfaces;
 
-public interface IShipmentActor
+public interface IShipmentActor : IGrainWithIntegerKey
 {
-
-
-	void ProcessShipment(PaymentConfirmed paymentConfirmed);
-
-
+	Task ProcessShipment(PaymentConfirmed paymentConfirmed);
 }
-
-

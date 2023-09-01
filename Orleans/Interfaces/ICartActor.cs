@@ -4,7 +4,7 @@ using Common.Requests;
 namespace Orleans.Interfaces
 {
 
-    public interface ICartActor : IGrainWithIntegerCompoundKey
+    public interface ICartActor : IGrainWithIntegerKey
     {
         public Task AddItem(CartItem item);
 

@@ -1,5 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
 {
@@ -7,6 +8,8 @@ namespace Orleans.Interfaces
     {
         public Task<ItemStatus> AttemptReservation(int quantity);
         public Task CancelReservation(int quantity);
+
+        [OneWay]
         public Task ConfirmReservation(int quantity);
 
 

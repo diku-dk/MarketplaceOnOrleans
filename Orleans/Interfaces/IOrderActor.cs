@@ -3,7 +3,7 @@ using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
 {
-    public interface IOrderActor : IGrainWithIntegerCompoundKey
+    public interface IOrderActor : IGrainWithIntegerKey
     {
         [OneWay]
         Task Checkout(ReserveStock reserveStock);

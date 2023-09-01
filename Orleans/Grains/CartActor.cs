@@ -124,11 +124,11 @@ namespace Orleans.Grains
             if(divergencies.Count == 0) 
             {
                 // get the next_order_id from the customer
-                var customerGrain = this.GrainFactory.GetGrain<ICustomerActor>(customerId);
-                var next_order_id = await customerGrain.GetNextOrderId();
+                //var customerGrain = this.GrainFactory.GetGrain<ICustomerActor>(customerId);
+                //var next_order_id = await customerGrain.GetNextOrderId();
 
                 // access the orderGrain for this specific order
-                var orderGrain = this.GrainFactory.GetGrain<IOrderActor>(customerId, next_order_id.ToString());
+                var orderGrain = this.GrainFactory.GetGrain<IOrderActor>(customerId);
                 var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
                 await orderGrain.Checkout(checkout);    // TODO: need to check if the request returned immediately even with 'await'
                 await Seal();

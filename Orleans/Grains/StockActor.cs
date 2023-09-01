@@ -51,9 +51,11 @@ namespace Orleans.Grains
             throw new NotImplementedException();
         }
 
-        public Task ConfirmReservation(int quantity)
+        public async Task ConfirmReservation(int quantity)
         {
-            throw new NotImplementedException();
+            item.State.qty_reserved -= quantity;
+            item.State.qty_available -= quantity;
+            await item.WriteStateAsync();
         }
 
         public async Task DeleteItem()
