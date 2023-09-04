@@ -1,10 +1,9 @@
-﻿using System;
-namespace Common.Entities
+﻿namespace Common.Entities
 {
 	public class Package
 	{
 		// PK
-		public int shipment_id;
+		public int order_id;
 		public int package_id;
 
         // FK
@@ -12,17 +11,21 @@ namespace Common.Entities
         public int seller_id;
         public int product_id;
 
+        public string product_name = "";
+
         public float freight_value;
 
 		// date the shipment has actually been performed
-		public int shipping_date;
+		public DateTime shipping_date;
 
         // delivery date
-        public int delivery_date;
+        public DateTime delivery_date;
 
 		public int quantity;
+        
+        public PackageStatus status { get; set; }
 
-		public PackageStatus status { get; set; }
+        public Package() { }
     }
 }
 

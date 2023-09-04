@@ -1,15 +1,15 @@
-﻿using Common.Events;
+using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Interfaces;
 
 namespace Orleans.Grains;
 
-	public class SellerActor : Grain, ISellerActor
+
+public class SellerActor : Grain, ISellerActor
 {
     private readonly ILogger<SellerActor> _logger;
 
-    public SellerActor(
-        ILogger<SellerActor> _logger)
+    public SellerActor(ILogger<SellerActor> _logger)
     {
         this._logger = _logger;
     }
@@ -39,4 +39,5 @@ namespace Orleans.Grains;
         throw new NotImplementedException();
     }
 }
+
 

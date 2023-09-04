@@ -1,5 +1,4 @@
-﻿using System;
-namespace Common.Entities
+﻿namespace Common.Entities
 {
 	public class Shipment
 	{
