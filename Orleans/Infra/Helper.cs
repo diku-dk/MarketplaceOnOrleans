@@ -12,4 +12,6 @@ public static class Helper
         => new StringBuilder().Append(customerId).Append("-")
                               .Append(timestamp.ToString("d", enUS)).Append("-")
                               .Append(orderId).ToString();
+
+    public static int GetShipmentActorID(int customerID) => customerID % Constants.NumShipmentActors;
 }

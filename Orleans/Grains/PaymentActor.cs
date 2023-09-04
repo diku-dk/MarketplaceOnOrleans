@@ -1,8 +1,9 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Common.Integration;
+using Microsoft.Extensions.Logging;
+using Orleans.Infra;
 using Orleans.Interfaces;
-using System.Globalization;
 
 namespace Orleans.Grains;
 
@@ -11,6 +12,12 @@ internal class PaymentActor : Grain, IPaymentActor
     int customerId;
     Dictionary<int, List<OrderPayment>> payments;    // <orderId, one record per paid card>
     Dictionary<int, OrderPaymentCard> paymentCards;  // <orderId, cards used for the payment> 
+    ILogger<PaymentActor> _logger;
+
+    public PaymentActor(ILogger<PaymentActor> _logger)
+    {
+        this._logger = _logger;
+    }
 
     public override async Task OnActivateAsync(CancellationToken token)
     {
@@ -123,15 +130,23 @@ internal class PaymentActor : Grain, IPaymentActor
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
         await Task.WhenAll(tasks);
+        _logger.LogWarning($"Confirm reservation on {tasks.Count} stock actors. ");
 
         // proceed to shipment actor
-        tasks.Clear();
         var paymentConfirmed = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, now, invoiceIssued.instanceId);
-        foreach (var item in invoiceIssued.items)
+        var shipmentActorID = Helper.GetShipmentActorID(invoiceIssued.customer.CustomerId);
+        var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
+        await shipmentActor.ProcessShipment(paymentConfirmed);
+        _logger.LogWarning($"Notify shipment actor PaymentConfirmed. ");
+
+        tasks.Clear();
+        var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
+        foreach (var sellerID in sellers)
         {
-            var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(item.seller_id);
-            tasks.Add(shipmentActor.ProcessShipment(paymentConfirmed));
+            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
+            tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmed));
         }
         await Task.WhenAll(tasks);
+        _logger.LogWarning($"Notify {sellers.Count} sellers PaymentConfirmed. ");
     }
 }

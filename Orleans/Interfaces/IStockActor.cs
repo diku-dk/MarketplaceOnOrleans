@@ -2,23 +2,20 @@
 using Common.Events;
 using Orleans.Concurrency;
 
-namespace Orleans.Interfaces
+namespace Orleans.Interfaces;
+
+public interface IStockActor : IGrainWithIntegerCompoundKey
 {
-    public interface IStockActor : IGrainWithIntegerCompoundKey
-    {
-        public Task<ItemStatus> AttemptReservation(int quantity);
-        public Task CancelReservation(int quantity);
+    public Task<ItemStatus> AttemptReservation(int quantity);
+    public Task CancelReservation(int quantity);
 
-        [OneWay]
-        public Task ConfirmReservation(int quantity);
+    [OneWay]
+    public Task ConfirmReservation(int quantity);
 
+    void ProcessPayment(PaymentConfirmed paymentConfirmed);
+    void ProcessPayment(PaymentFailed paymentFailed);
 
-        void ProcessPayment(PaymentConfirmed paymentConfirmed);
-        void ProcessPayment(PaymentFailed paymentFailed);
+    public Task DeleteItem();
 
-        public Task DeleteItem();
-
-        public Task SetItem(StockItem item);
-
-    }
+    public Task SetItem(StockItem item);
 }
