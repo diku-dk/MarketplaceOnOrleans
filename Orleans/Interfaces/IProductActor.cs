@@ -5,13 +5,13 @@ namespace Orleans.Interfaces
 {
     public interface IProductActor : IGrainWithIntegerCompoundKey
     {
-        public Task SetProduct(Product product);
+        Task SetProduct(Product product);
 
-        public Task<Product> GetProduct();
+        Task<Product> GetProduct();
 
-        public Task DeleteProduct(DeleteProduct deleteProduct);
+        Task DeleteProduct(DeleteProduct deleteProduct);
 
-        public Task UpdatePrice(UpdatePrice updatePrice);
+        Task UpdatePrice(UpdatePrice updatePrice);
 
     }
 }

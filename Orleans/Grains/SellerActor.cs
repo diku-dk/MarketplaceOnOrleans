@@ -1,21 +1,31 @@
+﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Interfaces;
+using Orleans.Runtime;
 
 namespace Orleans.Grains;
 
 
 public class SellerActor : Grain, ISellerActor
 {
-    private readonly ILogger<SellerActor> _logger;
+    private readonly ILogger<SellerActor> logger;
 
-    public SellerActor(ILogger<SellerActor> _logger)
+    private readonly IPersistentState<Seller> seller;
+
+    private readonly List<int> productIds = new List<int>();
+
+    public SellerActor(
+        [PersistentState(stateName: "seller", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Seller> seller,
+        ILogger<SellerActor> logger)
     {
-        this._logger = _logger;
+        this.seller = seller;
+        this.logger = logger;
     }
 
-    public Task IndexProduct(int product_id)
+    public Task IndexProduct(int productId)
     {
+        this.productIds.Add(productId);
         return Task.CompletedTask;
     }
 
@@ -37,6 +47,12 @@ public class SellerActor : Grain, ISellerActor
     public Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
         throw new NotImplementedException();
+    }
+
+    public async Task SetSeller(Seller seller)
+    {
+        this.seller.State = seller;
+        await this.seller.WriteStateAsync();
     }
 }
 

@@ -1,3 +1,4 @@
+using Common.Entities;
 using Common.Events;
 using Orleans.Concurrency;
 
@@ -5,6 +6,7 @@ namespace Orleans.Interfaces;
 
 public interface ISellerActor : IGrainWithIntegerKey
 {
+
     public Task IndexProduct(int product_id);
 
     [OneWay]
@@ -18,6 +20,8 @@ public interface ISellerActor : IGrainWithIntegerKey
 
     [OneWay]
     public Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+
+    Task SetSeller(Seller seller);
 
 }
 

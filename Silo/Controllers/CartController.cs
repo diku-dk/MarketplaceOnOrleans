@@ -1,26 +1,20 @@
-﻿using System;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using System.Net;
-using Orleans.Controllers;
 using Orleans.Interfaces;
 
 namespace Silo.Controllers;
 
-
 [ApiController]
 public class CartController : ControllerBase
 {
+    private readonly ILogger<CartController> logger;
 
-    private readonly ILogger<OrleansController> logger;
-
-    public CartController(ILogger<OrleansController> logger)
+    public CartController(ILogger<CartController> logger)
     {
         this.logger = logger;
     }
-
 
     [Route("/cart/{customerId}/add")]
     [HttpPatch]

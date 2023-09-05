@@ -8,20 +8,24 @@ namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
-    private int sellerId;
-    private Dictionary<int, Shipment> shipments;
-    private Dictionary<int, List<Package>> packages;
+    private int partitionId;
 
-	public ShipmentActor()
+    private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
+    private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
+
+	public ShipmentActor(
+        [PersistentState(stateName: "shipments", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,Shipment>> shipments,
+         [PersistentState(stateName: "packages", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,List<Package>>> packages)
 	{
-        this.shipments = new Dictionary<int, Shipment>();
-        this.packages = new Dictionary<int, List<Package>>();
+        this.shipments = shipments;
+        this.packages = packages;
 	}
 
     public override Task OnActivateAsync(CancellationToken token)
     {
-        this.sellerId = (int) this.GetPrimaryKeyLong();
-
+        this.partitionId = (int) this.GetPrimaryKeyLong();
+        if(this.shipments.State is null) this.shipments.State = new();
+        if(this.packages.State is null) this.packages.State = new();
         return Task.CompletedTask;
     }
 
@@ -53,8 +57,8 @@ public class ShipmentActor : Grain, IShipmentActor
         };
 
         // in memory
-        shipments.Add(shipment.order_id, shipment);
-        packages.Add(shipment.order_id, new List<Package>());
+        shipments.State.Add(shipment.order_id, shipment);
+        packages.State.Add(shipment.order_id, new List<Package>());
 
         foreach (var item in items)
         {
@@ -71,19 +75,19 @@ public class ShipmentActor : Grain, IShipmentActor
                 quantity = item.quantity
             };
 
-            packages[shipment.order_id].Add(package);
+            packages.State[shipment.order_id].Add(package);
            
             package_id++;
         }
 
 
         // inform seller
-        var sellerActor = GrainFactory.GetGrain<ISellerActor>(this.sellerId);
+        // var sellerActor = GrainFactory.GetGrain<ISellerActor>(this.sellerId);
 
         // inform customer
+        // var custActor = GrainFactory.GetGrain<ICustomerActor>(paymentConfirmed.customer.CustomerId);
 
 
-        var custActor = GrainFactory.GetGrain<ICustomerActor>(paymentConfirmed.customer.CustomerId);
 
         var mark = new TransactionMark(paymentConfirmed.instanceId, TransactionType.CUSTOMER_SESSION, paymentConfirmed.customer.CustomerId, MarkStatus.SUCCESS, "shipment");
 
