@@ -5,49 +5,53 @@
      * Ideally, address and credit card info may change across customer checkouts
      * Basket and Order does not need to know all internal data about customers
      */
-    public record CustomerCheckout(
+    public class CustomerCheckout
+    {
     
-        int CustomerId,
+        public int CustomerId { get; set; }
 
         /**
         * Delivery address (could be different from customer's address)
         */
-        string FirstName,
+        public string FirstName { get; set; } 
 
-        string LastName,
+        public string LastName { get; set; } 
 
-        string Street,
+        public string Street { get; set; } 
 
-        string Complement,
+        public string Complement { get; set; } 
 
-        string City,
+        public string City { get; set; } 
 
-        string State,
+        public string State { get; set; } 
 
-        string ZipCode,
+        public string ZipCode { get; set; } 
 
         /**
         * Payment type
         */
-        string PaymentType,
+        public string PaymentType { get; set; } 
 
         /**
         * Credit or debit card
         */
-        string CardNumber,
+        public string CardNumber { get; set; } 
 
-        string CardHolderName,
+        public string CardHolderName { get; set; } 
 
-        string CardExpiration,
+        public string CardExpiration { get; set; } 
 
-        string CardSecurityNumber,
+        public string CardSecurityNumber { get; set; } 
 
-        string CardBrand,
+        public string CardBrand { get; set; } 
 
         // if no credit card, must be 1
-        int Installments,
+        public int Installments { get; set; } 
 
-        int instanceId
-    );
+        public int instanceId { get; set; }
+
+        public CustomerCheckout(){ }
+
+    }
     
 }

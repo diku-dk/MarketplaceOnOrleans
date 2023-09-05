@@ -82,13 +82,11 @@ public class OrderActor : Grain, IOrderActor
         {
             float total_item = item.UnitPrice * item.Quantity;
 
-            float sumVouchers = item.Vouchers.Sum();
-
-            if (total_item - sumVouchers > 0)
+            if (total_item - item.Voucher > 0)
             {
-                total_amount -= sumVouchers;
-                total_incentive += sumVouchers;
-                total_item -= sumVouchers;
+                total_amount -= item.Voucher;
+                total_incentive += item.Voucher;
+                total_item -= item.Voucher;
             }
             else
             {

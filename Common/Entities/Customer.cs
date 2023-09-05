@@ -1,5 +1,6 @@
 ﻿namespace Common.Entities
 {
+
     public class Customer
     {
         // olist data set
@@ -45,6 +46,8 @@
 
         // additional
         public string data { get; set; } = "";
+
+        public Customer(){ }
 
     }
 }
