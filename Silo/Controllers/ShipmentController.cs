@@ -21,13 +21,11 @@ public class ShipmentController : ControllerBase
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, int instanceId)
     {
         logger.LogDebug("instance id", instanceId);
-        var registrar = grains.GetGrain<IRegistrarActor>(0);
-        int numSellers = await registrar.GetNumSellers();
-        List<Task> tasks = new List<Task>(numSellers);
-        for(int i = 1; i <= numSellers; i++)
+        List<Task> tasks = new List<Task>(Orleans.Infra.Constants.NumShipmentActors);
+        for(int i = 1; i <= Orleans.Infra.Constants.NumShipmentActors; i++)
         {
-            var grain = grains.GetGrain<IShipmentActor>(1);
-            tasks.Add(grain.UpdateShipment());
+            var grain = grains.GetGrain<IShipmentActor>(i);
+            tasks.Add(grain.UpdateShipment(instanceId));
         }
 
         await Task.WhenAll(tasks);

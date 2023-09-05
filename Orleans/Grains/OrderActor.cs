@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
+using Orleans.Runtime;
 
 namespace Orleans.Grains;
 
@@ -11,21 +12,30 @@ namespace Orleans.Grains;
 public class OrderActor : Grain, IOrderActor
 {
     ILogger<OrderActor> _logger;
-    Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
+    // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
+
+    private readonly IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders;
+    private readonly IPersistentState<int> nextOrderId;
 
     private int customerId;
-    private int nextOrderId;
 
-    public OrderActor(ILogger<OrderActor> _logger) 
+    public OrderActor(
+        [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders,
+        [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<int> nextOrderId,
+        ILogger<OrderActor> _logger) 
     {
         this._logger = _logger;
+        this.orders = orders;
+        this.nextOrderId = nextOrderId;
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
     {
-        nextOrderId = 1;
-        customerId = (int)this.GetPrimaryKeyLong();
-        orders = new Dictionary<int, (Order, List<OrderItem>)>();
+
+        if(this.orders.State is null) this.orders.State = new();
+        if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
+
+        this.customerId = (int)this.GetPrimaryKeyLong();
         await base.OnActivateAsync(token);
     }
 
@@ -90,32 +100,7 @@ public class OrderActor : Grain, IOrderActor
             totalPerItem.Add(item.ProductId, total_item);
         }
 
-        /*
-        // TODO get from customer
-        CustomerOrder customerOrder = null; // this.customerOrderState.State[reserveStock.customerCheckout.CustomerId];
-
-        if (customerOrder is null)
-        {
-            customerOrder = new()
-            {
-                customer_id = reserveStock.customerCheckout.CustomerId,
-                next_order_id = 1
-            };
-            // this.customerOrderState.State.Add(reserveStock.customerCheckout.CustomerId, customerOrder);
-        }
-        else
-        {
-            customerOrder.next_order_id += 1;
-        }
-        // await this.customerOrderState.WriteStateAsync();
-        
-
-        StringBuilder stringBuilder = new StringBuilder().Append(reserveStock.customerCheckout.CustomerId)
-                                                         .Append("-").Append(now.ToString("d", enUS))
-                                                         .Append("-").Append(nextOrderId);
-        */
-
-        var orderId = nextOrderId++;
+        var orderId = nextOrderId.State++;
         var order = new Order()
         {
             id = orderId,
@@ -132,33 +117,40 @@ public class OrderActor : Grain, IOrderActor
         };
         
         List<OrderItem> items = new();
-        itemsToCheckout.ForEach(x =>
+
+        int id = 1;
+        foreach (var item in reserveStock.items)
         {
             items.Add(new OrderItem
             {
                 order_id = orderId,
-                //order_item_id = ,             // ????
-                product_id = x.ProductId,
-                product_name = x.ProductName,
-                seller_id = x.SellerId,
-                unit_price = x.UnitPrice,
-                //shipping_limit_date = ,      // ????
-                freight_value = x.FreightValue,
-                quantity = x.Quantity,
-                total_items = total_items,
-                total_amount = total_amount,
-                vouchers = x.Vouchers,
+                order_item_id = id,
+                product_id = item.ProductId,
+                product_name = item.ProductName,
+                seller_id = item.SellerId,
+                unit_price = item.UnitPrice,
+                quantity = item.Quantity,
+                total_items = item.UnitPrice * item.Quantity,
+                total_amount = totalPerItem[item.ProductId],
+                freight_value = item.FreightValue,
+                shipping_limit_date = now.AddDays(3)
             });
-        });
+            id++;
+        }
 
-        orders.Add(orderId, (order, items));
+        orders.State.Add(orderId, (order, items, new(){new OrderHistory()
+            {
+                order_id = orderId,
+                created_at = now,
+                status = OrderStatus.INVOICED
+            } } ));
 
         var invoice = new InvoiceIssued
         (
             reserveStock.customerCheckout,
             orderId,
             Helper.GetInvoiceNumber(customerId, now, orderId),
-            DateTime.UtcNow,
+            now,
             total_amount,
             items,
             reserveStock.instanceId
@@ -178,15 +170,36 @@ public class OrderActor : Grain, IOrderActor
         _logger.LogWarning($"Notify {sellers.Count} sellers InvoiceIssued. ");
     }
 
-    public class CustomerOrder
+    public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
 
-        public int customer_id { get; set; }
+        DateTime now = DateTime.UtcNow;
 
-        public int next_order_id { get; set; }
+        OrderStatus orderStatus = OrderStatus.READY_FOR_SHIPMENT;
+        if (shipmentNotification.status == ShipmentStatus.delivery_in_progress) orderStatus = OrderStatus.IN_TRANSIT;
+        if (shipmentNotification.status == ShipmentStatus.concluded) orderStatus = OrderStatus.DELIVERED;
 
-        public CustomerOrder() { }
+        orders.State[shipmentNotification.orderId].Item3.Add( new()
+        {
+            order_id = shipmentNotification.orderId,
+            created_at = now,
+            status = orderStatus
+        } );
+        var order = orders.State[shipmentNotification.orderId].Item1;
+        order.status = orderStatus;
+        order.updated_at = now;
 
+        if (order.status == OrderStatus.DELIVERED)
+        {
+            order.delivered_customer_date = shipmentNotification.eventDate;
+        
+            orders.State.Remove(shipmentNotification.orderId);
+            
+
+            // TODO log finished order
+        }
+
+        await orders.WriteStateAsync();
     }
 
 }

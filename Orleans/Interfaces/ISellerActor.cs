@@ -7,19 +7,22 @@ namespace Orleans.Interfaces;
 public interface ISellerActor : IGrainWithIntegerKey
 {
 
-    public Task IndexProduct(int product_id);
+    Task IndexProduct(int product_id);
 
     [OneWay]
-    public Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
+    Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
 
     [OneWay]
-    public Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed);
+    Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed);
 
     [OneWay]
-    public Task ProcessPaymentFailed(PaymentFailed paymentFailed);
+    Task ProcessPaymentFailed(PaymentFailed paymentFailed);
 
     [OneWay]
-    public Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+    Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+
+    [OneWay]
+    Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification);
 
     Task SetSeller(Seller seller);
 

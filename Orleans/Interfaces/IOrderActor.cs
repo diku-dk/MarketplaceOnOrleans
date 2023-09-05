@@ -7,5 +7,9 @@ namespace Orleans.Interfaces
     {
         [OneWay]
         Task Checkout(ReserveStock reserveStock);
+
+        [OneWay]
+        Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+
     }
 }

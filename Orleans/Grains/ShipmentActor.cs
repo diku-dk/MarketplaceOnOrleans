@@ -3,13 +3,14 @@ using Common.Entities;
 using Common.Events;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using Orleans.Streams;
 
 namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
     private int partitionId;
-
+    private IAsyncStream<TransactionMark> stream;
     private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
 
@@ -26,6 +27,11 @@ public class ShipmentActor : Grain, IShipmentActor
         this.partitionId = (int) this.GetPrimaryKeyLong();
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
+
+        var streamProvider = this.GetStreamProvider(Infra.Constants.DefaultStreamProvider);
+        var streamId = StreamId.Create(Infra.Constants.MarkNamespace, Infra.Constants.CheckoutMarkStreamId);
+        this.stream = streamProvider.GetStream<TransactionMark>(streamId);
+
         return Task.CompletedTask;
     }
 
@@ -33,18 +39,14 @@ public class ShipmentActor : Grain, IShipmentActor
     {
         int package_id = 1;
 
-        // TODO better if payment already filters for each shipment
-        var items = paymentConfirmed.items;
-                    // .Where(x => x.seller_id == sellerId);
-
         DateTime now = DateTime.UtcNow;
 
         Shipment shipment = new()
         {
             order_id = paymentConfirmed.orderId,
             customer_id = paymentConfirmed.customer.CustomerId,
-            package_count = items.Count,
-            total_freight_value = items.Sum(i => i.freight_value),
+            package_count = paymentConfirmed.items.Count,
+            total_freight_value = paymentConfirmed.items.Sum(i => i.freight_value),
             request_date = now,
             status = ShipmentStatus.approved,
             first_name = paymentConfirmed.customer.FirstName,
@@ -60,7 +62,7 @@ public class ShipmentActor : Grain, IShipmentActor
         shipments.State.Add(shipment.order_id, shipment);
         packages.State.Add(shipment.order_id, new List<Package>());
 
-        foreach (var item in items)
+        foreach (var item in paymentConfirmed.items)
         {
             Package package = new()
             {
@@ -81,27 +83,95 @@ public class ShipmentActor : Grain, IShipmentActor
         }
 
 
+        var mark = new TransactionMark(paymentConfirmed.instanceId, TransactionType.CUSTOMER_SESSION, paymentConfirmed.customer.CustomerId, MarkStatus.SUCCESS, "shipment");
+        await stream.OnNextAsync(mark);
+
+        ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId);
         // inform seller
-        // var sellerActor = GrainFactory.GetGrain<ISellerActor>(this.sellerId);
+        var tasks = new List<Task>();
+        var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
+        foreach (var sellerID in sellers)
+        {
+            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
+            tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
+        }
+        await Task.WhenAll(tasks);
 
         // inform customer
         // var custActor = GrainFactory.GetGrain<ICustomerActor>(paymentConfirmed.customer.CustomerId);
 
-
-
-        var mark = new TransactionMark(paymentConfirmed.instanceId, TransactionType.CUSTOMER_SESSION, paymentConfirmed.customer.CustomerId, MarkStatus.SUCCESS, "shipment");
-
-        var streamProvider = this.GetStreamProvider(Infra.Constants.DefaultStreamProvider);
-        var streamId = StreamId.Create(Infra.Constants.MarkNamespace, Infra.Constants.CheckoutMarkStreamId);
-        var stream = streamProvider.GetStream<TransactionMark>(streamId);
-
-        await stream.OnNextAsync(mark);
+        var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.orderId);
+        await orderActor.ProcessShipmentNotification(shipmentNotification);
     }
 
-    public Task UpdateShipment()
+    public async Task UpdateShipment(int tid)
     {
-        // how to know if this seller has open shipments?
-        throw new NotImplementedException();
+        // impossibility of ensuring one order per seller in this transaction
+        // since sellers' packages are distributed across many
+        // shipment actors
+
+        var now = DateTime.UtcNow;
+
+        var q = this.packages.State.SelectMany(x=>x.Value)
+            .GroupBy(x => x.seller_id)
+                            .Select(g => new { sellerId = g.Key, orderId = g.Min(x => x.order_id) }).Take(10);
+
+        foreach(var x in q)
+        {
+            var packages_ = this.packages.State[x.orderId].Where( p=>p.seller_id == x.sellerId ).ToList();
+            var shipment = this.shipments.State[x.orderId];
+
+            List<Task> tasks = new(packages_.Count() + 1);
+
+            if (shipment.status == ShipmentStatus.approved)
+            {
+                shipment.status = ShipmentStatus.delivery_in_progress;
+
+                // TODO maybe order do not need this event...
+                //ShipmentNotification shipmentNotification = new ShipmentNotification(
+                //        shipment.customer_id, shipment.order_id, now, instanceId, ShipmentStatus.delivery_in_progress);
+                //tasks.Add(this.daprClient.PublishEventAsync(PUBSUB_NAME, nameof(ShipmentNotification), shipmentNotification));
+            }
+
+            int countDelivered = this.packages.State[x.orderId].Where( p=>p.status == PackageStatus.delivered ).Count();
+
+            foreach (var package in packages_)
+            {
+                package.status = PackageStatus.delivered;
+                package.delivery_date = now;
+                var deliveryNotification = new DeliveryNotification(
+                    shipment.customer_id, package.order_id, package.package_id, package.seller_id,
+                    package.product_id, package.product_name, PackageStatus.delivered, now, tid);
+
+                tasks.Add( GrainFactory.GetGrain<ICustomerActor>(shipment.customer_id)
+                    .NotifyDelivery(deliveryNotification) );
+                tasks.Add( GrainFactory.GetGrain<ISellerActor>(package.seller_id)
+                    .ProcessDeliveryNotification(deliveryNotification) );
+            }
+
+            if (shipment.package_count == countDelivered + packages_.Count())
+            {
+                shipment.status = ShipmentStatus.concluded;
+                ShipmentNotification shipmentNotification = new ShipmentNotification(
+                shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
+                tasks.Add(     GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
+                    .ProcessShipmentNotification(shipmentNotification));
+                tasks.Add (    GrainFactory.GetGrain<IOrderActor>(shipment.order_id)
+                    .ProcessShipmentNotification(shipmentNotification)          
+                    );
+
+                // TODO log shipment and packages
+                this.shipments.State.Remove(x.orderId);
+                this.packages.State.Remove(x.orderId);
+            }
+
+            // no need to wait for oneway events
+            await Task.WhenAll( tasks );
+
+        }
+
+        await Task.WhenAll( this.shipments.WriteStateAsync(), this.packages.WriteStateAsync() );
+
     }
 }
 

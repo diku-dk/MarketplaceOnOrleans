@@ -6,7 +6,6 @@ using Orleans.Runtime;
 
 namespace Orleans.Grains;
 
-
 public class SellerActor : Grain, ISellerActor
 {
     private readonly ILogger<SellerActor> logger;
@@ -23,15 +22,23 @@ public class SellerActor : Grain, ISellerActor
         this.logger = logger;
     }
 
+    // only in case there is interactive product query
     public Task IndexProduct(int productId)
     {
         this.productIds.Add(productId);
         return Task.CompletedTask;
     }
 
+    public async Task SetSeller(Seller seller)
+    {
+        this.seller.State = seller;
+        await this.seller.WriteStateAsync();
+    }
+
     public Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
-        throw new NotImplementedException();
+        // logger.LogInformation("New invoice received: ", invoiceIssued);
+        return Task.CompletedTask;
     }
 
     public Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
@@ -46,14 +53,15 @@ public class SellerActor : Grain, ISellerActor
 
     public Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
-        throw new NotImplementedException();
+        // logger.LogInformation("New invoice received: ", invoiceIssued);
+        return Task.CompletedTask;
     }
 
-    public async Task SetSeller(Seller seller)
+    public Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
-        this.seller.State = seller;
-        await this.seller.WriteStateAsync();
+        return Task.CompletedTask;
     }
+
 }
 
 

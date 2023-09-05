@@ -7,6 +7,6 @@ public interface IShipmentActor : IGrainWithIntegerKey
 
 	Task ProcessShipment(PaymentConfirmed paymentConfirmed);
 
-	Task UpdateShipment();
+	Task UpdateShipment(int tid);
 
 }
