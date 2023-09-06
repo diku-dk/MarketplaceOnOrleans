@@ -11,7 +11,7 @@ namespace Orleans.Grains;
 [Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
-    ILogger<OrderActor> _logger;
+    private readonly ILogger<OrderActor> _logger;
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
     private readonly IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders;
@@ -99,19 +99,22 @@ public class OrderActor : Grain, IOrderActor
         }
 
         var orderId = nextOrderId.State++;
+        var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
         var order = new Order()
         {
             id = orderId,
             customer_id = reserveStock.customerCheckout.CustomerId,
+            invoice_number = invoiceNumber,
             status = OrderStatus.INVOICED,
-            created_at = DateTime.UtcNow,
             purchase_date = reserveStock.timestamp,
             total_amount = total_amount,
             total_items = total_items,
             total_freight = total_freight,
             total_incentive = total_incentive,
             total_invoice = total_amount + total_freight,
-            count_items = itemsToCheckout.Count()
+            count_items = itemsToCheckout.Count(),
+            created_at = now,
+            updated_at = now,
         };
         
         List<OrderItem> items = new();
@@ -147,12 +150,13 @@ public class OrderActor : Grain, IOrderActor
         (
             reserveStock.customerCheckout,
             orderId,
-            Helper.GetInvoiceNumber(customerId, now, orderId),
+            invoiceNumber,
             now,
-            total_amount,
+            order.total_invoice,
             items,
             reserveStock.instanceId
         );
+
         var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
         await paymentActor.ProcessPayment(invoice);
         _logger.LogWarning($"Notify payment actor InvoiceIssued. ");
@@ -200,4 +204,9 @@ public class OrderActor : Grain, IOrderActor
         await orders.WriteStateAsync();
     }
 
+    public Task<List<Order>> GetOrders()
+    {
+        var res = this.orders.State.Select(x=>x.Value.Item1).ToList();
+        return Task.FromResult(res);
+    }
 }

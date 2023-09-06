@@ -20,7 +20,6 @@ public class ClusterFixture : IDisposable
          .AddMemoryGrainStorage("PubSubStore")
          .AddAdoNetGrainStorage("OrleansStorage", options =>
          {
-             
              options.Invariant = "Npgsql";
              options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
          })

@@ -13,7 +13,7 @@ namespace Common.Integration
         public float Amount { get; set; }
         public string PaymentMethod { get; set; } = "";
         public string IdempotencyKey { get; set; } = "";
-        public CardOptions? cardOptions { get; set; }
+        public CardOptions cardOptions { get; set; }
         public string SetupFutureUsage { get; set; } = "off_session";
         public Currency Currency { get; set; } = Currency.USD;
 

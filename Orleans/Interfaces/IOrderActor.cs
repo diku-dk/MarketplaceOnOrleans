@@ -1,4 +1,5 @@
-﻿using Common.Events;
+﻿using Common.Entities;
+using Common.Events;
 using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
@@ -10,6 +11,8 @@ namespace Orleans.Interfaces
 
         [OneWay]
         Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+
+        Task<List<Order>> GetOrders();
 
     }
 }

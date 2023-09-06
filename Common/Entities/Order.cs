@@ -14,6 +14,8 @@
         // FK
         public int customer_id { get; set; }
 
+        public string invoice_number { get; set; } = "";
+
         public OrderStatus status { get; set; }
 
         public DateTime purchase_date { get; set; }
