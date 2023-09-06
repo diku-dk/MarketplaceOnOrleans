@@ -1,7 +1,10 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using RocksDbSharp;
 
 namespace Orleans.Grains;
 
@@ -11,13 +14,21 @@ public class ShipmentActor : Grain, IShipmentActor
     private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
 
-	public ShipmentActor(
+    readonly ILogger<ShipmentActor> _logger;
+    readonly RocksDb db;
+
+    public ShipmentActor(
+        ILogger<ShipmentActor> _logger,
         [PersistentState(stateName: "shipments", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,Shipment>> shipments,
          [PersistentState(stateName: "packages", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,List<Package>>> packages)
 	{
+        this._logger = _logger;
         this.shipments = shipments;
         this.packages = packages;
-	}
+
+        var options = new DbOptions().SetCreateIfMissing(true);
+        db = RocksDb.Open(options, typeof(ShipmentActor).FullName);
+    }
 
     public override Task OnActivateAsync(CancellationToken token)
     {
@@ -148,7 +159,11 @@ public class ShipmentActor : Grain, IShipmentActor
                     .ProcessShipmentNotification(shipmentNotification)          
                     );
 
-                // TODO log shipment and packages
+                // log shipment and packages
+                var str = JsonSerializer.Serialize((shipment, packages_));
+                db.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
+                _logger.LogWarning($"Log shipment info to RocksDB. ");
+
                 this.shipments.State.Remove(x.orderId);
                 this.packages.State.Remove(x.orderId);
             }

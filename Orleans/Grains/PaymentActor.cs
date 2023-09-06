@@ -3,32 +3,29 @@ using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces;
-using Orleans.Runtime;
+using RocksDbSharp;
+using System.Text.Json;
 
 namespace Orleans.Grains;
 
 internal class PaymentActor : Grain, IPaymentActor
 {
     private int customerId;
-    private readonly IPersistentState<Dictionary<int, List<OrderPayment>>> payments;    // <orderId, one record per paid card>
-    private readonly IPersistentState<Dictionary<int, OrderPaymentCard>> paymentCards;  // <orderId, cards used for the payment> 
-    private readonly ILogger<PaymentActor> _logger;
+    readonly ILogger<PaymentActor> _logger;
 
-    public PaymentActor(
-      [PersistentState(stateName: "payments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int, List<OrderPayment>>> payments,
-      [PersistentState(stateName: "paymentCards", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int, OrderPaymentCard>> paymentCards,
-        ILogger<PaymentActor> _logger)
+    readonly RocksDb db;
+
+    public PaymentActor(ILogger<PaymentActor> _logger)
     {
-        this.payments = payments;
-        this.paymentCards = paymentCards;
         this._logger = _logger;
+
+        var options = new DbOptions().SetCreateIfMissing(true);
+        db = RocksDb.Open(options, typeof(PaymentActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
     {
         this.customerId = (int)this.GetPrimaryKeyLong();
-        if(this.payments.State is null) this.payments.State = new();
-        if(this.paymentCards.State is null) this.paymentCards.State = new();
         await base.OnActivateAsync(token);
     }
 
@@ -39,7 +36,8 @@ internal class PaymentActor : Grain, IPaymentActor
         var cc = invoiceIssued.customer.PaymentType.Equals(PaymentType.CREDIT_CARD.ToString());
 
         // create payment tuples
-        if (!payments.State.ContainsKey(invoiceIssued.orderId)) payments.State.Add(invoiceIssued.orderId, new List<OrderPayment>());
+        var orderPayment = new List<OrderPayment>();
+        OrderPaymentCard card = null;
         if (cc || invoiceIssued.customer.PaymentType.Equals(PaymentType.DEBIT_CARD.ToString()))
         {
             var cardPaymentLine = new OrderPayment()
@@ -50,10 +48,10 @@ internal class PaymentActor : Grain, IPaymentActor
                 payment_installments = invoiceIssued.customer.Installments,
                 payment_value = invoiceIssued.totalInvoice
             };
-            payments.State[invoiceIssued.orderId].Add(cardPaymentLine);
+            orderPayment.Add(cardPaymentLine);
 
             // create an entity for credit card payment details with FK to order payment
-            var card = new OrderPaymentCard()
+            card = new OrderPaymentCard()
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
@@ -63,14 +61,12 @@ internal class PaymentActor : Grain, IPaymentActor
                 card_brand = invoiceIssued.customer.CardBrand
             };
 
-            paymentCards.State.Add(invoiceIssued.orderId, card);
-
             seq++;
         }
 
         if (invoiceIssued.customer.PaymentType.Equals(PaymentType.BOLETO.ToString()))
         {
-            payments.State[invoiceIssued.orderId].Add(new OrderPayment()
+            orderPayment.Add(new OrderPayment()
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
@@ -87,7 +83,7 @@ internal class PaymentActor : Grain, IPaymentActor
         {
             foreach (var voucher in item.vouchers)
             {
-                payments.State[invoiceIssued.orderId].Add(new OrderPayment()
+                orderPayment.Add(new OrderPayment()
                 {
                     order_id = invoiceIssued.orderId,
                     payment_sequential = seq,
@@ -99,6 +95,11 @@ internal class PaymentActor : Grain, IPaymentActor
                 seq++;
             }
         }
+
+        // Using strings below, but can also use byte arrays for both keys and values
+        var str = JsonSerializer.Serialize((orderPayment, card));
+        db.Put(invoiceIssued.customer.CustomerId.ToString() + "-" + invoiceIssued.orderId.ToString(), str);
+        _logger.LogWarning($"Log payment info to RocksDB. ");
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();
@@ -116,7 +117,7 @@ internal class PaymentActor : Grain, IPaymentActor
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmed);
         _logger.LogWarning($"Notify shipment actor PaymentConfirmed. ");
-
+        
         tasks.Clear();
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)

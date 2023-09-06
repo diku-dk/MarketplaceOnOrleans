@@ -1,10 +1,12 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using RocksDbSharp;
 
 namespace Orleans.Grains;
 
@@ -19,6 +21,8 @@ public class OrderActor : Grain, IOrderActor
 
     private int customerId;
 
+    readonly RocksDb db;
+
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<int> nextOrderId,
@@ -27,6 +31,9 @@ public class OrderActor : Grain, IOrderActor
         this._logger = _logger;
         this.orders = orders;
         this.nextOrderId = nextOrderId;
+
+        var options = new DbOptions().SetCreateIfMissing(true);
+        db = RocksDb.Open(options, typeof(OrderActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
@@ -195,10 +202,12 @@ public class OrderActor : Grain, IOrderActor
         {
             order.delivered_customer_date = shipmentNotification.eventDate;
         
-            orders.State.Remove(shipmentNotification.orderId);
-            
+            // log finished order
+            var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
+            db.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
+            _logger.LogWarning($"Log shipment info to RocksDB. ");
 
-            // TODO log finished order
+            orders.State.Remove(shipmentNotification.orderId);
         }
 
         await orders.WriteStateAsync();

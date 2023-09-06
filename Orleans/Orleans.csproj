@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Serialization.NewtonsoftJson" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="7.2.1" />
+    <PackageReference Include="RocksDB" Version="8.3.2.39829" />
     <PackageReference Include="StackExchange.Redis" Version="2.6.122" />
   </ItemGroup>
   
