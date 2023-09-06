@@ -5,11 +5,12 @@ namespace Orleans.Interfaces;
 
 public interface IStockActor : IGrainWithIntegerCompoundKey
 {
-    public Task<ItemStatus> AttemptReservation(CartItem cartItem);
-    public Task CancelReservation(int quantity);
-    public Task ConfirmReservation(int quantity);
+    Task<ItemStatus> AttemptReservation(CartItem cartItem);
+    Task CancelReservation(int quantity);
+    Task ConfirmReservation(int quantity);
 
-    public Task ProcessProductUpdate(ProductUpdated productUpdated);
+    Task ProcessProductUpdate(ProductUpdated productUpdated);
 
-    public Task SetItem(StockItem item);
+    Task SetItem(StockItem item);
+    Task<StockItem> GetItem();
 }

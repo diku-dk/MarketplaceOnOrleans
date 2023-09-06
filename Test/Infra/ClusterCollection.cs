@@ -1,4 +1,4 @@
-﻿namespace Test;
+﻿namespace Test.Infra;
 
 [CollectionDefinition(ClusterCollection.Name)]
 public class ClusterCollection : ICollectionFixture<ClusterFixture>

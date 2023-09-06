@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
-using Orleans.Streams;
 
 namespace Orleans.Grains;
 
@@ -60,6 +59,7 @@ public class ProductActor : Grain, IProductActor
     public async Task ProcessPriceUpdate(PriceUpdate priceUpdate)
     {
         this.product.State.price = priceUpdate.price;
+        this.product.State.updated_at = DateTime.UtcNow;
         await this.product.WriteStateAsync();
     }
 }

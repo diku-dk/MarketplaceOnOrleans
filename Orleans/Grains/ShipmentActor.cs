@@ -1,16 +1,13 @@
-﻿using Common.Driver;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Events;
 using Orleans.Interfaces;
 using Orleans.Runtime;
-using Orleans.Streams;
 
 namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
     private int partitionId;
-    private IAsyncStream<TransactionMark> stream;
     private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
 
@@ -27,11 +24,6 @@ public class ShipmentActor : Grain, IShipmentActor
         this.partitionId = (int) this.GetPrimaryKeyLong();
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-
-        var streamProvider = this.GetStreamProvider(Infra.Constants.DefaultStreamProvider);
-        var streamId = StreamId.Create(Infra.Constants.MarkNamespace, Infra.Constants.CheckoutMarkStreamId);
-        this.stream = streamProvider.GetStream<TransactionMark>(streamId);
-
         return Task.CompletedTask;
     }
 
@@ -81,10 +73,6 @@ public class ShipmentActor : Grain, IShipmentActor
            
             package_id++;
         }
-
-
-        var mark = new TransactionMark(paymentConfirmed.instanceId, TransactionType.CUSTOMER_SESSION, paymentConfirmed.customer.CustomerId, MarkStatus.SUCCESS, "shipment");
-        await stream.OnNextAsync(mark);
 
         ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId);
         // inform seller

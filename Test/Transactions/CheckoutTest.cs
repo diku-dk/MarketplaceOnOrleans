@@ -2,17 +2,18 @@
 using Common.Requests;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
+using Test.Infra;
 
-namespace Test;
+namespace Test.Transactions;
 
 [Collection(ClusterCollection.Name)]
-public class CheckoutWorkflowTest
+public class CheckoutTest
 {
     private readonly TestCluster _cluster;
 
     private readonly Random random = new Random();
 
-    public CheckoutWorkflowTest(ClusterFixture fixture)
+    public CheckoutTest(ClusterFixture fixture)
     {
         this._cluster = fixture.Cluster;
     }
@@ -48,6 +49,7 @@ public class CheckoutWorkflowTest
             qty_reserved = 0,
             order_count = 0,
             ytd = 1,
+            version = 1
         });
 
         var stock2 = _cluster.GrainFactory.GetGrain<IStockActor>(1,"2");
@@ -59,6 +61,7 @@ public class CheckoutWorkflowTest
             qty_reserved = 0,
             order_count = 0,
             ytd = 1,
+            version = 1
         });
 
         CustomerCheckout customerCheckout = new()
@@ -102,10 +105,11 @@ public class CheckoutWorkflowTest
             ProductId = productId,
             SellerId = sellerId,
             UnitPrice = random.Next(),
-            // OldUnitPrice = null,
-            FreightValue = 0,
+            FreightValue = 1,
             Quantity = 1,
-            Voucher = 1
+            Voucher = 1,
+            ProductName = "test",
+            Version = 1
         };
     }
 

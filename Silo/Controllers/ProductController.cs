@@ -40,7 +40,7 @@ public class ProductController : ControllerBase
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> UpdateProduct([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
+    public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
     {
         var grain = grains.GetGrain<IProductActor>(update.sellerId, update.productId.ToString());
         await grain.ProcessPriceUpdate(update);
@@ -50,7 +50,7 @@ public class ProductController : ControllerBase
     [HttpPut]
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> DeleteProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
+    public async Task<ActionResult> ProcessUpdateproduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
         var grain = grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString());
         await grain.ProcessProductUpdate(product);

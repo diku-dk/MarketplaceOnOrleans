@@ -29,4 +29,12 @@
     <ProjectReference Include="..\Orleans\Orleans.csproj" />
     <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Remove="Transactions\" />
+    <None Remove="Infra\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Transactions\" />
+    <Folder Include="Infra\" />
+  </ItemGroup>
 </Project>

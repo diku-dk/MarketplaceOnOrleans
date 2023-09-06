@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Orleans.Serialization;
 using Orleans.TestingHost;
 
-namespace Test;
+namespace Test.Infra;
 
 /**
 * https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/testing
