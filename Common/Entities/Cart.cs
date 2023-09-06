@@ -17,10 +17,7 @@ namespace Common.Entities
         // to return
         public List<ProductStatus> divergencies { get; set; }
 
-        // for dapr
-        public Cart() {
-            this.status = CartStatus.OPEN;
-        }
+        public Cart() {}
 
         public override string ToString()
         {

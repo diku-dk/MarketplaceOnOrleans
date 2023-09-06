@@ -19,5 +19,7 @@
         public static readonly string MarkNamespace = "MarkNs";
         public static readonly Guid CheckoutMarkStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC2");
 
+
+
     }
 }

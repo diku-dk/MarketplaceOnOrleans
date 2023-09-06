@@ -49,7 +49,7 @@ public class OrderActor : Grain, IOrderActor
         foreach (var item in reserveStock.items)
         {
             var stockActor = GrainFactory.GetGrain<IStockActor>(item.SellerId, item.ProductId.ToString());
-            statusResp.Add(stockActor.AttemptReservation(item.Quantity));
+            statusResp.Add(stockActor.AttemptReservation(item));
         }
         await Task.WhenAll(statusResp);
 

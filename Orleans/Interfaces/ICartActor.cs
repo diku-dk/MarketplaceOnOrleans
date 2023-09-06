@@ -8,7 +8,7 @@ namespace Orleans.Interfaces
     {
         public Task AddItem(CartItem item);
 
-        public Task<bool> NotifyCheckout(CustomerCheckout basketCheckout);
+        public Task NotifyCheckout(CustomerCheckout basketCheckout);
 
         public Task<Cart> GetCart();
 

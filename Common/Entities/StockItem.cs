@@ -14,7 +14,13 @@
 
         public int ytd { get; set; }
 
+        public DateTime created_at { get; set; }
+
+        public DateTime updated_at { get; set; }
+
         public string data { get; set; }
+
+        public int version { get; set; }
 
     }
 }

@@ -3,7 +3,6 @@ using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Interfaces;
 using Orleans.Runtime;
-using StackExchange.Redis;
 
 namespace Orleans.Grains;
 
@@ -36,18 +35,19 @@ public class StockActor : Grain, IStockActor
         await this.item.WriteStateAsync();
     }
 
-    public async Task<ItemStatus> AttemptReservation(int quantity)
+    public async Task<ItemStatus> AttemptReservation(CartItem cartItem)
     {
-        if (item is null || item.State is null) return ItemStatus.DELETED;
-        if (item.State.qty_reserved + quantity > item.State.qty_available) return ItemStatus.OUT_OF_STOCK;
-        item.State.qty_reserved += quantity;
+        if (item.State.version != cartItem.Version) return ItemStatus.UNAVAILABLE;
+        if (item.State.qty_reserved + cartItem.Quantity > item.State.qty_available) return ItemStatus.OUT_OF_STOCK;
+        item.State.qty_reserved += cartItem.Quantity;
         await item.WriteStateAsync();
         return ItemStatus.IN_STOCK;
     }
 
-    public Task CancelReservation(int quantity)
+    public async Task CancelReservation(int quantity)
     {
-        throw new NotImplementedException();
+        item.State.qty_reserved += quantity;
+        await item.WriteStateAsync();
     }
 
     public async Task ConfirmReservation(int quantity)
@@ -57,20 +57,9 @@ public class StockActor : Grain, IStockActor
         await item.WriteStateAsync();
     }
 
-    public async Task DeleteItem()
+    public async Task ProcessProductUpdate(ProductUpdated productUpdated)
     {
-        this.item.State.data = "false";
-        await this.item.WriteStateAsync();
-        // TODO publish transaction mark
-    }
-
-    public void ProcessPayment(PaymentConfirmed paymentConfirmed)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void ProcessPayment(PaymentFailed paymentFailed)
-    {
-        throw new NotImplementedException();
+        item.State.version = productUpdated.instanceId;
+        await item.WriteStateAsync();
     }
 }

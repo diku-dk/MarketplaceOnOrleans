@@ -3,25 +3,17 @@ using Common.Entities;
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Interfaces;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Orleans.Controllers;
 
 [ApiController]
-public class OrleansController : ControllerBase
+public class ProductController : ControllerBase
 {
-    private readonly ILogger<OrleansController> logger;
+    private readonly ILogger<ProductController> logger;
 
-    public OrleansController(ILogger<OrleansController> logger)
+    public ProductController(ILogger<ProductController> logger)
     {
         this.logger = logger;
-    }
-
-    [HttpGet]
-    [Route("/")]
-    public async Task<ActionResult<string>> Get([FromServices] IGrainFactory grains)
-    {
-        return Ok( await grains.GetGrain<IPersistentGrain>(0).GetUrl() );
     }
 
     [HttpPost]
@@ -48,20 +40,20 @@ public class OrleansController : ControllerBase
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> UpdateProduct([FromServices] IGrainFactory grains, [FromBody] UpdatePrice update)
+    public async Task<ActionResult> UpdateProduct([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
     {
         var grain = grains.GetGrain<IProductActor>(update.sellerId, update.productId.ToString());
-        await grain.UpdatePrice(update);
+        await grain.ProcessPriceUpdate(update);
         return Accepted();
     }
 
-    [HttpDelete]
+    [HttpPut]
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> DeleteProduct([FromServices] IGrainFactory grains, [FromBody] DeleteProduct deleteProduct)
+    public async Task<ActionResult> DeleteProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
-        var grain = grains.GetGrain<IProductActor>(deleteProduct.sellerId, deleteProduct.productId.ToString());
-        await grain.DeleteProduct(deleteProduct);
+        var grain = grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString());
+        await grain.ProcessProductUpdate(product);
         return Accepted();
     }
 }

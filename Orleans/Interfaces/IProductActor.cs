@@ -9,9 +9,9 @@ namespace Orleans.Interfaces
 
         Task<Product> GetProduct();
 
-        Task DeleteProduct(DeleteProduct deleteProduct);
+        Task ProcessProductUpdate(Product product);
 
-        Task UpdatePrice(UpdatePrice updatePrice);
+        Task ProcessPriceUpdate(PriceUpdate priceUpdate);
 
     }
 }
