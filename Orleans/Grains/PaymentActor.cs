@@ -111,14 +111,9 @@ internal class PaymentActor : Grain, IPaymentActor
         await Task.WhenAll(tasks);
         _logger.LogWarning($"Confirm reservation on {tasks.Count} stock actors. ");
 
-        // proceed to shipment actor
-        var paymentConfirmed = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, DateTime.UtcNow, invoiceIssued.instanceId);
-        var shipmentActorID = Helper.GetShipmentActorID(invoiceIssued.customer.CustomerId);
-        var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
-        await shipmentActor.ProcessShipment(paymentConfirmed);
-        _logger.LogWarning($"Notify shipment actor PaymentConfirmed. ");
-        
         tasks.Clear();
+
+        var paymentConfirmed = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, DateTime.UtcNow, invoiceIssued.instanceId);
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)
         {
@@ -127,5 +122,12 @@ internal class PaymentActor : Grain, IPaymentActor
         }
         await Task.WhenAll(tasks);
         _logger.LogWarning($"Notify {sellers.Count} sellers PaymentConfirmed. ");
+
+        // proceed to shipment actor
+        var shipmentActorID = Helper.GetShipmentActorID(invoiceIssued.customer.CustomerId);
+        var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
+        await shipmentActor.ProcessShipment(paymentConfirmed);
+        _logger.LogWarning($"Notify shipment actor PaymentConfirmed. ");
+
     }
 }

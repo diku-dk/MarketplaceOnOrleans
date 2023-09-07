@@ -13,6 +13,7 @@ Modeling actors:
 
 Actors that log historical records:
 order, payment, shipment
+also seller because of the dashboard
 
 It is single thread per function.
 Since we have one event per function call, to minimize latency, we map each entity to a logical function, e.g., order, payment, and shipment.

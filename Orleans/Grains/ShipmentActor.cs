@@ -10,12 +10,13 @@ namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
+    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
     private int partitionId;
     private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
 
-    readonly ILogger<ShipmentActor> _logger;
-    readonly RocksDb db;
+    private readonly ILogger<ShipmentActor> _logger;
+    private RocksDb db;
 
     public ShipmentActor(
         ILogger<ShipmentActor> _logger,
@@ -25,17 +26,17 @@ public class ShipmentActor : Grain, IShipmentActor
         this._logger = _logger;
         this.shipments = shipments;
         this.packages = packages;
-
-        var options = new DbOptions().SetCreateIfMissing(true);
-        db = RocksDb.Open(options, typeof(ShipmentActor).FullName);
     }
 
-    public override Task OnActivateAsync(CancellationToken token)
+    public override async Task OnActivateAsync(CancellationToken token)
     {
         this.partitionId = (int) this.GetPrimaryKeyLong();
+        // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-        return Task.CompletedTask;
+        this.db = RocksDb.Open(options, typeof(ShipmentActor).FullName);
+
+        await base.OnActivateAsync(token);
     }
 
     public async Task ProcessShipment(PaymentConfirmed paymentConfirmed)
@@ -96,9 +97,6 @@ public class ShipmentActor : Grain, IShipmentActor
         }
         await Task.WhenAll(tasks);
 
-        // inform customer
-        // var custActor = GrainFactory.GetGrain<ICustomerActor>(paymentConfirmed.customer.CustomerId);
-
         var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.orderId);
         await orderActor.ProcessShipmentNotification(shipmentNotification);
     }
@@ -121,17 +119,6 @@ public class ShipmentActor : Grain, IShipmentActor
             var shipment = this.shipments.State[x.orderId];
 
             List<Task> tasks = new(packages_.Count() + 1);
-
-            if (shipment.status == ShipmentStatus.approved)
-            {
-                shipment.status = ShipmentStatus.delivery_in_progress;
-
-                // TODO maybe order do not need this event...
-                //ShipmentNotification shipmentNotification = new ShipmentNotification(
-                //        shipment.customer_id, shipment.order_id, now, instanceId, ShipmentStatus.delivery_in_progress);
-                //tasks.Add(this.daprClient.PublishEventAsync(PUBSUB_NAME, nameof(ShipmentNotification), shipmentNotification));
-            }
-
             int countDelivered = this.packages.State[x.orderId].Where( p=>p.status == PackageStatus.delivered ).Count();
 
             foreach (var package in packages_)
@@ -146,6 +133,15 @@ public class ShipmentActor : Grain, IShipmentActor
                     .NotifyDelivery(deliveryNotification) );
                 tasks.Add( GrainFactory.GetGrain<ISellerActor>(package.seller_id)
                     .ProcessDeliveryNotification(deliveryNotification) );
+            }
+
+            if (shipment.status == ShipmentStatus.approved)
+            {
+                shipment.status = ShipmentStatus.delivery_in_progress;
+                ShipmentNotification shipmentNotification = new ShipmentNotification(
+                        shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.delivery_in_progress);
+                tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.order_id)
+                    .ProcessShipmentNotification(shipmentNotification) );
             }
 
             if (shipment.package_count == countDelivered + packages_.Count())

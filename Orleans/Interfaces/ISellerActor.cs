@@ -8,8 +8,6 @@ namespace Orleans.Interfaces;
 public interface ISellerActor : IGrainWithIntegerKey
 {
 
-    Task IndexProduct(int product_id);
-
     [OneWay]
     Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
 

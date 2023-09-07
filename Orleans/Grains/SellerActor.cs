@@ -3,13 +3,16 @@ using Common.Entities;
 using Common.Events;
 using Common.Integration;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using RocksDbSharp;
 
 namespace Orleans.Grains;
 
 public class SellerActor : Grain, ISellerActor
 {
+    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
     private readonly ILogger<SellerActor> logger;
 
     private int sellerId;
@@ -17,7 +20,7 @@ public class SellerActor : Grain, ISellerActor
     private readonly IPersistentState<Seller> seller;
     private readonly IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries;
 
-    private readonly List<int> productIds = new List<int>();
+    private RocksDb db;
 
     public SellerActor(
         [PersistentState(stateName: "seller", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Seller> seller,
@@ -29,18 +32,14 @@ public class SellerActor : Grain, ISellerActor
         this.logger = logger;
     }
 
-    public override Task OnActivateAsync(CancellationToken token)
+    public override async Task OnActivateAsync(CancellationToken token)
     {
         this.sellerId = (int) this.GetPrimaryKeyLong();
-        if(this.orderEntries.State is null) this.orderEntries.State = new();
-        return Task.CompletedTask;
-    }
 
-    // only in case there is interactive product query
-    public Task IndexProduct(int productId)
-    {
-        this.productIds.Add(productId);
-        return Task.CompletedTask;
+        // persistence
+        if(this.orderEntries.State is null) this.orderEntries.State = new();
+        this.db = RocksDb.Open(options, typeof(OrderActor).FullName);
+        await base.OnActivateAsync(token);
     }
 
     public async Task SetSeller(Seller seller)
@@ -117,10 +116,17 @@ public class SellerActor : Grain, ISellerActor
             if(shipmentNotification.status == ShipmentStatus.concluded){
                 item.order_status = OrderStatus.DELIVERED;
                 item.delivery_status = PackageStatus.delivered;
-                item.delivery_date = shipmentNotification.eventDate;
-                // TODO log delivered entries and remove them from state
+                item.delivery_date = shipmentNotification.eventDate;   
             }
                 
+        }
+        // log delivered entries and remove them from state
+        if (shipmentNotification.status == ShipmentStatus.concluded)
+        {
+            List<OrderEntry> entries = this.orderEntries.State[id];
+            var str = JsonSerializer.Serialize(entries);
+            db.Put(id, str);
+            this.orderEntries.State.Remove(id);
         }
         await this.orderEntries.WriteStateAsync();
     }

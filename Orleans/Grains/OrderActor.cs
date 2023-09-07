@@ -13,6 +13,8 @@ namespace Orleans.Grains;
 [Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
+    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
+
     private readonly ILogger<OrderActor> _logger;
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
@@ -21,7 +23,7 @@ public class OrderActor : Grain, IOrderActor
 
     private int customerId;
 
-    readonly RocksDb db;
+    private RocksDb db;
 
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders,
@@ -31,16 +33,14 @@ public class OrderActor : Grain, IOrderActor
         this._logger = _logger;
         this.orders = orders;
         this.nextOrderId = nextOrderId;
-
-        var options = new DbOptions().SetCreateIfMissing(true);
-        db = RocksDb.Open(options, typeof(OrderActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
     {
-
+        // persistence
         if(this.orders.State is null) this.orders.State = new();
         if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
+        this.db = RocksDb.Open(options, typeof(OrderActor).FullName);
 
         this.customerId = (int)this.GetPrimaryKeyLong();
         await base.OnActivateAsync(token);
@@ -164,10 +164,6 @@ public class OrderActor : Grain, IOrderActor
             reserveStock.instanceId
         );
 
-        var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
-        await paymentActor.ProcessPayment(invoice);
-        _logger.LogWarning($"Notify payment actor InvoiceIssued. ");
-
         var tasks = new List<Task>();
         var sellers = items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)
@@ -177,11 +173,14 @@ public class OrderActor : Grain, IOrderActor
         }
         await Task.WhenAll(tasks);
         _logger.LogWarning($"Notify {sellers.Count} sellers InvoiceIssued. ");
+
+        var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
+        await paymentActor.ProcessPayment(invoice);
+        _logger.LogWarning($"Notify payment actor InvoiceIssued. ");
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
-
         DateTime now = DateTime.UtcNow;
 
         OrderStatus orderStatus = OrderStatus.READY_FOR_SHIPMENT;

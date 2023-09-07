@@ -36,8 +36,7 @@ public class ProductActor : Grain, IProductActor
         this.product.State = product;
         ISellerActor sellerActor = this.GrainFactory.GetGrain<ISellerActor>(product.seller_id);
         // notify seller
-        await Task.WhenAll( sellerActor.IndexProduct(product.product_id),
-                            this.product.WriteStateAsync() );
+        await this.product.WriteStateAsync();
     }
 
     public async Task ProcessProductUpdate(Product product)
