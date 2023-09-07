@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Mvc;
+using Orleans.Infra;
 using Orleans.Interfaces;
 
 namespace Silo.Controllers;
-
 
 [ApiController]
 public class ShipmentController : ControllerBase
@@ -21,8 +21,8 @@ public class ShipmentController : ControllerBase
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, int instanceId)
     {
         logger.LogDebug("instance id", instanceId);
-        List<Task> tasks = new List<Task>(Orleans.Infra.Constants.NumShipmentActors);
-        for(int i = 1; i <= Orleans.Infra.Constants.NumShipmentActors; i++)
+        List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
+        for(int i = 1; i <= Constants.NumShipmentActors; i++)
         {
             var grain = grains.GetGrain<IShipmentActor>(i);
             tasks.Add(grain.UpdateShipment(instanceId));

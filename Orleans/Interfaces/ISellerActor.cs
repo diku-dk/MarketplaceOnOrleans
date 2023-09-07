@@ -1,5 +1,6 @@
 using Common.Entities;
 using Common.Events;
+using Common.Integration;
 using Orleans.Concurrency;
 
 namespace Orleans.Interfaces;
@@ -26,6 +27,7 @@ public interface ISellerActor : IGrainWithIntegerKey
 
     Task SetSeller(Seller seller);
 
-}
+    Task<SellerDashboard> QueryDashboard();
 
+}
 

@@ -2,6 +2,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Interfaces;
+using Common.Integration;
 
 namespace Silo.Controllers;
 
@@ -24,6 +25,16 @@ public class SellerController : ControllerBase
         var actor = grains.GetGrain<ISellerActor>(seller.id);
         await actor.SetSeller(seller);
         return StatusCode((int)HttpStatusCode.Created);
+    }
+
+    [HttpGet]
+    [Route("/dashboard/{sellerId}")]
+    [ProducesResponseType(typeof(SellerDashboard),(int)HttpStatusCode.OK)]
+    public async Task<ActionResult<SellerDashboard>> GetDashboard([FromServices] IGrainFactory grains, int sellerId)
+    {
+        var actor = grains.GetGrain<ISellerActor>(sellerId);
+        var dash = await actor.QueryDashboard();
+        return Ok(dash);
     }
 
     [Route("seller/reset")]
