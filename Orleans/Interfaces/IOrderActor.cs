@@ -6,7 +6,6 @@ namespace Orleans.Interfaces
 {
     public interface IOrderActor : IGrainWithIntegerKey
     {
-        [OneWay]
         Task Checkout(ReserveStock reserveStock);
 
         [OneWay]

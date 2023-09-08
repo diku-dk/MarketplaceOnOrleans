@@ -1,4 +1,5 @@
-﻿using Orleans.Serialization;
+﻿using Orleans.Infra;
+using Orleans.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +21,7 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              options.Invariant = "Npgsql";
              // options.ConnectionString = "Host=ep-ancient-wildflower-518871.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=rodrigolaigner;Password=uYsWSG1dm2QB";
-             options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
+             options.ConnectionString = Constants.postgresConnectionString;
          })
          .ConfigureLogging(logging =>
          {

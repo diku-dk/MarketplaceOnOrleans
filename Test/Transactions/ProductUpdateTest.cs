@@ -18,6 +18,8 @@ public class ProductUpdateTest
     [Fact]
     public async Task ProductUpdate()
     {
+        await TestHelper.CleanUpPostgres();
+
         // set product first
         var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,"1");
         var product = new Product()
@@ -62,8 +64,5 @@ public class ProductUpdateTest
         var newItem = await stock1.GetItem();
 
         Assert.True( newItem.version == 2 );
-
     }
-	
 }
-

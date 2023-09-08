@@ -13,8 +13,6 @@ namespace Orleans.Grains;
 [Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
-    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
-
     private readonly ILogger<OrderActor> _logger;
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
@@ -40,7 +38,7 @@ public class OrderActor : Grain, IOrderActor
         // persistence
         if(this.orders.State is null) this.orders.State = new();
         if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
-        this.db = RocksDb.Open(options, typeof(OrderActor).FullName);
+        this.db = RocksDb.Open(Constants.rocksDBOption, typeof(OrderActor).FullName);
 
         this.customerId = (int)this.GetPrimaryKeyLong();
         await base.OnActivateAsync(token);
@@ -153,6 +151,13 @@ public class OrderActor : Grain, IOrderActor
                 status = OrderStatus.INVOICED
             } } ));
 
+        var tasks = new List<Task>
+        {
+            nextOrderId.WriteStateAsync(),
+            orders.WriteStateAsync()
+        };
+        await Task.WhenAll(tasks);
+
         var invoice = new InvoiceIssued
         (
             reserveStock.customerCheckout,
@@ -164,7 +169,7 @@ public class OrderActor : Grain, IOrderActor
             reserveStock.instanceId
         );
 
-        var tasks = new List<Task>();
+        tasks.Clear();
         var sellers = items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)
         {

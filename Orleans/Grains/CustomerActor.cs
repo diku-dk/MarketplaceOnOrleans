@@ -2,6 +2,7 @@
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
+using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 
@@ -18,7 +19,7 @@ public class CustomerActor : Grain, ICustomerActor
 
     public CustomerActor([PersistentState(
         stateName: "customer",
-        storageName: "OrleansStorage")]
+        storageName: Constants.OrleansStorage)]
         IPersistentState<Customer> state, ILogger<CustomerActor> _logger)
     {
         this.customer = state;

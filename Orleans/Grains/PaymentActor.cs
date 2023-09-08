@@ -18,9 +18,7 @@ internal class PaymentActor : Grain, IPaymentActor
     public PaymentActor(ILogger<PaymentActor> _logger)
     {
         this._logger = _logger;
-
-        var options = new DbOptions().SetCreateIfMissing(true);
-        db = RocksDb.Open(options, typeof(PaymentActor).FullName);
+        db = RocksDb.Open(Constants.rocksDBOption, typeof(PaymentActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)

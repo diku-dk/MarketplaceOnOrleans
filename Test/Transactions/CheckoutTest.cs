@@ -1,5 +1,7 @@
 ﻿using Common.Entities;
 using Common.Requests;
+using Npgsql;
+using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
 using Test.Infra;
@@ -18,9 +20,13 @@ public class CheckoutTest
         this._cluster = fixture.Cluster;
     }
 
+    
+
     [Fact]
     public async Task Checkout()
     {
+        await TestHelper.CleanUpPostgres();
+
         // load customer in customer actor
         var customer = _cluster.GrainFactory.GetGrain<ICustomerActor>(0);
         await customer.SetCustomer(new Customer()
@@ -93,9 +99,6 @@ public class CheckoutTest
         List<Order> orders = await order.GetOrders();
 
         Assert.Single(orders);
-
-        await customer.Clear();
-
     }
 
     private CartItem GenerateBasketItem(int sellerId, int productId)

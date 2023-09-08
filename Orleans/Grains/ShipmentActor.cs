@@ -5,12 +5,12 @@ using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 using RocksDbSharp;
+using Orleans.Infra;
 
 namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
-    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
     private int partitionId;
     private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
@@ -34,7 +34,7 @@ public class ShipmentActor : Grain, IShipmentActor
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-        this.db = RocksDb.Open(options, typeof(ShipmentActor).FullName);
+        this.db = RocksDb.Open(Constants.rocksDBOption, typeof(ShipmentActor).FullName);
 
         await base.OnActivateAsync(token);
     }
@@ -85,6 +85,7 @@ public class ShipmentActor : Grain, IShipmentActor
            
             package_id++;
         }
+        await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
 
         ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId);
         // inform seller
