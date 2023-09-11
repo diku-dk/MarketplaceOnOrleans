@@ -11,7 +11,8 @@
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Serialization.NewtonsoftJson" Version="7.2.1" />
-    <PackageReference Include="Microsoft.Orleans.Streaming" Version="7.2.1" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="7.2.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.4" />
     <PackageReference Include="RocksDB" Version="8.3.2.39829" />
   </ItemGroup>
   

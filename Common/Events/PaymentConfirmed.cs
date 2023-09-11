@@ -8,11 +8,11 @@ namespace Common.Events
         public CustomerCheckout customer { get; set; }
         public int orderId { get; set; }
         public float totalAmount { get; set; }
-        public IList<OrderItem> items { get; set; }
+        public List<OrderItem> items { get; set; }
         public DateTime date { get; set; }
         public int instanceId { get; set; }
 
-        public PaymentConfirmed(CustomerCheckout customer, int orderId, float totalAmount, IList<OrderItem> items, DateTime date, int instanceId)
+        public PaymentConfirmed(CustomerCheckout customer, int orderId, float totalAmount, List<OrderItem> items, DateTime date, int instanceId)
         {
             this.customer = customer;
             this.orderId = orderId;

@@ -7,7 +7,7 @@ namespace Common.Events
     (
         DateTime timestamp,
         CustomerCheckout customerCheckout,
-        IList<CartItem> items,
+        List<CartItem> items,
         int instanceId
     );
 }

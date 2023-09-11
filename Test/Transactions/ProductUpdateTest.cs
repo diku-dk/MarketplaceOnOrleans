@@ -1,4 +1,5 @@
 ﻿using Common.Entities;
+using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
 using Test.Infra;
@@ -18,7 +19,7 @@ public class ProductUpdateTest
     [Fact]
     public async Task ProductUpdate()
     {
-        await TestHelper.CleanUpPostgres();
+        await Helper.CleanUpPostgres();
 
         // set product first
         var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,"1");

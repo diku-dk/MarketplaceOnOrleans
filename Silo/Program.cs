@@ -15,12 +15,9 @@ builder.Host.UseOrleans(siloBuilder =>
 {
     siloBuilder
          .UseLocalhostClustering()
-         .AddMemoryStreams(Orleans.Infra.Constants.DefaultStreamProvider)
-         .AddMemoryGrainStorage(Orleans.Infra.Constants.DefaultStreamStorage)
-         .AddAdoNetGrainStorage(Orleans.Infra.Constants.OrleansStorage, options =>
+         .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
-             // options.ConnectionString = "Host=ep-ancient-wildflower-518871.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=rodrigolaigner;Password=uYsWSG1dm2QB";
              options.ConnectionString = Constants.postgresConnectionString;
          })
          .ConfigureLogging(logging =>

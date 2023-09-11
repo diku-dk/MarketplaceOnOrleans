@@ -34,7 +34,7 @@ public class ShipmentActor : Grain, IShipmentActor
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-        this.db = RocksDb.Open(Constants.rocksDBOption, typeof(ShipmentActor).FullName);
+        this.db = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
 
         await base.OnActivateAsync(token);
     }

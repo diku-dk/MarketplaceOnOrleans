@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using RocksDbSharp;
+using System.Text;
 using System.Text.Json;
 
 namespace Orleans.Grains;
@@ -18,7 +19,7 @@ internal class PaymentActor : Grain, IPaymentActor
     public PaymentActor(ILogger<PaymentActor> _logger)
     {
         this._logger = _logger;
-        db = RocksDb.Open(Constants.rocksDBOption, typeof(PaymentActor).FullName);
+        db = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
@@ -96,7 +97,8 @@ internal class PaymentActor : Grain, IPaymentActor
 
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize((orderPayment, card));
-        db.Put(invoiceIssued.customer.CustomerId.ToString() + "-" + invoiceIssued.orderId.ToString(), str);
+        var sb = new StringBuilder(invoiceIssued.customer.CustomerId).Append("-").Append(invoiceIssued.orderId);
+        db.Put(sb.ToString(), str);
         _logger.LogWarning($"Log payment info to RocksDB. ");
 
         // inform related stock actors to reduce the amount because the payment has succeeded

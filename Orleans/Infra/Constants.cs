@@ -23,7 +23,7 @@ namespace Orleans.Infra
         public static readonly Guid CheckoutMarkStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC2");
         public static readonly Guid ProductUpdateMarkStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC3");
 
-        public static readonly DbOptions rocksDBOption = new DbOptions()
+        public static readonly DbOptions rocksDBOptions = new DbOptions()
             .SetCreateIfMissing(true)
             .SetWalDir("WAL") // using WAL
             .SetWalRecoveryMode(Recovery.AbsoluteConsistency) // setting recovery mode to Absolute Consistency

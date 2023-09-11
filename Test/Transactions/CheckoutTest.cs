@@ -1,6 +1,5 @@
 ﻿using Common.Entities;
 using Common.Requests;
-using Npgsql;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
@@ -20,12 +19,10 @@ public class CheckoutTest
         this._cluster = fixture.Cluster;
     }
 
-    
-
     [Fact]
     public async Task Checkout()
     {
-        await TestHelper.CleanUpPostgres();
+        await Helper.CleanUpPostgres();
 
         // load customer in customer actor
         var customer = _cluster.GrainFactory.GetGrain<ICustomerActor>(0);

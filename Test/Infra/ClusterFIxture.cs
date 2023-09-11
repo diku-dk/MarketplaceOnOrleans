@@ -16,8 +16,6 @@ public class ClusterFixture : IDisposable
     {
       public void Configure(ISiloBuilder hostBuilder) =>
          hostBuilder
-         .AddMemoryStreams("SMSProvider")
-         .AddMemoryGrainStorage("PubSubStore")
          .AddAdoNetGrainStorage("OrleansStorage", options =>
          {
              options.Invariant = "Npgsql";
@@ -38,7 +36,7 @@ public class ClusterFixture : IDisposable
     private class ClientConfigurator : IClientBuilderConfigurator
     {
       public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) => 
-        clientBuilder.AddMemoryStreams("SMSProvider")
+        clientBuilder
             .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));

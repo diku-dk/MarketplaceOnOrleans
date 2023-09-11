@@ -37,23 +37,5 @@ public class SellerController : ControllerBase
         return Ok(dash);
     }
 
-    [Route("seller/reset")]
-    [HttpPatch]
-    [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public ActionResult Reset([FromServices] IGrainFactory grains)
-    {
-        logger.LogWarning("Reset requested at {0}", DateTime.UtcNow);
-        return Ok();
-    }
-
-    [Route("seller/cleanup")]
-    [HttpPatch]
-    [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public ActionResult Cleanup()
-    {
-        logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        return Ok();
-    }
-
 }
 

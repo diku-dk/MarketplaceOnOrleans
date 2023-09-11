@@ -38,7 +38,7 @@ public class OrderActor : Grain, IOrderActor
         // persistence
         if(this.orders.State is null) this.orders.State = new();
         if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
-        this.db = RocksDb.Open(Constants.rocksDBOption, typeof(OrderActor).FullName);
+        this.db = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
 
         this.customerId = (int)this.GetPrimaryKeyLong();
         await base.OnActivateAsync(token);

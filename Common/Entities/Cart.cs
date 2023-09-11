@@ -10,7 +10,7 @@ namespace Common.Entities
 
         public CartStatus status { get; set; } = CartStatus.OPEN;
 
-        public IList<CartItem> items { get; set; } = new List<CartItem>();
+        public List<CartItem> items { get; set; } = new List<CartItem>();
 
         public int instanceId { get; set; }
 
