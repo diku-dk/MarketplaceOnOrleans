@@ -1,4 +1,5 @@
-﻿using Common.Events;
+﻿using Common.Entities;
+using Common.Events;
 
 namespace Orleans.Interfaces;
 
@@ -9,4 +10,6 @@ public interface IShipmentActor : IGrainWithIntegerKey
 
 	Task UpdateShipment(int tid);
 
+	// for test only
+	Task<List<Shipment>> GetShipment(int customerId);
 }

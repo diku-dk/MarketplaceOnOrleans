@@ -16,7 +16,9 @@ public class ShipmentActor : Grain, IShipmentActor
 
     private int partitionId;
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
-    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;
+    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: cuatomer ID + "-" + order ID
+
+    private readonly Dictionary<int, List<(DateTime request_date, int customerId, int orderId)>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
 
     private readonly ILogger<ShipmentActor> _logger;
 
@@ -67,6 +69,15 @@ public class ShipmentActor : Grain, IShipmentActor
         shipments.State.Add(id, shipment);
         packages.State.Add(id, new List<Package>());
 
+        paymentConfirmed.items.Select(x => x.seller_id).ToHashSet().ToList().ForEach(sellerId => 
+        {
+            if (!sellerInfo.ContainsKey(sellerId)) sellerInfo.Add(sellerId, new List<(DateTime, int, int)>());
+            var index = 0;
+            while (sellerInfo[sellerId][index].Item1 < now) index++;
+
+            sellerInfo[sellerId].Insert(index, (now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+        });
+
         foreach (var item in paymentConfirmed.items)
         {
             Package package = new()
@@ -84,7 +95,7 @@ public class ShipmentActor : Grain, IShipmentActor
             };
 
             packages.State[id].Add(package);
-           
+
             package_id++;
         }
         await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
@@ -113,15 +124,13 @@ public class ShipmentActor : Grain, IShipmentActor
         var now = DateTime.UtcNow;
         // https://stackoverflow.com/questions/5231845/c-sharp-linq-group-by-on-multiple-columns
 
-        // FIXME it is incorrect
-        var q = this.packages.State.SelectMany(x=>x.Value)
-            .GroupBy(x => x.seller_id)
-                            .Select(g => new { sellerId = g.Key, customerId = g.Min(x => x.customer_id) , orderId = g.Min(x => x.order_id) }).Take(10);
-
-        foreach(var x in q)
+        foreach (var x in sellerInfo)
         {
-            var id = new StringBuilder(x.customerId).Append('-').Append(x.orderId).ToString();
-            var packages_ = this.packages.State[id].Where( p=>p.seller_id == x.sellerId ).ToList();
+            var info = x.Value.First();
+            x.Value.RemoveAt(0);
+
+            var id = new StringBuilder(info.customerId).Append('-').Append(info.orderId).ToString();
+            var packages_ = this.packages.State[id].Where( p=>p.seller_id == x.Key ).ToList();
             var shipment = this.shipments.State[id];
 
             List<Task> tasks = new(packages_.Count + 1);
@@ -176,7 +185,11 @@ public class ShipmentActor : Grain, IShipmentActor
         }
 
         await Task.WhenAll( this.shipments.WriteStateAsync(), this.packages.WriteStateAsync() );
+    }
 
+    public Task<List<Shipment>> GetShipment(int customerId)
+    {
+        return Task.FromResult(shipments.State.Select(x => x.Value).Where(x => x.customer_id == customerId).ToList());
     }
 }
 
