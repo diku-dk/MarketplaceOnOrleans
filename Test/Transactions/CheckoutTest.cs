@@ -94,7 +94,7 @@ public class CheckoutTest
         for (var customerId = 0; customerId < numCustomer; customerId++)
         {
             var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(customerId));
-            var shipments = await shipmentActor.GetShipment(customerId);
+            var shipments = await shipmentActor.GetShipments(customerId);
             Assert.True(shipments.Count == 1);
         }
     }

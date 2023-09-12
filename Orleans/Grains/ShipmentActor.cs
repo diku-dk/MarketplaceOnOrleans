@@ -16,7 +16,7 @@ public class ShipmentActor : Grain, IShipmentActor
 
     private int partitionId;
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
-    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: cuatomer ID + "-" + order ID
+    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: customer ID + "-" + order ID
 
     private readonly Dictionary<int, List<(DateTime request_date, int customerId, int orderId)>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
 
@@ -30,6 +30,7 @@ public class ShipmentActor : Grain, IShipmentActor
         this._logger = _logger;
         this.shipments = shipments;
         this.packages = packages;
+        this.sellerInfo = new Dictionary<int, List<(DateTime request_date, int customerId, int orderId)>>();
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
@@ -187,10 +188,9 @@ public class ShipmentActor : Grain, IShipmentActor
         await Task.WhenAll( this.shipments.WriteStateAsync(), this.packages.WriteStateAsync() );
     }
 
-    public Task<List<Shipment>> GetShipment(int customerId)
+    public Task<List<Shipment>> GetShipments(int customerId)
     {
         return Task.FromResult(shipments.State.Select(x => x.Value).Where(x => x.customer_id == customerId).ToList());
     }
 }
-
 

@@ -21,7 +21,7 @@ public class DefaultController : ControllerBase
     public async Task<ActionResult> Reset()
     {
         logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        await Helper.CleanUpPostgres();
+        await Helper.ResetPostgres();
         return Ok();
     }
 
