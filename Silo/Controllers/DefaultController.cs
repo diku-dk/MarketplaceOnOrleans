@@ -15,7 +15,17 @@ public class DefaultController : ControllerBase
         this.logger = logger;
     }
 
-    [Route("cleanup")]
+    [Route("/reset")]
+    [HttpPatch]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    public async Task<ActionResult> Reset()
+    {
+        logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
+        await Helper.CleanUpPostgres();
+        return Ok();
+    }
+
+    [Route("/cleanup")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> Cleanup()

@@ -18,7 +18,7 @@ public class SellerController : ControllerBase
     }
 
     [HttpPost]
-    [Route("seller/")]
+    [Route("/seller")]
     [ProducesResponseType((int)HttpStatusCode.Created)]
     public async Task<ActionResult> AddSeller([FromServices] IGrainFactory grains, [FromBody] Seller seller)
     {
@@ -28,7 +28,7 @@ public class SellerController : ControllerBase
     }
 
     [HttpGet]
-    [Route("/dashboard/{sellerId}")]
+    [Route("/seller/dashboard/{sellerId}")]
     [ProducesResponseType(typeof(SellerDashboard),(int)HttpStatusCode.OK)]
     public async Task<ActionResult<SellerDashboard>> GetDashboard([FromServices] IGrainFactory grains, int sellerId)
     {

@@ -14,12 +14,11 @@ internal class PaymentActor : Grain, IPaymentActor
     private int customerId;
     readonly ILogger<PaymentActor> _logger;
 
-    readonly RocksDb db;
+    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
 
     public PaymentActor(ILogger<PaymentActor> _logger)
     {
         this._logger = _logger;
-        db = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
@@ -43,9 +42,9 @@ internal class PaymentActor : Grain, IPaymentActor
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
-                payment_type = cc ? PaymentType.CREDIT_CARD : PaymentType.DEBIT_CARD,
-                payment_installments = invoiceIssued.customer.Installments,
-                payment_value = invoiceIssued.totalInvoice
+                type = cc ? PaymentType.CREDIT_CARD : PaymentType.DEBIT_CARD,
+                installments = invoiceIssued.customer.Installments,
+                value = invoiceIssued.totalInvoice
             };
             orderPayment.Add(cardPaymentLine);
 
@@ -69,9 +68,9 @@ internal class PaymentActor : Grain, IPaymentActor
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
-                payment_type = PaymentType.BOLETO,
-                payment_installments = 1,
-                payment_value = invoiceIssued.totalInvoice
+                type = PaymentType.BOLETO,
+                installments = 1,
+                value = invoiceIssued.totalInvoice
             });
 
             seq++;
@@ -80,15 +79,15 @@ internal class PaymentActor : Grain, IPaymentActor
         // then one line for each voucher
         foreach (var item in invoiceIssued.items)
         {
-            foreach (var voucher in item.vouchers)
+            if(item.voucher > 0)
             {
                 orderPayment.Add(new OrderPayment()
                 {
                     order_id = invoiceIssued.orderId,
                     payment_sequential = seq,
-                    payment_type = PaymentType.VOUCHER,
-                    payment_installments = 1,
-                    payment_value = voucher
+                    type = PaymentType.VOUCHER,
+                    installments = 1,
+                    value = item.voucher
                 });
 
                 seq++;
@@ -99,7 +98,6 @@ internal class PaymentActor : Grain, IPaymentActor
         var str = JsonSerializer.Serialize((orderPayment, card));
         var sb = new StringBuilder(invoiceIssued.customer.CustomerId).Append("-").Append(invoiceIssued.orderId);
         db.Put(sb.ToString(), str);
-        _logger.LogWarning($"Log payment info to RocksDB. ");
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();
@@ -109,7 +107,7 @@ internal class PaymentActor : Grain, IPaymentActor
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
         await Task.WhenAll(tasks);
-        _logger.LogWarning($"Confirm reservation on {tasks.Count} stock actors. ");
+        _logger.LogDebug($"Confirm reservation on {tasks.Count} stock actors. ");
 
         tasks.Clear();
 
@@ -121,13 +119,13 @@ internal class PaymentActor : Grain, IPaymentActor
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmed));
         }
         await Task.WhenAll(tasks);
-        _logger.LogWarning($"Notify {sellers.Count} sellers PaymentConfirmed. ");
+        _logger.LogDebug($"Notify {sellers.Count} sellers PaymentConfirmed. ");
 
         // proceed to shipment actor
         var shipmentActorID = Helper.GetShipmentActorID(invoiceIssued.customer.CustomerId);
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmed);
-        _logger.LogWarning($"Notify shipment actor PaymentConfirmed. ");
+        _logger.LogDebug($"Notify shipment actor PaymentConfirmed. ");
 
     }
 }

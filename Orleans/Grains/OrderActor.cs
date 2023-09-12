@@ -14,14 +14,13 @@ namespace Orleans.Grains;
 public class OrderActor : Grain, IOrderActor
 {
     private readonly ILogger<OrderActor> _logger;
+    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
     private readonly IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders;
     private readonly IPersistentState<int> nextOrderId;
 
     private int customerId;
-
-    private RocksDb db;
 
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders,
@@ -38,8 +37,7 @@ public class OrderActor : Grain, IOrderActor
         // persistence
         if(this.orders.State is null) this.orders.State = new();
         if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
-        this.db = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
-
+        
         this.customerId = (int)this.GetPrimaryKeyLong();
         await base.OnActivateAsync(token);
     }
@@ -62,8 +60,9 @@ public class OrderActor : Grain, IOrderActor
         var itemsToCheckout = new List<CartItem>();
         for (var idx = 0; idx < reserveStock.items.Count; idx++)
         {
-            if (statusResp[idx].Result == ItemStatus.IN_STOCK) 
+            if (statusResp[idx].Result == ItemStatus.IN_STOCK) {
                 itemsToCheckout.Add(reserveStock.items[idx]);
+            }
         }
             
         // calculate total freight_value
@@ -103,7 +102,8 @@ public class OrderActor : Grain, IOrderActor
             totalPerItem.Add(item.ProductId, total_item);
         }
 
-        var orderId = nextOrderId.State++;
+        int orderId = nextOrderId.State;
+        nextOrderId.State++;
         var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
         var order = new Order()
         {
@@ -125,7 +125,7 @@ public class OrderActor : Grain, IOrderActor
         List<OrderItem> items = new();
 
         int id = 1;
-        foreach (var item in reserveStock.items)
+        foreach (var item in itemsToCheckout)
         {
             items.Add(new OrderItem
             {
@@ -139,7 +139,8 @@ public class OrderActor : Grain, IOrderActor
                 total_items = item.UnitPrice * item.Quantity,
                 total_amount = totalPerItem[item.ProductId],
                 freight_value = item.FreightValue,
-                shipping_limit_date = now.AddDays(3)
+                shipping_limit_date = now.AddDays(3),
+                voucher = item.Voucher
             });
             id++;
         }
@@ -170,18 +171,16 @@ public class OrderActor : Grain, IOrderActor
         );
 
         tasks.Clear();
-        var sellers = items.Select(x => x.seller_id).ToHashSet();
-        foreach (var sellerID in sellers)
+        var sellerIds = items.Select(x => x.seller_id).ToHashSet();
+        foreach (var sellerID in sellerIds)
         {
             var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
             tasks.Add(sellerActor.ProcessNewInvoice(invoice));
         }
         await Task.WhenAll(tasks);
-        _logger.LogWarning($"Notify {sellers.Count} sellers InvoiceIssued. ");
 
         var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
         await paymentActor.ProcessPayment(invoice);
-        _logger.LogWarning($"Notify payment actor InvoiceIssued. ");
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
@@ -191,6 +190,11 @@ public class OrderActor : Grain, IOrderActor
         OrderStatus orderStatus = OrderStatus.READY_FOR_SHIPMENT;
         if (shipmentNotification.status == ShipmentStatus.delivery_in_progress) orderStatus = OrderStatus.IN_TRANSIT;
         if (shipmentNotification.status == ShipmentStatus.concluded) orderStatus = OrderStatus.DELIVERED;
+
+        if( !orders.State.ContainsKey(shipmentNotification.orderId)){
+            _logger.LogWarning("Possible interleaving for customer ID {0} order ID {1} status {2}", this.customerId, shipmentNotification.orderId, shipmentNotification.status);
+            return;
+        }
 
         orders.State[shipmentNotification.orderId].Item3.Add( new()
         {
@@ -209,7 +213,7 @@ public class OrderActor : Grain, IOrderActor
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
             db.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
-            _logger.LogWarning($"Log shipment info to RocksDB. ");
+            _logger.LogDebug($"Log shipment info to RocksDB. ");
 
             orders.State.Remove(shipmentNotification.orderId);
         }

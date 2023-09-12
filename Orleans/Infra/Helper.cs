@@ -25,4 +25,13 @@ public static class Helper
         var cmd = dataSource.CreateCommand("TRUNCATE public.orleansstorage");
         await cmd.ExecuteNonQueryAsync();
     }
+
+    // clean all orleans states in batch
+    public static async Task ResetPostgres()
+    {
+        var dataSource = NpgsqlDataSource.Create(Constants.postgresConnectionString);
+        var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");
+        await cmd.ExecuteNonQueryAsync();
+    }
+
 }

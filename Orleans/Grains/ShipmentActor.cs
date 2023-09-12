@@ -6,22 +6,24 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using RocksDbSharp;
 using Orleans.Infra;
+using System.Text;
 
 namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
+    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
+
     private int partitionId;
-    private readonly IPersistentState<Dictionary<int,Shipment>> shipments;
-    private readonly IPersistentState<Dictionary<int,List<Package>>> packages;
+    private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
+    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;
 
     private readonly ILogger<ShipmentActor> _logger;
-    private RocksDb db;
 
     public ShipmentActor(
         ILogger<ShipmentActor> _logger,
-        [PersistentState(stateName: "shipments", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,Shipment>> shipments,
-         [PersistentState(stateName: "packages", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<int,List<Package>>> packages)
+        [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,Shipment>> shipments,
+         [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,List<Package>>> packages)
 	{
         this._logger = _logger;
         this.shipments = shipments;
@@ -34,8 +36,7 @@ public class ShipmentActor : Grain, IShipmentActor
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-        this.db = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
-
+       
         await base.OnActivateAsync(token);
     }
 
@@ -62,15 +63,16 @@ public class ShipmentActor : Grain, IShipmentActor
             state = paymentConfirmed.customer.State
         };
 
-        // in memory
-        shipments.State.Add(shipment.order_id, shipment);
-        packages.State.Add(shipment.order_id, new List<Package>());
+        var id = new StringBuilder(shipment.customer_id).Append('-').Append(shipment.order_id).ToString();
+        shipments.State.Add(id, shipment);
+        packages.State.Add(id, new List<Package>());
 
         foreach (var item in paymentConfirmed.items)
         {
             Package package = new()
             {
                 order_id = paymentConfirmed.orderId,
+                customer_id = shipment.customer_id,
                 package_id = package_id,
                 status = PackageStatus.shipped,
                 freight_value = item.freight_value,
@@ -81,7 +83,7 @@ public class ShipmentActor : Grain, IShipmentActor
                 quantity = item.quantity
             };
 
-            packages.State[shipment.order_id].Add(package);
+            packages.State[id].Add(package);
            
             package_id++;
         }
@@ -109,18 +111,21 @@ public class ShipmentActor : Grain, IShipmentActor
         // shipment actors
 
         var now = DateTime.UtcNow;
+        // https://stackoverflow.com/questions/5231845/c-sharp-linq-group-by-on-multiple-columns
 
+        // FIXME it is incorrect
         var q = this.packages.State.SelectMany(x=>x.Value)
             .GroupBy(x => x.seller_id)
-                            .Select(g => new { sellerId = g.Key, orderId = g.Min(x => x.order_id) }).Take(10);
+                            .Select(g => new { sellerId = g.Key, customerId = g.Min(x => x.customer_id) , orderId = g.Min(x => x.order_id) }).Take(10);
 
         foreach(var x in q)
         {
-            var packages_ = this.packages.State[x.orderId].Where( p=>p.seller_id == x.sellerId ).ToList();
-            var shipment = this.shipments.State[x.orderId];
+            var id = new StringBuilder(x.customerId).Append('-').Append(x.orderId).ToString();
+            var packages_ = this.packages.State[id].Where( p=>p.seller_id == x.sellerId ).ToList();
+            var shipment = this.shipments.State[id];
 
-            List<Task> tasks = new(packages_.Count() + 1);
-            int countDelivered = this.packages.State[x.orderId].Where( p=>p.status == PackageStatus.delivered ).Count();
+            List<Task> tasks = new(packages_.Count + 1);
+            int countDelivered = this.packages.State[id].Where( p=>p.status == PackageStatus.delivered ).Count();
 
             foreach (var package in packages_)
             {
@@ -159,10 +164,10 @@ public class ShipmentActor : Grain, IShipmentActor
                 // log shipment and packages
                 var str = JsonSerializer.Serialize((shipment, packages_));
                 db.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
-                _logger.LogWarning($"Log shipment info to RocksDB. ");
+                _logger.LogDebug($"Log shipment info to RocksDB. ");
 
-                this.shipments.State.Remove(x.orderId);
-                this.packages.State.Remove(x.orderId);
+                this.shipments.State.Remove(id);
+                this.packages.State.Remove(id);
             }
 
             // no need to wait for oneway events

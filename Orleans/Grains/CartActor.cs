@@ -35,6 +35,11 @@ public class CartActor : Grain, ICartActor
         await base.OnActivateAsync(token);
     }
 
+    public Task<Cart> GetCart()
+    {
+        return Task.FromResult(this.cart.State);
+    }
+
     public async Task AddItem(CartItem item)
     {
         if (item.Quantity <= 0)
@@ -51,26 +56,22 @@ public class CartActor : Grain, ICartActor
         await this.cart.WriteStateAsync();
     }
 
-    public Task<Cart> GetCart()
-    {
-        this._logger.LogWarning("Cart {0} GET cart request.", this.customerId);
-        return Task.FromResult(this.cart.State);
-    }
-
     // customer decided to checkout
     public async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
-        this._logger.LogWarning("Cart {0} received checkout request.", this.customerId);
-
         // access the orderGrain for this specific order
         var orderActor = this.GrainFactory.GetGrain<IOrderActor>(customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
         cart.State.status = CartStatus.CHECKOUT_SENT;
-        this._logger.LogWarning($"Send CheckoutOrder request to the order actor. ");
-        await orderActor.Checkout(checkout);
-        cart.State.status = CartStatus.OPEN;
-        this.cart.State.items.Clear();
-        await this.cart.WriteStateAsync();
+        try{
+            await orderActor.Checkout(checkout);
+        } catch(Exception e){
+            _logger.LogError("Exception captured in actor {0}. Source: {1} Message: {2}", customerId, e.Source, e.StackTrace);
+        } finally{
+            cart.State.status = CartStatus.OPEN;
+            this.cart.State.items.Clear();
+            await this.cart.WriteStateAsync();
+        }
     }
 
     public async Task Seal()

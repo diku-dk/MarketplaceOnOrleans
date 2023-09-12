@@ -1,4 +1,6 @@
 ﻿using System;
+using Common.Integration;
+
 namespace Common.Entities
 {
 	public class OrderPayment
@@ -9,13 +11,15 @@ namespace Common.Entities
         public int payment_sequential { get; set; }
 
         // coupon, credit card
-        public PaymentType payment_type { get; set; }
+        public PaymentType type { get; set; }
 
         // number of times the credit card is charged (usually once a month)
-        public int payment_installments { get; set; }
+        public int installments { get; set; }
 
         // respective to this line (ie. coupon)
-        public float payment_value { get; set; }
+        public float value { get; set; }
+
+        public PaymentStatus? status { get; set; }
     }
 }
 

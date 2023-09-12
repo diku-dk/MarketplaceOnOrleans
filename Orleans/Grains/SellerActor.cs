@@ -13,14 +13,13 @@ namespace Orleans.Grains;
 public class SellerActor : Grain, ISellerActor
 {
     private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
+    private static readonly RocksDb db = RocksDb.Open(options, typeof(SellerActor).FullName);
     private readonly ILogger<SellerActor> logger;
 
     private int sellerId;
 
     private readonly IPersistentState<Seller> seller;
     private readonly IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries;
-
-    private RocksDb db;
 
     public SellerActor(
         [PersistentState(stateName: "seller", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Seller> seller,
@@ -38,7 +37,7 @@ public class SellerActor : Grain, ISellerActor
 
         // persistence
         if(this.orderEntries.State is null) this.orderEntries.State = new();
-        this.db = RocksDb.Open(options, typeof(OrderActor).FullName);
+        
         await base.OnActivateAsync(token);
     }
 
@@ -50,7 +49,8 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
-        string id = new StringBuilder(invoiceIssued.customer.CustomerId).Append("-").Append(invoiceIssued.orderId).ToString();
+        string id = new StringBuilder(invoiceIssued.customer.CustomerId).Append('-').Append(invoiceIssued.orderId).ToString();
+        // FIXME line throwing exception
         this.orderEntries.State.Add(id, new List<OrderEntry>());
         foreach (var item in invoiceIssued.items.Where(x=>x.seller_id == this.sellerId))
         {
@@ -73,7 +73,7 @@ public class SellerActor : Grain, ISellerActor
                 unit_price = item.unit_price,
             };
 
-             this.orderEntries.State[id].Add(orderEntry);
+            this.orderEntries.State[id].Add(orderEntry);
         }
 
         await this.orderEntries.WriteStateAsync();
@@ -115,8 +115,6 @@ public class SellerActor : Grain, ISellerActor
             }
             if(shipmentNotification.status == ShipmentStatus.concluded){
                 item.order_status = OrderStatus.DELIVERED;
-                item.delivery_status = PackageStatus.delivered;
-                item.delivery_date = shipmentNotification.eventDate;   
             }
                 
         }
@@ -134,10 +132,20 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
         string id = new StringBuilder(deliveryNotification.customerId).Append('-').Append(deliveryNotification.orderId).ToString();
-        var entry = this.orderEntries.State[id].Where(oe=>oe.product_id == deliveryNotification.productId).First();
-        entry.package_id = deliveryNotification.packageId;
-        entry.delivery_date = deliveryNotification.deliveryDate;
-        await this.orderEntries.WriteStateAsync();
+        // interleaving of shipment and delivery
+        if (this.orderEntries.State.ContainsKey(id))
+        {
+            var entry = this.orderEntries.State[id].FirstOrDefault(oe=>oe.product_id == deliveryNotification.productId, null);
+            if(entry is not null)
+            {
+                entry.package_id = deliveryNotification.packageId;
+                entry.delivery_status = PackageStatus.delivered;
+                entry.delivery_date = deliveryNotification.deliveryDate;
+                await this.orderEntries.WriteStateAsync();
+            }
+        }
+        
+
     }
 
     public Task<SellerDashboard> QueryDashboard()

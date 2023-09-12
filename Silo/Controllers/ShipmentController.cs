@@ -16,7 +16,7 @@ public class ShipmentController : ControllerBase
     }
 
     [HttpPatch]
-    [Route("shipment/{instanceId}")]
+    [Route("/shipment/{instanceId}")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, int instanceId)
     {

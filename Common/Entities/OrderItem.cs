@@ -29,7 +29,7 @@
         public float total_amount { get; set; }
 
         //
-        public float[] vouchers { get; set; } = Array.Empty<float>();
+        public float voucher { get; set; }
 
     }
 }

@@ -8,7 +8,7 @@ namespace Orleans.Interfaces;
 public interface ISellerActor : IGrainWithIntegerKey
 {
 
-    [OneWay]
+    // if invoice fails, all subsequent fails
     Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
 
     [OneWay]

@@ -4,6 +4,7 @@
 	{
 		// PK
 		public int order_id;
+        public int customer_id;
 		public int package_id;
 
         // FK
