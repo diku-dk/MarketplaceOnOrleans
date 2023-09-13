@@ -59,5 +59,5 @@ Console.ReadLine();
 
 await app.StopAsync();
 
-Console.WriteLine("            Deleting log files...         ");
+Console.WriteLine("\n *************************** Deleting log files... ***************************");
 Helper.CleanLogFiles();

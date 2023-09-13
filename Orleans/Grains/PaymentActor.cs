@@ -14,7 +14,7 @@ internal class PaymentActor : Grain, IPaymentActor
     private int customerId;
     readonly ILogger<PaymentActor> _logger;
 
-    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
+    
 
     public PaymentActor(ILogger<PaymentActor> _logger)
     {
@@ -97,7 +97,7 @@ internal class PaymentActor : Grain, IPaymentActor
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize((orderPayment, card));
         var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
-        db.Put(key, str);
+        Helper.PaymentLog.Put(key, str);
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();
@@ -107,7 +107,6 @@ internal class PaymentActor : Grain, IPaymentActor
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
         await Task.WhenAll(tasks);
-        _logger.LogDebug($"Confirm reservation on {tasks.Count} stock actors. ");
 
         tasks.Clear();
 
@@ -119,13 +118,15 @@ internal class PaymentActor : Grain, IPaymentActor
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmed));
         }
         await Task.WhenAll(tasks);
-        _logger.LogDebug($"Notify {sellers.Count} sellers PaymentConfirmed. ");
+
+        tasks.Clear();
+
+        tasks.Add( GrainFactory.GetGrain<ICustomerActor>(invoiceIssued.customer.CustomerId).NotifyPaymentConfirmed(paymentConfirmed ));
 
         // proceed to shipment actor
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId);
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
-        await shipmentActor.ProcessShipment(paymentConfirmed);
-        _logger.LogDebug($"Notify shipment actor PaymentConfirmed. ");
-
+        tasks.Add( shipmentActor.ProcessShipment(paymentConfirmed) );
+        await Task.WhenAll(tasks);
     }
 }

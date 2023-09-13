@@ -2,27 +2,23 @@
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
-using RocksDbSharp;
 
 namespace Orleans.Grains;
 
-[Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
 
     public class NextOrderState
     {
-        int value { get; set; } = 0;
-        public NextOrderState()
-        {}
-        public int GetNextOrderId()
+        public int Value { get; set; }
+        public NextOrderState(){ this.Value = 0; }
+        public NextOrderState(int value){ this.Value = value; }
+        public NextOrderState GetNextOrderId()
         {
-            this.value++;
-            return this.value;
+            return new NextOrderState(this.Value + 1);
         }
     }
 
@@ -35,7 +31,7 @@ public class OrderActor : Grain, IOrderActor
     }
 
     private readonly ILogger<OrderActor> _logger;
-    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
+   
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
     private readonly IPersistentState<Dictionary<int, OrderState>> orders;
@@ -123,7 +119,8 @@ public class OrderActor : Grain, IOrderActor
             totalPerItem.Add(item.ProductId, total_item);
         }
 
-        int orderId = nextOrderId.State.GetNextOrderId();
+        nextOrderId.State = nextOrderId.State.GetNextOrderId();
+        int orderId = nextOrderId.State.Value;
         var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
         var order = new Order()
         {
@@ -178,6 +175,7 @@ public class OrderActor : Grain, IOrderActor
 
         var tasks = new List<Task>
         {
+            // FIXME nextorderid not being written to storage
             nextOrderId.WriteStateAsync(),
             orders.WriteStateAsync()
         };
@@ -236,7 +234,7 @@ public class OrderActor : Grain, IOrderActor
         
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
-            db.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
+            Helper.OrderLog.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
 
             orders.State.Remove(shipmentNotification.orderId);
         }

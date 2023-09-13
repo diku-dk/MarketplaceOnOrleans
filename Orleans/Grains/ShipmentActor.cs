@@ -12,8 +12,7 @@ namespace Orleans.Grains;
 
 public class ShipmentActor : Grain, IShipmentActor
 {
-    private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
-
+    
     private int partitionId;
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: customer ID + "-" + order ID
@@ -168,7 +167,7 @@ public class ShipmentActor : Grain, IShipmentActor
                     shipment.customer_id, package.order_id, package.package_id, package.seller_id,
                     package.product_id, package.product_name, PackageStatus.delivered, now, tid);
 
-                tasks.Add( GrainFactory.GetGrain<ICustomerActor>(shipment.customer_id)
+                tasks.Add( GrainFactory.GetGrain<ICustomerActor>(info.customerId)
                     .NotifyDelivery(deliveryNotification) );
                 tasks.Add( GrainFactory.GetGrain<ISellerActor>(package.seller_id)
                     .ProcessDeliveryNotification(deliveryNotification) );
@@ -196,7 +195,7 @@ public class ShipmentActor : Grain, IShipmentActor
 
                 // log shipment and packages
                 var str = JsonSerializer.Serialize((shipment, packages_));
-                db.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
+                Helper.ShipmentLog.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
 
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);

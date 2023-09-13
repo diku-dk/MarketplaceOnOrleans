@@ -6,15 +6,13 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
-using RocksDbSharp;
 using Orleans.Infra;
 
 namespace Orleans.Grains;
 
 public class SellerActor : Grain, ISellerActor
 {
-    private static readonly DbOptions options = new DbOptions().SetCreateIfMissing(true);
-    private static readonly RocksDb db = RocksDb.Open(options, typeof(SellerActor).FullName);
+
     private readonly ILogger<SellerActor> logger;
 
     private int sellerId;
@@ -93,7 +91,7 @@ public class SellerActor : Grain, ISellerActor
                 total_amount = item.total_amount,
                 total_items = item.total_items,
                 total_invoice = item.total_amount + item.freight_value,
-                total_incentive = item.total_items - item.total_amount,
+                total_incentive = item.voucher,
                 freight_value = item.freight_value,
                 // shipment_date = not known yet
                 // delivery_date = not known yet
@@ -151,7 +149,7 @@ public class SellerActor : Grain, ISellerActor
         {
             List<OrderEntry> entries = this.orderEntries.State[id];
             var str = JsonSerializer.Serialize(entries);
-            db.Put(id, str);
+            Helper.SellerLog.Put(id, str);
             this.orderEntries.State.Remove(id);
         }
         await this.orderEntries.WriteStateAsync();
@@ -183,8 +181,10 @@ public class SellerActor : Grain, ISellerActor
         OrderSellerView view = new OrderSellerView()
         {
             seller_id = this.sellerId,
-            count_orders = this.orderEntries.State.Count(),
+            // FIXME add customer id otherwise count order will be incorrect
+            count_orders = entries.Select(x=>x.order_id).ToHashSet().Count,
             count_items = entries.Count(),
+            total_invoice = entries.Sum(x=>x.total_invoice),
             total_amount = entries.Sum(x=>x.total_amount),
             total_freight = entries.Sum(x=>x.freight_value),
             total_incentive = entries.Sum(x=>x.total_incentive),

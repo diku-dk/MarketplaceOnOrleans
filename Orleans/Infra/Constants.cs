@@ -25,7 +25,6 @@ namespace Orleans.Infra
 
         public static readonly DbOptions rocksDBOptions = new DbOptions()
             .SetCreateIfMissing(true)
-            .SetWalDir("WAL") // using WAL
             .SetWalRecoveryMode(Recovery.TolerateCorruptedTailRecords) // setting recovery mode to Absolute Consistency
             .SetAllowConcurrentMemtableWrite(true) // concurrent writers
             .SetEnableWriteThreadAdaptiveYield(true) // required for concurrent writers, see http://smalldatum.blogspot.com/2016/02/concurrent-inserts-and-rocksdb-memtable.html

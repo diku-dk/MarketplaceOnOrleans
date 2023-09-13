@@ -1,14 +1,12 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 
 namespace Orleans.Grains;
 
-[Reentrant]
 public class CustomerActor : Grain, ICustomerActor
 {
 

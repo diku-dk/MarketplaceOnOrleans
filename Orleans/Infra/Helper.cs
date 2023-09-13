@@ -1,7 +1,10 @@
 ﻿using System.Globalization;
 using System.IO;
 using System.Text;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Orleans.Grains;
+using RocksDbSharp;
 
 namespace Orleans.Infra;
 
@@ -35,15 +38,33 @@ public static class Helper
         await cmd.ExecuteNonQueryAsync();
     }
 
+    private static readonly string[] dirs = { "Orleans.Grains.OrderActor", "Orleans.Grains.PaymentActor", "Orleans.Grains.SellerActor", "Orleans.Grains.ShipmentActor" };
+
     public static void CleanLogFiles()
     {
-		var startDirectory = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName;
+		string startDirectory = Directory.GetCurrentDirectory();
         Environment.CurrentDirectory = startDirectory;
-		Directory.Delete("WAL");
-		Directory.Delete("Orleans.Grains.OrderActor");
-        Directory.Delete("Orleans.Grains.PaymentActor");
-        Directory.Delete("Orleans.Grains.SellerActor");
-        Directory.Delete("Orleans.Grains.ShipmentActor");
+        foreach(var dir in dirs)
+        {
+            Directory.GetFiles(dir, "*", SearchOption.AllDirectories).ToList().ForEach(File.Delete);
+            Directory.Delete(dir, true);
+        }
+
+        if(Directory.Exists("WAL"))
+            Directory.Delete("WAL", true);
+    }
+
+    public static readonly RocksDb OrderLog;
+    public static readonly RocksDb PaymentLog;
+    public static readonly RocksDb ShipmentLog;
+    public static readonly RocksDb SellerLog;
+
+    static Helper()
+    {
+        OrderLog = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
+        PaymentLog = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
+        ShipmentLog = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
+        SellerLog = RocksDb.Open(Constants.rocksDBOptions, typeof(SellerActor).FullName);
     }
 
 }
