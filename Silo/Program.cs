@@ -6,6 +6,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+//builder.Services.AddSerializer(ser =>
+//         {
+//             ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
+//         });
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -50,4 +56,8 @@ Console.WriteLine("            The Orleans server started. Press any key to term
 Console.WriteLine("\n *************************************************************************");
 
 Console.ReadLine();
+
 await app.StopAsync();
+
+Console.WriteLine("            Deleting log files...         ");
+Helper.CleanLogFiles();

@@ -20,7 +20,6 @@ public class ShipmentController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, int instanceId)
     {
-        logger.LogDebug("instance id", instanceId);
         List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
         for(int i = 1; i <= Constants.NumShipmentActors; i++)
         {

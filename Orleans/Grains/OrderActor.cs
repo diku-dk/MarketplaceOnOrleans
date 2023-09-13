@@ -13,18 +13,39 @@ namespace Orleans.Grains;
 [Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
+
+    public class NextOrderState
+    {
+        int value { get; set; } = 0;
+        public NextOrderState()
+        {}
+        public int GetNextOrderId()
+        {
+            this.value++;
+            return this.value;
+        }
+    }
+
+    public class OrderState
+    {
+        public Order order { get; set; }
+        public List<OrderItem> orderItems { get; set; }
+        public List<OrderHistory> orderHistory { get; set; }
+        public OrderState(){ }
+    }
+
     private readonly ILogger<OrderActor> _logger;
     private static readonly RocksDb db = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
-    private readonly IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders;
-    private readonly IPersistentState<int> nextOrderId;
+    private readonly IPersistentState<Dictionary<int, OrderState>> orders;
+    private readonly IPersistentState<NextOrderState> nextOrderId;
 
     private int customerId;
 
     public OrderActor(
-        [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,(Order, List<OrderItem>, List<OrderHistory>)>> orders,
-        [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<int> nextOrderId,
+        [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
+        [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderState> nextOrderId,
         ILogger<OrderActor> _logger) 
     {
         this._logger = _logger;
@@ -32,14 +53,14 @@ public class OrderActor : Grain, IOrderActor
         this.nextOrderId = nextOrderId;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         // persistence
         if(this.orders.State is null) this.orders.State = new();
-        if(this.nextOrderId.State == 0) this.nextOrderId.State = 1;
+        if(this.nextOrderId.State is null) this.nextOrderId.State = new();
         
         this.customerId = (int)this.GetPrimaryKeyLong();
-        await base.OnActivateAsync(token);
+        return Task.CompletedTask;
     }
 
     public async Task Checkout(ReserveStock reserveStock)
@@ -102,13 +123,12 @@ public class OrderActor : Grain, IOrderActor
             totalPerItem.Add(item.ProductId, total_item);
         }
 
-        int orderId = nextOrderId.State;
-        nextOrderId.State++;
+        int orderId = nextOrderId.State.GetNextOrderId();
         var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
         var order = new Order()
         {
             id = orderId,
-            customer_id = reserveStock.customerCheckout.CustomerId,
+            customer_id = this.customerId,
             invoice_number = invoiceNumber,
             status = OrderStatus.INVOICED,
             purchase_date = reserveStock.timestamp,
@@ -145,12 +165,16 @@ public class OrderActor : Grain, IOrderActor
             id++;
         }
 
-        orders.State.Add(orderId, (order, items, new(){new OrderHistory()
+        orders.State.Add(orderId, new(){
+            order = order,
+            orderItems = items,
+            orderHistory = new(){new OrderHistory()
             {
                 order_id = orderId,
                 created_at = now,
                 status = OrderStatus.INVOICED
-            } } ));
+            }
+            } } );
 
         var tasks = new List<Task>
         {
@@ -179,7 +203,7 @@ public class OrderActor : Grain, IOrderActor
         }
         await Task.WhenAll(tasks);
 
-        var paymentActor = GrainFactory.GetGrain<IPaymentActor>(customerId);
+        var paymentActor = GrainFactory.GetGrain<IPaymentActor>(this.customerId);
         await paymentActor.ProcessPayment(invoice);
     }
 
@@ -192,17 +216,17 @@ public class OrderActor : Grain, IOrderActor
         if (shipmentNotification.status == ShipmentStatus.concluded) orderStatus = OrderStatus.DELIVERED;
 
         if( !orders.State.ContainsKey(shipmentNotification.orderId)){
-            _logger.LogWarning("Possible interleaving for customer ID {0} order ID {1} status {2}", this.customerId, shipmentNotification.orderId, shipmentNotification.status);
+            _logger.LogWarning("Possible interleaving for customer ID {0} shipment customer ID {1} shipment order ID {2} status {3}", this.customerId, shipmentNotification.customerId, shipmentNotification.orderId, shipmentNotification.status);
             return;
         }
 
-        orders.State[shipmentNotification.orderId].Item3.Add( new()
+        orders.State[shipmentNotification.orderId].orderHistory.Add( new()
         {
             order_id = shipmentNotification.orderId,
             created_at = now,
             status = orderStatus
         } );
-        var order = orders.State[shipmentNotification.orderId].Item1;
+        var order = orders.State[shipmentNotification.orderId].order;
         order.status = orderStatus;
         order.updated_at = now;
 
@@ -213,7 +237,6 @@ public class OrderActor : Grain, IOrderActor
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
             db.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
-            _logger.LogDebug($"Log shipment info to RocksDB. ");
 
             orders.State.Remove(shipmentNotification.orderId);
         }
@@ -223,7 +246,7 @@ public class OrderActor : Grain, IOrderActor
 
     public Task<List<Order>> GetOrders()
     {
-        var res = this.orders.State.Select(x=>x.Value.Item1).ToList();
+        var res = this.orders.State.Select(x=>x.Value.order).ToList();
         return Task.FromResult(res);
     }
 }

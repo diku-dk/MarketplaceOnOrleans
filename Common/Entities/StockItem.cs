@@ -22,5 +22,7 @@
 
         public int version { get; set; }
 
+        public StockItem(){ }
+
     }
 }

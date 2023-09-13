@@ -20,6 +20,7 @@ public class ProductController : ControllerBase
     [Route("/product")]
     public async Task<ActionResult> SetProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
+        this.logger.LogDebug("[SetProduct] received for id {0} {1}", product.seller_id, product.product_id);
         await grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString()).SetProduct(product);
         return Ok();
     }

@@ -42,8 +42,6 @@
 
         public int delivery_count { get; set; } = 0;
 
-        public int next_order_id { get; set; }
-
         // additional
         public string data { get; set; } = "";
 

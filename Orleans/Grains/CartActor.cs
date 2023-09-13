@@ -25,14 +25,14 @@ public class CartActor : Grain, ICartActor
         this._logger = _logger;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         this.customerId = (int) this.GetPrimaryKeyLong();
         if(cart.State is null) {
             cart.State = new Cart();
             cart.State.customerId = this.customerId;
         }
-        await base.OnActivateAsync(token);
+        return Task.CompletedTask;
     }
 
     public Task<Cart> GetCart()
@@ -60,7 +60,7 @@ public class CartActor : Grain, ICartActor
     public async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
         // access the orderGrain for this specific order
-        var orderActor = this.GrainFactory.GetGrain<IOrderActor>(customerId);
+        var orderActor = this.GrainFactory.GetGrain<IOrderActor>(this.customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
         cart.State.status = CartStatus.CHECKOUT_SENT;
         try{

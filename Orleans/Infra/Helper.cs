@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.IO;
 using System.Text;
 using Npgsql;
 
@@ -32,6 +33,17 @@ public static class Helper
         var dataSource = NpgsqlDataSource.Create(Constants.postgresConnectionString);
         var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    public static void CleanLogFiles()
+    {
+		var startDirectory = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName;
+        Environment.CurrentDirectory = startDirectory;
+		Directory.Delete("WAL");
+		Directory.Delete("Orleans.Grains.OrderActor");
+        Directory.Delete("Orleans.Grains.PaymentActor");
+        Directory.Delete("Orleans.Grains.SellerActor");
+        Directory.Delete("Orleans.Grains.ShipmentActor");
     }
 
 }

@@ -1,13 +1,24 @@
 ﻿using Common.Entities;
 using Common.Requests;
+using Newtonsoft.Json;
 
-namespace Common.Events
+namespace Common.Events;
+
+public class ReserveStock
 {
-    public record ReserveStock
-    (
-        DateTime timestamp,
-        CustomerCheckout customerCheckout,
-        List<CartItem> items,
-        int instanceId
-    );
+    public DateTime timestamp {get; set; }
+    [JsonProperty("customer")]
+    public CustomerCheckout customerCheckout {get; set; }
+    public List<CartItem> items {get; set; }
+    public int instanceId {get; set; }
+
+    public ReserveStock(){ }
+
+    public ReserveStock(DateTime timestamp, CustomerCheckout customerCheckout, List<CartItem> items, int instanceId)
+    {
+        this.timestamp = timestamp;
+        this.customerCheckout = customerCheckout;
+        this.items = items;
+        this.instanceId = instanceId;
+    }
 }

@@ -1,17 +1,20 @@
-﻿using System;
-using Common.Entities;
+﻿namespace Common.Events;
 
-namespace Common.Events
+public class IncreaseStock
 {
-    public record IncreaseStock
-    (
-        int seller_id,
+    public int seller_id { get; set; }
 
-        int product_id,
+    public int product_id { get; set; }
 
-        int quantity
+    public int quantity { get; set; }
 
-        
-    );
+    public IncreaseStock(){ }
+
+    public IncreaseStock(int seller_id, int product_id, int quantity)
+    {
+        this.seller_id = seller_id;
+        this.product_id = product_id;
+        this.quantity = quantity;
+    }
 }
 

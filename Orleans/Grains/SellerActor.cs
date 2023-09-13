@@ -7,6 +7,7 @@ using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 using RocksDbSharp;
+using Orleans.Infra;
 
 namespace Orleans.Grains;
 
@@ -22,8 +23,8 @@ public class SellerActor : Grain, ISellerActor
     private readonly IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries;
 
     public SellerActor(
-        [PersistentState(stateName: "seller", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Seller> seller,
-        [PersistentState(stateName: "orderEntries", storageName: Infra.Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
+        [PersistentState(stateName: "seller", storageName: Constants.OrleansStorage)] IPersistentState<Seller> seller,
+        [PersistentState(stateName: "orderEntries", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
         ILogger<SellerActor> logger)
     {
         this.seller = seller;
@@ -31,14 +32,14 @@ public class SellerActor : Grain, ISellerActor
         this.logger = logger;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         this.sellerId = (int) this.GetPrimaryKeyLong();
 
         // persistence
         if(this.orderEntries.State is null) this.orderEntries.State = new();
-        
-        await base.OnActivateAsync(token);
+
+        return Task.CompletedTask;
     }
 
     public async Task SetSeller(Seller seller)
@@ -47,11 +48,38 @@ public class SellerActor : Grain, ISellerActor
         await this.seller.WriteStateAsync();
     }
 
+    private static string BuildUniqueOrderIdentifier(InvoiceIssued invoiceIssued)
+    {
+        return new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
+    }
+
+    private static string BuildUniqueOrderIdentifier(PaymentConfirmed paymentConfirmed)
+    {
+        return new StringBuilder(paymentConfirmed.customer.CustomerId.ToString()).Append('-').Append(paymentConfirmed.orderId).ToString();
+    }
+
+    private static string BuildUniqueOrderIdentifier(PaymentFailed paymentFailed)
+    {
+        return new StringBuilder(paymentFailed.customer.CustomerId.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
+    }
+
+    private static string BuildUniqueOrderIdentifier(ShipmentNotification shipmentNotification)
+    {
+        return new StringBuilder(shipmentNotification.customerId.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
+    }
+
     public async Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
-        string id = new StringBuilder(invoiceIssued.customer.CustomerId).Append('-').Append(invoiceIssued.orderId).ToString();
-        // FIXME line throwing exception
-        this.orderEntries.State.Add(id, new List<OrderEntry>());
+        string id = BuildUniqueOrderIdentifier(invoiceIssued);
+
+        try{
+            this.orderEntries.State.Add(id, new List<OrderEntry>());
+        } catch(Exception e)
+        {
+            logger.LogError("Seller {0} caught error with customer ID {1} order ID {2}: {3}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, e.Message);
+            return;
+        }
+
         foreach (var item in invoiceIssued.items.Where(x=>x.seller_id == this.sellerId))
         {
             OrderEntry orderEntry = new()
@@ -81,7 +109,7 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
-        string id = new StringBuilder(paymentConfirmed.customer.CustomerId).Append('-').Append(paymentConfirmed.orderId).ToString();
+        string id = BuildUniqueOrderIdentifier(paymentConfirmed);
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
@@ -91,7 +119,7 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
-        string id = new StringBuilder(paymentFailed.customer.CustomerId).Append('-').Append(paymentFailed.orderId).ToString();
+        string id = BuildUniqueOrderIdentifier(paymentFailed);
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_FAILED;
@@ -101,7 +129,7 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
-        string id = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
+        string id = BuildUniqueOrderIdentifier(shipmentNotification);
         foreach (var item in this.orderEntries.State[id])
         {
             if(shipmentNotification.status == ShipmentStatus.approved){

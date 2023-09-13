@@ -35,7 +35,7 @@ public class CartController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
     public async Task<ActionResult> NotifyCheckout([FromServices] IGrainFactory grains, long customerId, [FromBody] CustomerCheckout customerCheckout)
     {
-        this.logger.LogInformation("[NotifyCheckout] received request.");
+        this.logger.LogDebug("[NotifyCheckout] received request for customer id {0}: {1} ",customerId,  customerCheckout.CustomerId);
 
         // use customerId as cartGrainId and orderGrainId
         var cartGrain = grains.GetGrain<ICartActor>(customerId);

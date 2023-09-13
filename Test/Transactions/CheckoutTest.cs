@@ -3,7 +3,6 @@ using Common.Requests;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
-using System.Diagnostics.Metrics;
 using Test.Infra;
 
 namespace Test.Transactions;
@@ -45,8 +44,8 @@ public class CheckoutTest
         };
 
         var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
-        await cart.AddItem(GenerateBasketItem(1,1));
-        await cart.AddItem(GenerateBasketItem(1,2));
+        await cart.AddItem(GenerateCartItem(1,1));
+        await cart.AddItem(GenerateCartItem(1,2));
 
         await cart.NotifyCheckout(customerCheckout);
 
@@ -85,8 +84,8 @@ public class CheckoutTest
             };
 
             var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
-            await cart.AddItem(GenerateBasketItem(1, 1));
-            await cart.AddItem(GenerateBasketItem(1, 2));
+            await cart.AddItem(GenerateCartItem(1, 1));
+            await cart.AddItem(GenerateCartItem(1, 2));
             tasks.Add(cart.NotifyCheckout(customerCheckout));
         }
         await Task.WhenAll(tasks);
@@ -141,7 +140,7 @@ public class CheckoutTest
         }
     }
 
-    private CartItem GenerateBasketItem(int sellerId, int productId)
+    private CartItem GenerateCartItem(int sellerId, int productId)
     {
         return new()
         {

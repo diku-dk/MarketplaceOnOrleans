@@ -26,10 +26,10 @@ public class CustomerActor : Grain, ICustomerActor
         this._logger = _logger;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         this.customerId = (int) this.GetPrimaryKeyLong();
-        await base.OnActivateAsync(token);
+        return Task.CompletedTask;
     }
 
     public async Task SetCustomer(Customer customer)

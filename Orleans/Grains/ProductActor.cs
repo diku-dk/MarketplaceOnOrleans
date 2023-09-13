@@ -23,19 +23,16 @@ public class ProductActor : Grain, IProductActor
         this._logger = _logger;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
-        int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
-        var id = string.Format("{0}|{1}", primaryKey, keyExtension);
-        _logger.LogInformation("Activating Product actor {0}", id);
-        await base.OnActivateAsync(token);
+        // int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
+        return Task.CompletedTask;
     }
 
     public async Task SetProduct(Product product)
     {
         this.product.State = product;
-        ISellerActor sellerActor = this.GrainFactory.GetGrain<ISellerActor>(product.seller_id);
-        // notify seller
+        this.product.State.created_at = DateTime.UtcNow;
         await this.product.WriteStateAsync();
     }
 

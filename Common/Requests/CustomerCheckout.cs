@@ -1,4 +1,6 @@
-﻿namespace Common.Requests
+﻿using Newtonsoft.Json;
+
+namespace Common.Requests
 {
     /**
      * A sub-type of customer.
@@ -7,7 +9,6 @@
      */
     public class CustomerCheckout
     {
-    
         public int CustomerId { get; set; }
 
         /**

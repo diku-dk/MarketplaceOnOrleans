@@ -21,10 +21,10 @@ internal class PaymentActor : Grain, IPaymentActor
         this._logger = _logger;
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         this.customerId = (int)this.GetPrimaryKeyLong();
-        await base.OnActivateAsync(token);
+        return Task.CompletedTask;
     }
 
     public async Task ProcessPayment(InvoiceIssued invoiceIssued)
@@ -96,8 +96,8 @@ internal class PaymentActor : Grain, IPaymentActor
 
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize((orderPayment, card));
-        var sb = new StringBuilder(invoiceIssued.customer.CustomerId).Append("-").Append(invoiceIssued.orderId);
-        db.Put(sb.ToString(), str);
+        var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
+        db.Put(key, str);
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();
@@ -122,7 +122,7 @@ internal class PaymentActor : Grain, IPaymentActor
         _logger.LogDebug($"Notify {sellers.Count} sellers PaymentConfirmed. ");
 
         // proceed to shipment actor
-        var shipmentActorID = Helper.GetShipmentActorID(invoiceIssued.customer.CustomerId);
+        var shipmentActorID = Helper.GetShipmentActorID(this.customerId);
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmed);
         _logger.LogDebug($"Notify shipment actor PaymentConfirmed. ");

@@ -22,13 +22,14 @@ public class SellerController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Created)]
     public async Task<ActionResult> AddSeller([FromServices] IGrainFactory grains, [FromBody] Seller seller)
     {
+        this.logger.LogDebug("[AddSeller] received for id {0}", seller.id);
         var actor = grains.GetGrain<ISellerActor>(seller.id);
         await actor.SetSeller(seller);
         return StatusCode((int)HttpStatusCode.Created);
     }
 
     [HttpGet]
-    [Route("/seller/dashboard/{sellerId}")]
+    [Route("/seller/{sellerId}")]
     [ProducesResponseType(typeof(SellerDashboard),(int)HttpStatusCode.OK)]
     public async Task<ActionResult<SellerDashboard>> GetDashboard([FromServices] IGrainFactory grains, int sellerId)
     {

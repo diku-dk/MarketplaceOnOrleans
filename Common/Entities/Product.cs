@@ -6,13 +6,13 @@
 
         public int product_id { get; set; }
 
-        public string name { get; set; } = "";
+        public string name { get; set; }
 
-        public string sku { get; set; } = "";
+        public string sku { get; set; }
 
-        public string category { get; set; } = "";
+        public string category { get; set; }
 
-        public string description { get; set; } = "";
+        public string description { get; set; }
 
         public float price { get; set; }
 
@@ -22,7 +22,7 @@
 
         public DateTime updated_at { get; set; }
 
-        public string status { get; set; } = "approved";
+        public string status { get; set; }
 
         public int version { get; set; }
 

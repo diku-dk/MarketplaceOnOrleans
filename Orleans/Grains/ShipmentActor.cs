@@ -18,7 +18,9 @@ public class ShipmentActor : Grain, IShipmentActor
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: customer ID + "-" + order ID
 
-    private readonly Dictionary<int, List<(DateTime request_date, int customerId, int orderId)>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
+    private record SellerEntry(DateTime request_date, int customerId, int orderId);
+
+    private readonly Dictionary<int, List<SellerEntry>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
 
     private readonly ILogger<ShipmentActor> _logger;
 
@@ -30,17 +32,17 @@ public class ShipmentActor : Grain, IShipmentActor
         this._logger = _logger;
         this.shipments = shipments;
         this.packages = packages;
-        this.sellerInfo = new Dictionary<int, List<(DateTime request_date, int customerId, int orderId)>>();
+        this.sellerInfo = new Dictionary<int, List<SellerEntry>>();
     }
 
-    public override async Task OnActivateAsync(CancellationToken token)
+    public override Task OnActivateAsync(CancellationToken token)
     {
         this.partitionId = (int) this.GetPrimaryKeyLong();
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
        
-        await base.OnActivateAsync(token);
+        return Task.CompletedTask;
     }
 
     public async Task ProcessShipment(PaymentConfirmed paymentConfirmed)
@@ -66,18 +68,30 @@ public class ShipmentActor : Grain, IShipmentActor
             state = paymentConfirmed.customer.State
         };
 
-        var id = new StringBuilder(shipment.customer_id).Append('-').Append(shipment.order_id).ToString();
-        shipments.State.Add(id, shipment);
-        packages.State.Add(id, new List<Package>());
-
-        paymentConfirmed.items.Select(x => x.seller_id).ToHashSet().ToList().ForEach(sellerId => 
+        var id = new StringBuilder(paymentConfirmed.customer.CustomerId.ToString()).Append('-').Append(shipment.order_id).ToString();
+        try{
+            shipments.State.Add(id, shipment);
+            packages.State.Add(id, new List<Package>());
+        }
+        catch(Exception)
         {
-            if (!sellerInfo.ContainsKey(sellerId)) sellerInfo.Add(sellerId, new List<(DateTime, int, int)>());
-            var index = 0;
-            while (sellerInfo[sellerId][index].Item1 < now) index++;
+            _logger.LogWarning("Shipment {0} processing customer ID {1}. Unique ID {2}", this.partitionId, paymentConfirmed.customer.CustomerId, id);
+            return;
+        }
 
-            sellerInfo[sellerId].Insert(index, (now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
-        });
+        var sellerSet = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
+
+        foreach(var sellerId in sellerSet)
+        {
+            if (!sellerInfo.ContainsKey(sellerId)) {
+                sellerInfo.Add(sellerId, new List<SellerEntry>());
+                sellerInfo[sellerId].Add(new(now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+                continue;
+            }
+            var index = 0;
+            while (index < sellerInfo[sellerId].Count && sellerInfo[sellerId][index].request_date < now) index++;
+            sellerInfo[sellerId].Insert(index, new(now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+        }
 
         foreach (var item in paymentConfirmed.items)
         {
@@ -101,7 +115,7 @@ public class ShipmentActor : Grain, IShipmentActor
         }
         await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
 
-        ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId);
+        ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
         // inform seller
         var tasks = new List<Task>();
         var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
@@ -112,7 +126,7 @@ public class ShipmentActor : Grain, IShipmentActor
         }
         await Task.WhenAll(tasks);
 
-        var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.orderId);
+        var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.customer.CustomerId);
         await orderActor.ProcessShipmentNotification(shipmentNotification);
     }
 
@@ -127,13 +141,22 @@ public class ShipmentActor : Grain, IShipmentActor
 
         foreach (var x in sellerInfo)
         {
+            if(x.Value.Count == 0) continue;
             var info = x.Value.First();
             x.Value.RemoveAt(0);
 
-            var id = new StringBuilder(info.customerId).Append('-').Append(info.orderId).ToString();
-            var packages_ = this.packages.State[id].Where( p=>p.seller_id == x.Key ).ToList();
-            var shipment = this.shipments.State[id];
-
+            var id = new StringBuilder(info.customerId.ToString()).Append('-').Append(info.orderId).ToString();
+            List<Package> packages_;
+            Shipment shipment;
+            try{
+                packages_ = this.packages.State[id].Where( p=>p.seller_id == x.Key ).ToList();
+                shipment = this.shipments.State[id];
+            }
+            catch (Exception)
+            {
+                _logger.LogWarning("Error caught by shipment ator {0}. ID does not exist: {1} - {2}", this.partitionId, id, info);
+                continue;
+            }
             List<Task> tasks = new(packages_.Count + 1);
             int countDelivered = this.packages.State[id].Where( p=>p.status == PackageStatus.delivered ).Count();
 
@@ -156,7 +179,7 @@ public class ShipmentActor : Grain, IShipmentActor
                 shipment.status = ShipmentStatus.delivery_in_progress;
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                         shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.delivery_in_progress);
-                tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.order_id)
+                tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification) );
             }
 
@@ -167,14 +190,13 @@ public class ShipmentActor : Grain, IShipmentActor
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
                 tasks.Add(     GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification));
-                tasks.Add (    GrainFactory.GetGrain<IOrderActor>(shipment.order_id)
+                tasks.Add (    GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification)          
                     );
 
                 // log shipment and packages
                 var str = JsonSerializer.Serialize((shipment, packages_));
                 db.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
-                _logger.LogDebug($"Log shipment info to RocksDB. ");
 
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);
