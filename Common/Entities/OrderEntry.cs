@@ -3,7 +3,7 @@
 public class OrderEntry
 {
 	public int seller_id { get; set; }
-    public int order_id { get; set; }
+    public string order_id { get; set; }
     public int package_id { get; set; }
 
     public int product_id { get; set; }

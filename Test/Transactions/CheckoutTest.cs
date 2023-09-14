@@ -83,7 +83,7 @@ public class CheckoutTest
                 Installments = 1
             };
 
-            var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
+            var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
             await cart.AddItem(GenerateCartItem(1, 1));
             await cart.AddItem(GenerateCartItem(1, 2));
             tasks.Add(cart.NotifyCheckout(customerCheckout));
@@ -93,8 +93,10 @@ public class CheckoutTest
         for (var customerId = 0; customerId < numCustomer; customerId++)
         {
             var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(customerId));
-            var shipments = await shipmentActor.GetShipments(customerId);
-            Assert.True(shipments.Count == 1);
+            var shipments = (await shipmentActor.GetShipments(customerId));
+            var count = shipments.Count;
+            Console.WriteLine("Customer ID {0} Count {1}", customerId, count);
+            Assert.True(count == 1);
         }
     }
 

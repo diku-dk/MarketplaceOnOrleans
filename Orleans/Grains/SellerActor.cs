@@ -82,7 +82,7 @@ public class SellerActor : Grain, ISellerActor
         {
             OrderEntry orderEntry = new()
             {
-                order_id = invoiceIssued.orderId,
+                order_id = id,
                 seller_id = item.seller_id,
                 // package_id = not known yet
                 product_id = item.product_id,
@@ -171,7 +171,6 @@ public class SellerActor : Grain, ISellerActor
             }
         }
         
-
     }
 
     public Task<SellerDashboard> QueryDashboard()
@@ -181,7 +180,6 @@ public class SellerActor : Grain, ISellerActor
         OrderSellerView view = new OrderSellerView()
         {
             seller_id = this.sellerId,
-            // FIXME add customer id otherwise count order will be incorrect
             count_orders = entries.Select(x=>x.order_id).ToHashSet().Count,
             count_items = entries.Count(),
             total_invoice = entries.Sum(x=>x.total_invoice),

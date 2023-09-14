@@ -3,7 +3,6 @@ using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces;
-using RocksDbSharp;
 using System.Text;
 using System.Text.Json;
 
@@ -13,8 +12,6 @@ internal class PaymentActor : Grain, IPaymentActor
 {
     private int customerId;
     readonly ILogger<PaymentActor> _logger;
-
-    
 
     public PaymentActor(ILogger<PaymentActor> _logger)
     {
