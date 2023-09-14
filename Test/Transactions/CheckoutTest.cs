@@ -53,10 +53,60 @@ public class CheckoutTest
         List<Order> orders = await order.GetOrders();
 
         Assert.Single(orders);
+
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));
+        var shipments = (await shipmentActor.GetShipments(0));
+        var count = shipments.Count;
+        Assert.True(count == 1);
     }
 
     [Fact]
-    public async Task CheckoutTwoOrders()
+    public async Task CheckoutTwoOrdersSameCustomer()
+    {
+        await Init(1, 2);
+
+        var item1 = GenerateCartItem(1, 1);
+        var item2 = GenerateCartItem(1, 2);
+
+        CustomerCheckout customerCheckout = new()
+        {
+            CustomerId = 0,
+            FirstName = "",
+            LastName = "",
+            Street = "",
+            Complement = "",
+            City = "",
+            State = "",
+            ZipCode = "",
+            PaymentType = PaymentType.CREDIT_CARD.ToString(),
+            CardNumber = random.Next().ToString(),
+            CardHolderName = "",
+            CardExpiration = "",
+            CardSecurityNumber = "",
+            CardBrand = "",
+            Installments = 1
+        };
+
+        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
+
+        for (var i = 0; i < 2; i++)
+        {
+            await cart.AddItem(item1);
+            await cart.AddItem(item2);
+            await cart.NotifyCheckout(customerCheckout);
+        }
+
+        var order = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        Assert.True(2 == await order.GetNumOrders());
+
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));
+        var shipments = (await shipmentActor.GetShipments(0));
+        var count = shipments.Count;
+        Assert.True(count == 2);
+    }
+
+    [Fact]
+    public async Task CheckoutTwoOrdersDifferentCustomers()
     {
         var numCustomer = 2;
         await Init(numCustomer, 2);

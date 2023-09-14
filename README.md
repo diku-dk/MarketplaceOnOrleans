@@ -32,12 +32,15 @@ how to run experiments:
 2. run exp:  dotnet run --project Orleans "C:\Users\jhs316\Desktop\EventBenchmark\Configuration\orleans_local.json"
 
 how to run exp on vm
-1. select vm: Ubuntu xfce => add "Big Data System" folder + connect to postgres run
-2. turn on vm
+1. Select vm: postgres => set name as postgres and set the "postgresql" folder as the DB folder
+2. Submit postgres job
+3. select vm: Ubuntu xfce => add "Big Data System" folder + connect to postgres run above
+4. Submit Ubuntu job
+5. Inside the Ubuntu job VM:
 (1) select the right folder
 (2) run "chmod +x dotnet_setup.sh"
 (3) run "./dotnet_setup.sh"      
-(4) run "home/ucloud/.dotnet"
+(4) run "/home/ucloud/.dotnet"
 3. upload zip files to the "Big Data System" folder
 need to upload both server code and driver
 4. return to vm

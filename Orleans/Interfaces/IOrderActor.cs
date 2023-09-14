@@ -13,5 +13,7 @@ namespace Orleans.Interfaces
 
         Task<List<Order>> GetOrders();
 
+        Task<int> GetNumOrders();
+
     }
 }

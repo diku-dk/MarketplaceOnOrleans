@@ -175,7 +175,6 @@ public class OrderActor : Grain, IOrderActor
 
         var tasks = new List<Task>
         {
-            // FIXME nextorderid not being written to storage
             nextOrderId.WriteStateAsync(),
             orders.WriteStateAsync()
         };
@@ -247,4 +246,10 @@ public class OrderActor : Grain, IOrderActor
         var res = this.orders.State.Select(x=>x.Value.order).ToList();
         return Task.FromResult(res);
     }
+
+    public Task<int> GetNumOrders()
+    {
+        return Task.FromResult(this.nextOrderId.State.Value);
+    }
+
 }
