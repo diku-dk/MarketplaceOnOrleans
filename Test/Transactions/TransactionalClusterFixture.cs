@@ -1,22 +1,25 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Diagnostics.Metrics;
+using Common.Entities;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Infra;
+using Orleans.Interfaces;
 using Orleans.Serialization;
 using Orleans.TestingHost;
+using static Orleans.AbstractGrains.AbstractOrderActor;
 
-namespace Test.Infra;
+namespace Test.Transactions;
 
-/**
-* https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/testing
-* https://stackoverflow.com/questions/70640638/how-to-configure-testclusterbuilder-such-that-the-test-cluster-has-access-to-sms
-*/
-public class ClusterFixture : IDisposable
+public class TransactionalClusterFixture : IDisposable
 {
 
     private class SiloConfigurator : ISiloConfigurator
     {
       public void Configure(ISiloBuilder hostBuilder) =>
          hostBuilder
+         .UseTransactions()
          .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
@@ -38,13 +41,14 @@ public class ClusterFixture : IDisposable
     {
       public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) => 
         clientBuilder
+            .UseTransactions()
             .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
              });
     }
 
-    public ClusterFixture()
+    private void Init()
     {
         var builder = new TestClusterBuilder();
         builder.AddSiloBuilderConfigurator<SiloConfigurator>();
@@ -58,6 +62,29 @@ public class ClusterFixture : IDisposable
         Cluster.StopAllSilos();
     }
 
-    public TestCluster Cluster { get; private set; }
+    private TestCluster Cluster { get; set; }
+
+    [Fact]
+    public async Task TestTransactionalStorage()
+    {
+        Init();
+
+        var order = Cluster.GrainFactory.GetGrain<IOrderActor>(0, "Orleans.TransactionalGrains.TransactionalOrderActor");
+
+        // var client = Cluster.Client.ServiceProvider.GetRequiredService<IClusterClient>();
+        var transactionClient= Cluster.Client.ServiceProvider.GetRequiredService<ITransactionClient>();
+
+        await transactionClient.RunTransaction(TransactionOption.Create, async () =>
+        {
+            await order.TestTransaction(new Order { id = 1, customer_id = 1 });
+        });
+        // await order.TestTransaction(new Order { id = 1, customer_id = 1  });
+
+        Assert.Single((await order.GetOrders()));
+
+        Dispose();
+
+        
+    }
 }
 

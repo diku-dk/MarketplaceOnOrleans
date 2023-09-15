@@ -14,15 +14,22 @@
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="7.2.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.4" />
     <PackageReference Include="RocksDB" Version="8.3.2.39829" />
+    <PackageReference Include="Microsoft.Orleans.Transactions" Version="7.2.1" />
   </ItemGroup>
   
     <ItemGroup>
     <None Remove="Grains\" />
     <None Remove="Infra\" />
     <None Remove="Interfaces\" />
+    <None Remove="TransactionalGrains\" />
+    <None Remove="AbstractGrains\" />
   </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="TransactionalGrains\" />
+      <Folder Include="AbstractGrains\" />
     </ItemGroup>
 </Project>

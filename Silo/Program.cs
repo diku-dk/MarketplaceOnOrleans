@@ -1,9 +1,21 @@
-﻿using Orleans.Infra;
+﻿using Common;
+using Orleans.Infra;
 using Orleans.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
+
+if (configSection.GetValue<bool>("CleanLogFilesOnStart"))
+{
+    Helper.CleanLogFiles();
+}
+
+var useTx = configSection.GetValue<bool>("UseTransactions");
+// only if an actor needs this injection
+builder.Services.Configure<AppConfig>(configSection);
 
 builder.Services.AddControllers();
 
@@ -14,6 +26,10 @@ builder.Services.AddSwaggerGen();
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
 builder.Host.UseOrleans(siloBuilder =>
 {
+    if (useTx)
+    {
+        siloBuilder.UseTransactions();
+    }
     siloBuilder
          .UseLocalhostClustering()
          .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
@@ -30,7 +46,7 @@ builder.Host.UseOrleans(siloBuilder =>
          .Services.AddSerializer(ser =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-         });
+         }).Configure<AppConfig>(configSection);
 });
 
 var app = builder.Build();
@@ -54,5 +70,8 @@ Console.ReadLine();
 
 await app.StopAsync();
 
-Console.WriteLine("\n *************************** Deleting log files... ***************************");
-Helper.CleanLogFiles();
+if (configSection.GetValue<bool>("CleanLogFilesOnStop"))
+{
+    Console.WriteLine("\n *************************** Deleting log files... ***************************");
+    Helper.CleanLogFiles();
+}

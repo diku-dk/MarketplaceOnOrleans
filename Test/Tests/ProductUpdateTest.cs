@@ -4,7 +4,7 @@ using Orleans.Interfaces;
 using Orleans.TestingHost;
 using Test.Infra;
 
-namespace Test.Transactions;
+namespace Test.Tests;
 
 [Collection(ClusterCollection.Name)]
 public class ProductUpdateTest
