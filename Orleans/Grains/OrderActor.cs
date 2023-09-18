@@ -253,13 +253,15 @@ public class OrderActor : Grain, IOrderActor
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
             var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
-            _persistence.Log(typeof(OrderActor).FullName, sb.ToString(), str);
+            await _persistence.Log(Name, sb.ToString(), str);
 
             orders.State.Remove(shipmentNotification.orderId);
         }
 
         await orders.WriteStateAsync();
     }
+
+    private static string Name = typeof(OrderActor).FullName;
 
     public Task<List<Order>> GetOrders()
     {

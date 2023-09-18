@@ -13,15 +13,23 @@ public class ShipmentActor : Grain, IShipmentActor
 {
     
     private int partitionId;
+    private static readonly string Name = typeof(ShipmentActor).FullName;
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
     private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: customer ID + "-" + order ID
 
-    private record SellerEntry(DateTime request_date, int customerId, int orderId);
+    private record SellerEntry(DateTime request_date, int sellerId, int customerId, int orderId);
 
     private readonly Dictionary<int, List<SellerEntry>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
 
     private readonly ILogger<ShipmentActor> _logger;
-    readonly IPersistence _persistence;
+    private readonly IPersistence _persistence;
+
+    private class ShipmentState
+    {
+        public Shipment shipment { get; set; }
+        public List<Package> packages { get; set; }
+        public ShipmentState(){ }
+    }
 
     public ShipmentActor(
         ILogger<ShipmentActor> _logger,
@@ -86,12 +94,12 @@ public class ShipmentActor : Grain, IShipmentActor
         {
             if (!sellerInfo.ContainsKey(sellerId)) {
                 sellerInfo.Add(sellerId, new List<SellerEntry>());
-                sellerInfo[sellerId].Add(new(now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+                sellerInfo[sellerId].Add(new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
                 continue;
             }
             var index = 0;
             while (index < sellerInfo[sellerId].Count && sellerInfo[sellerId][index].request_date < now) index++;
-            sellerInfo[sellerId].Insert(index, new(now, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+            sellerInfo[sellerId].Insert(index, new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
         }
 
         foreach (var item in paymentConfirmed.items)
@@ -131,8 +139,16 @@ public class ShipmentActor : Grain, IShipmentActor
         await orderActor.ProcessShipmentNotification(shipmentNotification);
     }
 
+    private Dictionary<int,DateTime> GetOldestOpenShipmentPerSeller()
+    {
+        return sellerInfo.SelectMany(x=> x.Value ).GroupBy(x=>x.sellerId)
+              .Select(g => new { key = g.Key, Sort = g.Min(x => x.request_date) }).Take(10)
+              .ToDictionary(g => g.key, g => g.Sort);
+    }
+
     public async Task UpdateShipment(int tid)
     {
+        List<Task> tasks = new();
         // impossibility of ensuring one order per seller in this transaction
         // since sellers' packages are distributed across many
         // shipment actors
@@ -140,11 +156,13 @@ public class ShipmentActor : Grain, IShipmentActor
         var now = DateTime.UtcNow;
         // https://stackoverflow.com/questions/5231845/c-sharp-linq-group-by-on-multiple-columns
 
-        foreach (var x in sellerInfo)
+        // get oldest 10 orders by seller
+        var oldestShipments = GetOldestOpenShipmentPerSeller();
+
+        foreach (var x in oldestShipments)
         {
-            if(x.Value.Count == 0) continue;
-            var info = x.Value.First();
-            x.Value.RemoveAt(0);
+            var info = sellerInfo[x.Key].First();
+            sellerInfo[x.Key].RemoveAt(0);
 
             var id = new StringBuilder(info.customerId.ToString()).Append('-').Append(info.orderId).ToString();
             List<Package> packages_;
@@ -158,7 +176,7 @@ public class ShipmentActor : Grain, IShipmentActor
                 _logger.LogWarning("Error caught by shipment ator {0}. ID does not exist: {1} - {2}", this.partitionId, id, info);
                 continue;
             }
-            List<Task> tasks = new(packages_.Count + 1);
+            
             int countDelivered = this.packages.State[id].Where( p=>p.status == PackageStatus.delivered ).Count();
 
             foreach (var package in packages_)
@@ -189,26 +207,26 @@ public class ShipmentActor : Grain, IShipmentActor
                 shipment.status = ShipmentStatus.concluded;
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
-                tasks.Add(     GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
+                tasks.Add(    GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification) );
-                tasks.Add (    GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
+                tasks.Add(    GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification) );
 
                 // log shipment and packages
-                var str = JsonSerializer.Serialize((shipment, packages_));
+                var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = packages_ } );
                 var sb = new StringBuilder(shipment.customer_id.ToString()).Append('-').Append(shipment.order_id).ToString();
-                _persistence.Log(typeof(ShipmentActor).FullName, sb.ToString(), str);
+                tasks.Add( _persistence.Log(Name, sb.ToString(), str) );
 
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);
             }
 
-            // no need to wait for oneway events
-            await Task.WhenAll( tasks );
-
         }
 
-        await Task.WhenAll( this.shipments.WriteStateAsync(), this.packages.WriteStateAsync() );
+        // no need to wait for oneway events
+        tasks.Add(this.shipments.WriteStateAsync());
+        tasks.Add(this.packages.WriteStateAsync());
+        await Task.WhenAll( tasks );
     }
 
     public Task<List<Shipment>> GetShipments(int customerId)

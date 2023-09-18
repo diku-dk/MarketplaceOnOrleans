@@ -35,7 +35,7 @@ public class ShipmentTest
 
         // should have no orders
         var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
-        Assert.True( (await orderActor.GetOrders()).Count == 0 );
+        Assert.True( ( await orderActor.GetOrders()).Count == 0 );
 	}
 
 }  

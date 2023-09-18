@@ -111,6 +111,7 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
+        if(!this.orderEntries.State.ContainsKey(id)) return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
@@ -121,6 +122,7 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
         string id = BuildUniqueOrderIdentifier(paymentFailed);
+        if(!this.orderEntries.State.ContainsKey(id)) return;
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_FAILED;
@@ -152,11 +154,13 @@ public class SellerActor : Grain, ISellerActor
         {
             List<OrderEntry> entries = this.orderEntries.State[id];
             var str = JsonSerializer.Serialize(entries);
-            _persistence.Log(typeof(SellerActor).FullName, id, str);
+            await _persistence.Log(Name, id, str);
             this.orderEntries.State.Remove(id);
         }
         await this.orderEntries.WriteStateAsync();
     }
+
+    private static readonly string Name = typeof(SellerActor).FullName;
 
     public async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {

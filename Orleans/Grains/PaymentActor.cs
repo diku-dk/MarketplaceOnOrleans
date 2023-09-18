@@ -104,7 +104,7 @@ internal class PaymentActor : Grain, IPaymentActor
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize(new PaymentState(){ orderPayments= orderPayments, card = card });
         var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
-        _persistence.Log(typeof(PaymentActor).FullName, key, str);
+        await _persistence.Log(Name, key, str);
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();
@@ -136,4 +136,7 @@ internal class PaymentActor : Grain, IPaymentActor
         tasks.Add( shipmentActor.ProcessShipment(paymentConfirmed) );
         await Task.WhenAll(tasks);
     }
+
+    private static readonly string Name = typeof(PaymentActor).FullName;
+
 }
