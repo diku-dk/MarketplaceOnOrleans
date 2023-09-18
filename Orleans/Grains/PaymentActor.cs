@@ -12,10 +12,12 @@ internal class PaymentActor : Grain, IPaymentActor
 {
     private int customerId;
     readonly ILogger<PaymentActor> _logger;
+    readonly IPersistence _persistence;
 
-    public PaymentActor(ILogger<PaymentActor> _logger)
+    public PaymentActor(ILogger<PaymentActor> _logger, IPersistence _persistence)
     {
         this._logger = _logger;
+        this._persistence = _persistence;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -94,7 +96,7 @@ internal class PaymentActor : Grain, IPaymentActor
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize((orderPayment, card));
         var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
-        Helper.PaymentLog.Put(key, str);
+        _persistence.Put(typeof(PaymentActor).FullName, key, str);
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();

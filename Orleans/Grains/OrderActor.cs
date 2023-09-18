@@ -31,6 +31,7 @@ public class OrderActor : Grain, IOrderActor
     }
 
     private readonly ILogger<OrderActor> _logger;
+    readonly IPersistence _persistence;
    
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
@@ -42,11 +43,13 @@ public class OrderActor : Grain, IOrderActor
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderState> nextOrderId,
-        ILogger<OrderActor> _logger) 
+        ILogger<OrderActor> _logger,
+        IPersistence _persistence) 
     {
         this._logger = _logger;
         this.orders = orders;
         this.nextOrderId = nextOrderId;
+        this._persistence = _persistence;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -233,7 +236,7 @@ public class OrderActor : Grain, IOrderActor
         
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
-            Helper.OrderLog.Put(order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
+            _persistence.Put(typeof(OrderActor).FullName, order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
 
             orders.State.Remove(shipmentNotification.orderId);
         }

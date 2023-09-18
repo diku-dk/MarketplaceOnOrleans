@@ -14,6 +14,7 @@ public class SellerActor : Grain, ISellerActor
 {
 
     private readonly ILogger<SellerActor> logger;
+    readonly IPersistence _persistence;
 
     private int sellerId;
 
@@ -23,11 +24,14 @@ public class SellerActor : Grain, ISellerActor
     public SellerActor(
         [PersistentState(stateName: "seller", storageName: Constants.OrleansStorage)] IPersistentState<Seller> seller,
         [PersistentState(stateName: "orderEntries", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
-        ILogger<SellerActor> logger)
+        ILogger<SellerActor> logger,
+        IPersistence _persistence)
     {
         this.seller = seller;
         this.orderEntries = orderEntries;
         this.logger = logger;
+        this._persistence = _persistence;
+
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -149,7 +153,7 @@ public class SellerActor : Grain, ISellerActor
         {
             List<OrderEntry> entries = this.orderEntries.State[id];
             var str = JsonSerializer.Serialize(entries);
-            Helper.SellerLog.Put(id, str);
+            _persistence.Put(typeof(SellerActor).FullName, id, str);
             this.orderEntries.State.Remove(id);
         }
         await this.orderEntries.WriteStateAsync();

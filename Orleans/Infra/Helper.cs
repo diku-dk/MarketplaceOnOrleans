@@ -1,17 +1,19 @@
 ﻿using System.Globalization;
-using System.IO;
 using System.Text;
-using Microsoft.Extensions.Options;
 using Npgsql;
-using Orleans.Grains;
-using RocksDbSharp;
 
 namespace Orleans.Infra;
 
 public static class Helper
 {
-    static readonly CultureInfo enUS = CultureInfo.CreateSpecificCulture("en-US");
-    static readonly DateTimeFormatInfo dtfi = enUS.DateTimeFormat;
+    static readonly CultureInfo enUS;
+    static readonly DateTimeFormatInfo dtfi;
+
+    static Helper()
+    {
+        enUS = CultureInfo.CreateSpecificCulture("en-US");
+        dtfi = enUS.DateTimeFormat;
+    }
 
     public static string GetInvoiceNumber(int customerId, DateTime timestamp, int orderId)
         => new StringBuilder().Append(customerId).Append("-")
@@ -53,18 +55,4 @@ public static class Helper
         if(Directory.Exists("WAL"))
             Directory.Delete("WAL", true);
     }
-
-    public static readonly RocksDb OrderLog;
-    public static readonly RocksDb PaymentLog;
-    public static readonly RocksDb ShipmentLog;
-    public static readonly RocksDb SellerLog;
-
-    static Helper()
-    {
-        OrderLog = RocksDb.Open(Constants.rocksDBOptions, typeof(OrderActor).FullName);
-        PaymentLog = RocksDb.Open(Constants.rocksDBOptions, typeof(PaymentActor).FullName);
-        ShipmentLog = RocksDb.Open(Constants.rocksDBOptions, typeof(ShipmentActor).FullName);
-        SellerLog = RocksDb.Open(Constants.rocksDBOptions, typeof(SellerActor).FullName);
-    }
-
 }

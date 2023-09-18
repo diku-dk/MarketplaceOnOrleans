@@ -21,13 +21,16 @@ public class ShipmentActor : Grain, IShipmentActor
     private readonly Dictionary<int, List<SellerEntry>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
 
     private readonly ILogger<ShipmentActor> _logger;
+    readonly IPersistence _persistence;
 
     public ShipmentActor(
         ILogger<ShipmentActor> _logger,
+        IPersistence _persistence,
         [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,Shipment>> shipments,
          [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,List<Package>>> packages)
 	{
         this._logger = _logger;
+        this._persistence = _persistence;
         this.shipments = shipments;
         this.packages = packages;
         this.sellerInfo = new Dictionary<int, List<SellerEntry>>();
@@ -194,7 +197,7 @@ public class ShipmentActor : Grain, IShipmentActor
 
                 // log shipment and packages
                 var str = JsonSerializer.Serialize((shipment, packages_));
-                Helper.ShipmentLog.Put(shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
+                _persistence.Put(typeof(ShipmentActor).FullName, shipment.customer_id.ToString() + "-" + shipment.order_id.ToString(), str);
 
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);
