@@ -5,6 +5,8 @@ using System.Text.Json;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using System.Text;
+using System.Globalization;
 
 namespace Orleans.Grains;
 
@@ -31,7 +33,7 @@ public class OrderActor : Grain, IOrderActor
     }
 
     private readonly ILogger<OrderActor> _logger;
-    readonly IPersistence _persistence;
+    private readonly IPersistence _persistence;
    
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
@@ -39,6 +41,20 @@ public class OrderActor : Grain, IOrderActor
     private readonly IPersistentState<NextOrderState> nextOrderId;
 
     private int customerId;
+
+    private static readonly CultureInfo enUS = CultureInfo.CreateSpecificCulture("en-US");
+    private static readonly DateTimeFormatInfo dtfi = enUS.DateTimeFormat;
+
+    static OrderActor()
+    {
+        // https://learn.microsoft.com/en-us/dotnet/api/system.globalization.datetimeformatinfo?view=net-7.0
+        dtfi.ShortDatePattern = "yyyyMMdd";
+    }
+
+    private static string GetInvoiceNumber(int customerId, DateTime timestamp, int orderId)
+        => new StringBuilder().Append(customerId).Append('-')
+                              .Append(timestamp.ToString("d", enUS)).Append('-')
+                              .Append(orderId).ToString();
 
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
@@ -124,7 +140,7 @@ public class OrderActor : Grain, IOrderActor
 
         nextOrderId.State = nextOrderId.State.GetNextOrderId();
         int orderId = nextOrderId.State.Value;
-        var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
+        var invoiceNumber = GetInvoiceNumber(customerId, now, orderId);
         var order = new Order()
         {
             id = orderId,
@@ -236,7 +252,8 @@ public class OrderActor : Grain, IOrderActor
         
             // log finished order
             var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
-            _persistence.Put(typeof(OrderActor).FullName, order.customer_id.ToString() + "-" + shipmentNotification.orderId.ToString(), str);
+            var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
+            _persistence.Log(typeof(OrderActor).FullName, sb.ToString(), str);
 
             orders.State.Remove(shipmentNotification.orderId);
         }

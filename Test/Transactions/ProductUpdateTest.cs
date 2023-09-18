@@ -19,7 +19,7 @@ public class ProductUpdateTest
     [Fact]
     public async Task ProductUpdate()
     {
-        await Helper.CleanUpPostgres();
+        Helper.TruncateOrleansStorage();
 
         // set product first
         var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,"1");

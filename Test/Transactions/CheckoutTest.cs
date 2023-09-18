@@ -27,19 +27,19 @@ public class CheckoutTest
         CustomerCheckout customerCheckout = new()
         {
             CustomerId = 0,
-            FirstName = "",
-            LastName = "",
-            Street = "",
-            Complement = "",
-            City = "",
-            State = "",
-            ZipCode = "",
+            FirstName = "Customer",
+            LastName = "Test",
+            Street = "Some unknown street",
+            Complement = "Still unknown",
+            City = "City of Dreams",
+            State = "Orleans",
+            ZipCode = "12345",
             PaymentType = PaymentType.CREDIT_CARD.ToString(),
             CardNumber = random.Next().ToString(),
-            CardHolderName = "",
-            CardExpiration = "",
-            CardSecurityNumber = "",
-            CardBrand = "",
+            CardHolderName = "Name",
+            CardExpiration = "1224",
+            CardSecurityNumber = "001",
+            CardBrand = "VISA",
             Installments = 1
         };
 
@@ -152,7 +152,9 @@ public class CheckoutTest
 
     async Task Init(int numCustomer, int numStockItem)
     {
-        await Helper.CleanUpPostgres();
+        Helper.SetUpLog();
+        Helper.CleanLog();
+        Helper.TruncateOrleansStorage();
 
         // load customer in customer actor
         for (var customerId = 0; customerId < numCustomer; customerId++)

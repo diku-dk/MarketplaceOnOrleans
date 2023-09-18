@@ -1,58 +1,40 @@
-﻿using System.Globalization;
-using System.Text;
-using Npgsql;
+﻿using Npgsql;
 
 namespace Orleans.Infra;
 
 public static class Helper
 {
-    static readonly CultureInfo enUS;
-    static readonly DateTimeFormatInfo dtfi;
 
-    static Helper()
-    {
-        enUS = CultureInfo.CreateSpecificCulture("en-US");
-        dtfi = enUS.DateTimeFormat;
-    }
-
-    public static string GetInvoiceNumber(int customerId, DateTime timestamp, int orderId)
-        => new StringBuilder().Append(customerId).Append("-")
-                              .Append(timestamp.ToString("d", enUS)).Append("-")
-                              .Append(orderId).ToString();
+    static readonly NpgsqlDataSource dataSource = NpgsqlDataSource.Create(Constants.PostgresConnectionString);
 
     public static int GetShipmentActorID(int customerID) => customerID % Constants.NumShipmentActors;
+
+    public static void SetUpLog()
+    {
+        var cmd = dataSource.CreateCommand("CREATE TABLE IF NOT EXISTS public.log (\"type\" varchar NULL,\"key\" varchar NULL, value varchar NULL);");
+        cmd.ExecuteNonQuery();
+    }
+
+    public static void CleanLog()
+    {
+        var cmd = dataSource.CreateCommand("TRUNCATE public.log");
+        cmd.ExecuteNonQuery();
+    }
 
     /*
      * https://www.cybertec-postgresql.com/en/postgresql-delete-vs-truncate/
      */
-    public static async Task CleanUpPostgres()
+    public static void TruncateOrleansStorage()
     {
-        var dataSource = NpgsqlDataSource.Create(Constants.postgresConnectionString);
         var cmd = dataSource.CreateCommand("TRUNCATE public.orleansstorage");
-        await cmd.ExecuteNonQueryAsync();
+        cmd.ExecuteNonQuery();
     }
 
     // clean all orleans states in batch
-    public static async Task ResetPostgres()
+    public static void ResetActorStates()
     {
-        var dataSource = NpgsqlDataSource.Create(Constants.postgresConnectionString);
         var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");
-        await cmd.ExecuteNonQueryAsync();
+        cmd.ExecuteNonQuery();
     }
 
-    private static readonly string[] dirs = { "Orleans.Grains.OrderActor", "Orleans.Grains.PaymentActor", "Orleans.Grains.SellerActor", "Orleans.Grains.ShipmentActor" };
-
-    public static void CleanLogFiles()
-    {
-		string startDirectory = Directory.GetCurrentDirectory();
-        Environment.CurrentDirectory = startDirectory;
-        foreach(var dir in dirs)
-        {
-            Directory.GetFiles(dir, "*", SearchOption.AllDirectories).ToList().ForEach(File.Delete);
-            Directory.Delete(dir, true);
-        }
-
-        if(Directory.Exists("WAL"))
-            Directory.Delete("WAL", true);
-    }
 }

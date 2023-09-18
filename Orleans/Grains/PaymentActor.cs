@@ -11,8 +11,16 @@ namespace Orleans.Grains;
 internal class PaymentActor : Grain, IPaymentActor
 {
     private int customerId;
-    readonly ILogger<PaymentActor> _logger;
-    readonly IPersistence _persistence;
+    private readonly ILogger<PaymentActor> _logger;
+    private readonly IPersistence _persistence;
+
+    private class PaymentState
+    {
+        public List<OrderPayment> orderPayments { get; set; }
+        public OrderPaymentCard card { get; set; }
+
+        public PaymentState(){ }
+    }
 
     public PaymentActor(ILogger<PaymentActor> _logger, IPersistence _persistence)
     {
@@ -33,7 +41,7 @@ internal class PaymentActor : Grain, IPaymentActor
         var cc = invoiceIssued.customer.PaymentType.Equals(PaymentType.CREDIT_CARD.ToString());
 
         // create payment tuples
-        var orderPayment = new List<OrderPayment>();
+        var orderPayments = new List<OrderPayment>();
         OrderPaymentCard card = null;
         if (cc || invoiceIssued.customer.PaymentType.Equals(PaymentType.DEBIT_CARD.ToString()))
         {
@@ -45,7 +53,7 @@ internal class PaymentActor : Grain, IPaymentActor
                 installments = invoiceIssued.customer.Installments,
                 value = invoiceIssued.totalInvoice
             };
-            orderPayment.Add(cardPaymentLine);
+            orderPayments.Add(cardPaymentLine);
 
             // create an entity for credit card payment details with FK to order payment
             card = new OrderPaymentCard()
@@ -63,7 +71,7 @@ internal class PaymentActor : Grain, IPaymentActor
 
         if (invoiceIssued.customer.PaymentType.Equals(PaymentType.BOLETO.ToString()))
         {
-            orderPayment.Add(new OrderPayment()
+            orderPayments.Add(new OrderPayment()
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
@@ -80,7 +88,7 @@ internal class PaymentActor : Grain, IPaymentActor
         {
             if(item.voucher > 0)
             {
-                orderPayment.Add(new OrderPayment()
+                orderPayments.Add(new OrderPayment()
                 {
                     order_id = invoiceIssued.orderId,
                     payment_sequential = seq,
@@ -94,9 +102,9 @@ internal class PaymentActor : Grain, IPaymentActor
         }
 
         // Using strings below, but can also use byte arrays for both keys and values
-        var str = JsonSerializer.Serialize((orderPayment, card));
+        var str = JsonSerializer.Serialize(new PaymentState(){ orderPayments= orderPayments, card = card });
         var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
-        _persistence.Put(typeof(PaymentActor).FullName, key, str);
+        _persistence.Log(typeof(PaymentActor).FullName, key, str);
 
         // inform related stock actors to reduce the amount because the payment has succeeded
         var tasks = new List<Task>();

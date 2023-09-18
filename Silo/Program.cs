@@ -3,6 +3,9 @@ using Orleans.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// init log table in PostgreSQL
+Helper.SetUpLog();
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -11,7 +14,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<IPersistence, FilePersistence>();
+builder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
 
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
 builder.Host.UseOrleans(siloBuilder =>
@@ -21,7 +24,7 @@ builder.Host.UseOrleans(siloBuilder =>
          .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
-             options.ConnectionString = Constants.postgresConnectionString;
+             options.ConnectionString = Constants.PostgresConnectionString;
          })
          .ConfigureLogging(logging =>
          {
@@ -32,7 +35,8 @@ builder.Host.UseOrleans(siloBuilder =>
          .Services.AddSerializer(ser =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-         });
+         })
+         .AddSingleton<IPersistence,PostgreSQLPersistence>();;
 });
 
 var app = builder.Build();
@@ -55,6 +59,3 @@ Console.WriteLine("\n **********************************************************
 Console.ReadLine();
 
 await app.StopAsync();
-
-Console.WriteLine("\n *************************** Deleting log files... ***************************");
-Helper.CleanLogFiles();

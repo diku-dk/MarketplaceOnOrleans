@@ -18,20 +18,22 @@ public class DefaultController : ControllerBase
     [Route("/reset")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> Reset()
+    public ActionResult Reset()
     {
         logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        await Helper.ResetPostgres();
+        Helper.ResetActorStates();
+        Helper.CleanLog();
         return Ok();
     }
 
     [Route("/cleanup")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> Cleanup()
+    public ActionResult Cleanup()
     {
         logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        await Helper.CleanUpPostgres();
+        Helper.TruncateOrleansStorage();
+        Helper.CleanLog();
         return Ok();
     }
 }

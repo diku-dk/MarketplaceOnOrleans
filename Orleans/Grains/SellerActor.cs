@@ -31,7 +31,6 @@ public class SellerActor : Grain, ISellerActor
         this.orderEntries = orderEntries;
         this.logger = logger;
         this._persistence = _persistence;
-
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -153,7 +152,7 @@ public class SellerActor : Grain, ISellerActor
         {
             List<OrderEntry> entries = this.orderEntries.State[id];
             var str = JsonSerializer.Serialize(entries);
-            _persistence.Put(typeof(SellerActor).FullName, id, str);
+            _persistence.Log(typeof(SellerActor).FullName, id, str);
             this.orderEntries.State.Remove(id);
         }
         await this.orderEntries.WriteStateAsync();

@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
 
@@ -30,7 +32,8 @@ public class ClusterFixture : IDisposable
          .Services.AddSerializer(ser =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-         });
+         })
+         .AddSingleton<IPersistence,PostgreSQLPersistence>();
     }
 
     private class ClientConfigurator : IClientBuilderConfigurator
