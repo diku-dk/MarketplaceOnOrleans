@@ -71,16 +71,32 @@ public class TransactionalClusterFixture : IDisposable
 
         var order = Cluster.GrainFactory.GetGrain<IOrderActor>(0, "Orleans.TransactionalGrains.TransactionalOrderActor");
 
-        // var client = Cluster.Client.ServiceProvider.GetRequiredService<IClusterClient>();
-        var transactionClient= Cluster.Client.ServiceProvider.GetRequiredService<ITransactionClient>();
+        var transactionClient = Cluster.Client.ServiceProvider.GetRequiredService<ITransactionClient>();
 
         await transactionClient.RunTransaction(TransactionOption.Create, async () =>
         {
             await order.TestTransaction(new Order { id = 1, customer_id = 1 });
         });
-        // await order.TestTransaction(new Order { id = 1, customer_id = 1  });
 
         Assert.Single((await order.GetOrders()));
+
+        Dispose();
+
+        
+    }
+
+    
+    [Fact]
+    public async Task TestNonTransactionalStorage()
+    {
+        Init();
+
+        // method calls to transactional storage cannot be made in cases (i) transactions are not activated in the silo and (ii) no transactional client initiates a transaction
+        var order = Cluster.GrainFactory.GetGrain<IOrderActor>(0, "Orleans.Grains.OrderActor");
+      
+        await order.TestTransaction(new Order { id = 1, customer_id = 1 });
+    
+        Assert.Single(await order.GetOrders());
 
         Dispose();
 

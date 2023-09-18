@@ -67,7 +67,7 @@ public class TransactionalOrderActor : AbstractOrderActor
         return this.orders.PerformUpdate( id => { id.Remove(orderId); });
     }
 
-    static readonly List<Task> empty = Array.Empty<Task>().ToList();// Enumerable.Empty<Task>().ToList();
+    static readonly List<Task> empty = Array.Empty<Task>().ToList();
     public override List<Task> SpawnFullWriteStateAsync()
     {
         return empty;

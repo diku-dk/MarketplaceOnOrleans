@@ -13,13 +13,13 @@ namespace Orleans.Interfaces
         [Transaction(TransactionOption.Join)]
         Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
 
-        [Transaction(TransactionOption.CreateOrJoin)]
+        [Transaction(TransactionOption.Supported)]
         Task<List<Order>> GetOrders();
 
         [Transaction(TransactionOption.CreateOrJoin)]
         Task<int> GetNumOrders();
 
-        [Transaction(TransactionOption.Create)]
+        [Transaction(TransactionOption.Supported)]
         Task TestTransaction(Order order);
     }
 }

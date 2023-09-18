@@ -35,6 +35,17 @@ public sealed class OrderActor : AbstractOrderActor
         return Task.CompletedTask;
     }
 
+    public override async Task TestTransaction(Order order)
+    {
+        OrderState orderState = new OrderState{
+            order = order,
+            orderItems = new(),
+            orderHistory = new()
+        };
+        await UpdateOrderState(order.id, orderState);
+        await SpawnWriteStateAsync();
+    }
+
     public override Task<List<Order>> GetOrders()
     {
         var res = this.orders.State.Select(x=>x.Value.order).ToList();
