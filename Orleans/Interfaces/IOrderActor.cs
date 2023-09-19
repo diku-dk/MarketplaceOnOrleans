@@ -15,5 +15,7 @@ namespace Orleans.Interfaces
 
         Task<int> GetNumOrders();
 
+        Task Reset();
+
     }
 }

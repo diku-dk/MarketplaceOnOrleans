@@ -12,8 +12,10 @@ Modeling actors:
 
 
 Actors that log historical records:
-order, payment, shipment
-also seller because of the dashboard
+order, payment, shipment, and seller (because of the dashboard)
+
+Actors that require resetting state after each run (otherwise it keeps accumulating records):
+Seller, order, shipment.
 
 It is single thread per function.
 Since we have one event per function call, to minimize latency, we map each entity to a logical function, e.g., order, payment, and shipment.

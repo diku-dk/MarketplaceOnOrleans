@@ -26,6 +26,7 @@ builder.Host.UseOrleans(siloBuilder =>
              options.Invariant = "Npgsql";
              options.ConnectionString = Constants.PostgresConnectionString;
          })
+         .UseDashboard(x => x.HostSelf = true)
          .ConfigureLogging(logging =>
          {
              logging.ClearProviders();
@@ -36,7 +37,7 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
          })
-         .AddSingleton<IPersistence,PostgreSQLPersistence>();;
+         .AddSingleton<IPersistence,PostgreSQLPersistence>();
 });
 
 var app = builder.Build();
@@ -44,6 +45,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.Map("/dashboard", x => x.UseOrleansDashboard());
     app.UseSwagger();
     app.UseSwaggerUI();
 }

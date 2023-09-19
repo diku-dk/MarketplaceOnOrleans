@@ -11,4 +11,5 @@ public interface IShipmentActor : IGrainWithIntegerKey
 
 	Task UpdateShipment(int tid);
 
+    Task Reset();
 }

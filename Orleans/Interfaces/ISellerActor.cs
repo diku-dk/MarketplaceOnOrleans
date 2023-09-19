@@ -27,5 +27,7 @@ public interface ISellerActor : IGrainWithIntegerKey
 
     Task<SellerDashboard> QueryDashboard();
 
+    Task Reset();
+
 }
 

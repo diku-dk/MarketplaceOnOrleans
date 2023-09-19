@@ -31,6 +31,7 @@ public static class Helper
     }
 
     // clean all orleans states in batch
+    // THIS METHOD DOES NOT CLEAN THE STATE INSIDE ACTOR MEMORY!!!
     public static void ResetActorStates()
     {
         var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");

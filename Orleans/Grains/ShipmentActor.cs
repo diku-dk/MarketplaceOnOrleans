@@ -50,7 +50,17 @@ public class ShipmentActor : Grain, IShipmentActor
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-       
+        // TODO rebuild seller cache from state so after a crash it is rebuilt correctly
+        return Task.CompletedTask;
+    }
+
+    public Task Reset()
+    {
+        this.shipments.State.Clear();
+        // this.shipments.ClearStateAsync();
+        this.packages.State.Clear();
+        // this.packages.ClearStateAsync();
+        this.sellerInfo.Clear();
         return Task.CompletedTask;
     }
 

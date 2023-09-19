@@ -1,5 +1,7 @@
-﻿using Orleans.Infra;
+﻿using System.Threading.Tasks;
+using Orleans.Infra;
 using Orleans.Interfaces;
+using Orleans.Runtime;
 using Orleans.TestingHost;
 using Test.Infra;
 
@@ -37,5 +39,18 @@ public class ShipmentTest
         var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
         Assert.True( ( await orderActor.GetOrders()).Count == 0 );
 	}
+
+    [Fact]
+    public async Task ResetTest()
+    {
+        await checkoutTest.Checkout();
+
+        var mgmt = _cluster.GrainFactory.GetGrain<IManagementGrain>(0);
+        var stats = await mgmt.GetSimpleGrainStatistics();
+
+        var grain = _cluster.GrainFactory.GetGrain<IShipmentActor>(0);
+        await grain.Reset();
+
+    }
 
 }  

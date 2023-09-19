@@ -21,7 +21,7 @@ public class ShipmentController : ControllerBase
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, int instanceId)
     {
         List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
-        for(int i = 1; i <= Constants.NumShipmentActors; i++)
+        for(int i = 0; i < Constants.NumShipmentActors; i++)
         {
             var grain = grains.GetGrain<IShipmentActor>(i);
             tasks.Add(grain.UpdateShipment(instanceId));

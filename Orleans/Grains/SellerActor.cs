@@ -111,7 +111,10 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
-        if(!this.orderEntries.State.ContainsKey(id)) return; // Have been either removed from state already or not yet added to the state (due to interleaving)
+        if(!this.orderEntries.State.ContainsKey(id)) {
+            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            return; // Have been either removed from state already or not yet added to the state (due to interleaving)
+        }
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
@@ -198,6 +201,11 @@ public class SellerActor : Grain, ISellerActor
         };
         return Task.FromResult(new SellerDashboard(view,entries));
     }
+
+    public Task Reset()
+    {
+        this.orderEntries.State.Clear();
+        return Task.CompletedTask;
+    }
+
 }
-
-

@@ -153,7 +153,7 @@ public class OrderActor : Grain, IOrderActor
             total_freight = total_freight,
             total_incentive = total_incentive,
             total_invoice = total_amount + total_freight,
-            count_items = itemsToCheckout.Count(),
+            count_items = itemsToCheckout.Count,
             created_at = now,
             updated_at = now,
         };
@@ -274,4 +274,9 @@ public class OrderActor : Grain, IOrderActor
         return Task.FromResult(this.nextOrderId.State.Value);
     }
 
+    public Task Reset()
+    {
+        this.orders.State.Clear();
+        return Task.CompletedTask;
+    }
 }

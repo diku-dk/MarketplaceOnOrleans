@@ -1,6 +1,7 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
+using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using System.Text;
@@ -8,7 +9,8 @@ using System.Text.Json;
 
 namespace Orleans.Grains;
 
-internal class PaymentActor : Grain, IPaymentActor
+[Reentrant]
+public class PaymentActor : Grain, IPaymentActor
 {
     private int customerId;
     private readonly ILogger<PaymentActor> _logger;
@@ -101,21 +103,19 @@ internal class PaymentActor : Grain, IPaymentActor
             }
         }
 
+        var tasks = new List<Task>();
+
         // Using strings below, but can also use byte arrays for both keys and values
         var str = JsonSerializer.Serialize(new PaymentState(){ orderPayments= orderPayments, card = card });
         var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
-        await _persistence.Log(Name, key, str);
+        tasks.Add( _persistence.Log(Name, key, str) );
 
         // inform related stock actors to reduce the amount because the payment has succeeded
-        var tasks = new List<Task>();
         foreach (var item in invoiceIssued.items)
         {
             var stockActor = GrainFactory.GetGrain<IStockActor>(item.seller_id, item.product_id.ToString());
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
-        await Task.WhenAll(tasks);
-
-        tasks.Clear();
 
         var paymentConfirmed = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, DateTime.UtcNow, invoiceIssued.instanceId);
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
@@ -124,17 +124,13 @@ internal class PaymentActor : Grain, IPaymentActor
             var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmed));
         }
-        await Task.WhenAll(tasks);
-
-        tasks.Clear();
-
         tasks.Add( GrainFactory.GetGrain<ICustomerActor>(invoiceIssued.customer.CustomerId).NotifyPaymentConfirmed(paymentConfirmed ));
+        await Task.WhenAll(tasks);
 
         // proceed to shipment actor
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId);
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
-        tasks.Add( shipmentActor.ProcessShipment(paymentConfirmed) );
-        await Task.WhenAll(tasks);
+        await shipmentActor.ProcessShipment(paymentConfirmed);
     }
 
     private static readonly string Name = typeof(PaymentActor).FullName;
