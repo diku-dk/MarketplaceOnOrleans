@@ -23,8 +23,6 @@ public class DefaultController : ControllerBase
     public async Task<ActionResult> Reset([FromServices] IGrainFactory grains)
     {
         logger.LogWarning("Reset requested at {0}", DateTime.UtcNow);
-        // Helper.ResetActorStates();
-
 
         // SimpleGrainStatistic
         var mgmt = grains.GetGrain<IManagementGrain>(0);
@@ -33,10 +31,9 @@ public class DefaultController : ControllerBase
         // get sellers and orders actors to reset
         foreach(var stat in stats)
         {
-            logger.LogWarning("{stat}",stat.ToString());
+            logger.LogDebug("{stat}",stat.ToString());
             if (stat.GrainType.SequenceEqual("Orleans.Grains.OrderActor,Orleans"))
             {
-                logger.LogWarning("Cleaning orders...");
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
                 for(int i = 1; i <= num; i++)
@@ -48,7 +45,6 @@ public class DefaultController : ControllerBase
             }
             if (stat.GrainType.SequenceEqual("Orleans.Grains.SellerActor,Orleans"))
             {
-                logger.LogWarning("Cleaning sellers...");
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
                 for(int i = 1; i <= num; i++)
