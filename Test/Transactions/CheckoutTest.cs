@@ -152,9 +152,9 @@ public class CheckoutTest
 
     async Task Init(int numCustomer, int numStockItem)
     {
-        Helper.SetUpLog();
-        Helper.CleanLog();
-        Helper.TruncateOrleansStorage();
+        DBHelper.SetUpLog();
+        DBHelper.CleanLog();
+        DBHelper.TruncateOrleansStorage();
 
         // load customer in customer actor
         for (var customerId = 0; customerId < numCustomer; customerId++)

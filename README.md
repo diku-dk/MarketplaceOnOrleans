@@ -1,5 +1,10 @@
 # MarketplaceOnOrleans
 
+# Deploy
+dotnet run --environment Development --project Silo
+dotnet run --environment Production --urls "http://*:8081" --project Silo
+dotnet run --launch-profile "Silo-Production" --urls "http://*:8081" --project Silo
+
 Modeling actors:
 1 cart actor per customer. ID is customer_id
 1 customer actor per customer. ID is customer_id

@@ -6,13 +6,13 @@ namespace Orleans.Interfaces
     public interface ICustomerActor : IGrainWithIntegerKey
     {
         // API
-        public Task SetCustomer(Customer customer);
+        Task SetCustomer(Customer customer);
         Task Clear();
-        public Task<Customer> GetCustomer();
+        Task<Customer> GetCustomer();
 
-        public Task NotifyPaymentConfirmed(PaymentConfirmed paymentConfirmed);
-        public Task NotifyPaymentFailed(PaymentFailed paymentFailed);
-        public Task NotifyDelivery(DeliveryNotification deliveryNotification);
+        Task NotifyPaymentConfirmed(PaymentConfirmed paymentConfirmed);
+        Task NotifyPaymentFailed(PaymentFailed paymentFailed);
+        Task NotifyDelivery(DeliveryNotification deliveryNotification);
 
     }
 }

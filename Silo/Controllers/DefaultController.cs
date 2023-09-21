@@ -9,11 +9,12 @@ namespace Silo.Controllers;
 [ApiController]
 public class DefaultController : ControllerBase
 {
-
+    private readonly IPersistence persistence;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(ILogger<DefaultController> logger)
+    public DefaultController(IPersistence persistence, ILogger<DefaultController> logger)
     {
+        this.persistence = persistence;
         this.logger = logger;
     }
 
@@ -29,6 +30,8 @@ public class DefaultController : ControllerBase
         var stats = await mgmt.GetSimpleGrainStatistics();
 
         // get sellers and orders actors to reset
+        // cannot get orders and sellers from shipments
+        // because some of them may have been already removed from memory
         foreach(var stat in stats)
         {
             logger.LogDebug("{stat}",stat.ToString());
@@ -55,20 +58,24 @@ public class DefaultController : ControllerBase
             }
         }
 
-        Helper.CleanLog();
+        // Helper.CleanLog();
+        await persistence.CleanLog();
         await ResetShipmentActors(grains);
 
         return Ok();
     }
 
+    // should be called before shutting off the app server
     [Route("/cleanup")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public ActionResult Cleanup([FromServices] IGrainFactory grains)
+    public async Task<ActionResult> Cleanup([FromServices] IGrainFactory grains)
     {
-        logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        Helper.TruncateOrleansStorage();
-        Helper.CleanLog();
+        this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
+        // Helper.TruncateOrleansStorage();
+        await persistence.CleanDb();
+        // Helper.CleanLog();
+        await persistence.CleanLog();
         return Ok();
     }
 

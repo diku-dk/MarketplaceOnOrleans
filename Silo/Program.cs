@@ -1,13 +1,15 @@
-﻿using Orleans.Infra;
+﻿using Common;
+using Orleans.Infra;
 using Orleans.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// init log table in PostgreSQL
-Helper.SetUpLog();
+IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
+builder.Services.Configure<AppConfig>(configSection);
+var useDash = configSection.GetValue<bool>("UseDashboard");
+var connectionString = configSection.GetValue<string>("ConnectionString");
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -24,9 +26,8 @@ builder.Host.UseOrleans(siloBuilder =>
          .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
-             options.ConnectionString = Constants.PostgresConnectionString;
+             options.ConnectionString = connectionString;
          })
-         .UseDashboard(x => x.HostSelf = true)
          .ConfigureLogging(logging =>
          {
              logging.ClearProviders();
@@ -37,15 +38,22 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
          })
-         .AddSingleton<IPersistence,PostgreSQLPersistence>();
-});
+         .AddSingleton<IPersistence, PostgreSQLPersistence>();
 
+    if(useDash)
+      siloBuilder.UseDashboard(x => x.HostSelf = true);
+});
 var app = builder.Build();
+
+var persistence = app.Services.GetService<IPersistence>();
+// init log table in PostgreSQL
+// Helper.SetUpLog();
+await persistence.SetUpLog();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.Map("/dashboard", x => x.UseOrleansDashboard());
+    if(useDash) app.Map("/dashboard", x => x.UseOrleansDashboard());
     app.UseSwagger();
     app.UseSwaggerUI();
 }

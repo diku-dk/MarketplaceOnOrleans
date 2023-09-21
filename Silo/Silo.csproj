@@ -7,6 +7,8 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Production' " />
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Dev' " />
   <ItemGroup>
 	<PackageReference Include="Microsoft.Orleans.Server" Version="7.2.1" />
 	<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
