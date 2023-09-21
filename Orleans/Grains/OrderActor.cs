@@ -7,6 +7,7 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using System.Text;
 using System.Globalization;
+using static Orleans.Grains.OrderActor;
 
 namespace Orleans.Grains;
 
@@ -32,7 +33,7 @@ public class OrderActor : Grain, IOrderActor
         public OrderState(){ }
     }
 
-    private readonly ILogger<OrderActor> _logger;
+    private readonly ILogger<OrderActor> logger;
     private readonly IPersistence _persistence;
    
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
@@ -62,7 +63,7 @@ public class OrderActor : Grain, IOrderActor
         ILogger<OrderActor> _logger,
         IPersistence _persistence) 
     {
-        this._logger = _logger;
+        this.logger = _logger;
         this.orders = orders;
         this.nextOrderId = nextOrderId;
         this._persistence = _persistence;
@@ -223,6 +224,50 @@ public class OrderActor : Grain, IOrderActor
         await paymentActor.ProcessPayment(invoice);
     }
 
+    public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
+    {
+        DateTime now = DateTime.UtcNow;
+        if(!orders.State.ContainsKey(paymentConfirmed.orderId)) {
+            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            return;
+        }
+        orders.State[paymentConfirmed.orderId].orderHistory.Add( new()
+        {
+            order_id = paymentConfirmed.orderId,
+            created_at = now,
+            status = OrderStatus.PAYMENT_PROCESSED
+        } );
+        var order = orders.State[paymentConfirmed.orderId].order;
+        order.status = OrderStatus.PAYMENT_PROCESSED;
+        order.updated_at = now;
+        await orders.WriteStateAsync();
+    }
+
+    public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
+    {
+        DateTime now = DateTime.UtcNow;
+        if(!orders.State.ContainsKey(paymentFailed.orderId)) {
+            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            return;
+        }
+        orders.State[paymentFailed.orderId].orderHistory.Add( new()
+        {
+            order_id = paymentFailed.orderId,
+            created_at = now,
+            status = OrderStatus.PAYMENT_PROCESSED
+        } );
+        var order = orders.State[paymentFailed.orderId].order;
+        order.status = OrderStatus.PAYMENT_PROCESSED;
+        order.updated_at = now;
+        // log finished order
+        var str = JsonSerializer.Serialize(orders.State[paymentFailed.orderId]);
+        var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
+        await _persistence.Log(Name, sb.ToString(), str);
+
+        orders.State.Remove(paymentFailed.orderId);
+        await orders.WriteStateAsync();
+    }
+
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
         DateTime now = DateTime.UtcNow;
@@ -232,7 +277,7 @@ public class OrderActor : Grain, IOrderActor
         if (shipmentNotification.status == ShipmentStatus.concluded) orderStatus = OrderStatus.DELIVERED;
 
         if( !orders.State.ContainsKey(shipmentNotification.orderId)){
-            _logger.LogWarning("Possible interleaving for customer ID {0} shipment customer ID {1} shipment order ID {2} status {3}", this.customerId, shipmentNotification.customerId, shipmentNotification.orderId, shipmentNotification.status);
+            logger.LogWarning("Possible interleaving for customer ID {0} shipment customer ID {1} shipment order ID {2} status {3}", this.customerId, shipmentNotification.customerId, shipmentNotification.orderId, shipmentNotification.status);
             return;
         }
 

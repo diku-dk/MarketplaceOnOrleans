@@ -125,6 +125,7 @@ public class PaymentActor : Grain, IPaymentActor
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmed));
         }
         tasks.Add( GrainFactory.GetGrain<ICustomerActor>(invoiceIssued.customer.CustomerId).NotifyPaymentConfirmed(paymentConfirmed ));
+        tasks.Add( GrainFactory.GetGrain<IOrderActor>(invoiceIssued.customer.CustomerId).ProcessPaymentConfirmed(paymentConfirmed ));
         await Task.WhenAll(tasks);
 
         // proceed to shipment actor
