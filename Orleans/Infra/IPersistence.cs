@@ -10,7 +10,8 @@ public interface IPersistence
     Task Log(string type, string key, string value, string tableName = "log");
     Task SetUpLog();
     Task CleanLog();
-    Task CleanDb();
+    Task TruncateStorage();
+    Task ResetActorStates();
 }
 
 public class PostgreSQLPersistence : IPersistence
@@ -46,9 +47,17 @@ public class PostgreSQLPersistence : IPersistence
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task CleanDb()
+    public async Task TruncateStorage()
     {
         var cmd = dataSource.CreateCommand("TRUNCATE public.orleansstorage");
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    // clean all orleans states in batch
+    // THIS METHOD DOES NOT CLEAN THE STATE INSIDE ACTOR MEMORY!!!
+    public async Task ResetActorStates()
+    {
+        var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");
         await cmd.ExecuteNonQueryAsync();
     }
 }

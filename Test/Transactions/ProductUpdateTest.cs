@@ -1,5 +1,4 @@
 ﻿using Common.Entities;
-using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
 using Test.Infra;

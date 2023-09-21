@@ -86,10 +86,11 @@ public class OrderActor : Grain, IOrderActor
         // coordinate with all IStock
         List<Task<ItemStatus>> statusResp = new(reserveStock.items.Count());
 
-        foreach (var item in reserveStock.items)
+        for (var idx = 0; idx < reserveStock.items.Count; idx++)
         {
+            var item = reserveStock.items[idx];
             var stockActor = GrainFactory.GetGrain<IStockActor>(item.SellerId, item.ProductId.ToString());
-            statusResp.Add(stockActor.AttemptReservation(item));
+            statusResp.Insert(idx, stockActor.AttemptReservation(item));
         }
         await Task.WhenAll(statusResp);
 

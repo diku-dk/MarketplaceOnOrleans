@@ -21,4 +21,9 @@ public class ReserveStock
         this.items = items;
         this.instanceId = instanceId;
     }
+
+    public override string ToString()
+    {
+        return string.Join(",",items);
+    }
 }

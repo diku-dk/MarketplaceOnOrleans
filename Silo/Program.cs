@@ -49,6 +49,8 @@ var persistence = app.Services.GetService<IPersistence>();
 // init log table in PostgreSQL
 // Helper.SetUpLog();
 await persistence.SetUpLog();
+// it guarantees that, upon activating the actor, the state is null
+await persistence.ResetActorStates();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

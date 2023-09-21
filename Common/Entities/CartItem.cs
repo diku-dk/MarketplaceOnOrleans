@@ -19,5 +19,10 @@
         public int Version { get; set; }
 
         public CartItem() { }
+
+        public override string ToString()
+        {
+            return "{ SellerId "+SellerId+" ProductId "+ProductId+" }";
+        }
     }
 }

@@ -44,6 +44,7 @@ public class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<IOrderActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
+                logger.LogWarning("{0} order states resetted", num);
                 continue;
             }
             if (stat.GrainType.SequenceEqual("Orleans.Grains.SellerActor,Orleans"))
@@ -55,6 +56,20 @@ public class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<ISellerActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
+                logger.LogWarning("{0} seller states resetted", num);
+                continue;
+            }
+            // seal carts that have not checked out in past run
+            if (stat.GrainType.SequenceEqual("Orleans.Grains.CartActor,Orleans"))
+            {
+                int num = stat.ActivationCount;
+                var tasks = new List<Task>();
+                for(int i = 1; i <= num; i++)
+                {
+                    tasks.Add( grains.GetGrain<ICartActor>(i).Seal() );
+                }
+                await Task.WhenAll(tasks);
+                logger.LogWarning("{0} cart states resetted", num);
             }
         }
 
@@ -62,20 +77,6 @@ public class DefaultController : ControllerBase
         await persistence.CleanLog();
         await ResetShipmentActors(grains);
 
-        return Ok();
-    }
-
-    // should be called before shutting off the app server
-    [Route("/cleanup")]
-    [HttpPatch]
-    [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> Cleanup([FromServices] IGrainFactory grains)
-    {
-        this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        // Helper.TruncateOrleansStorage();
-        await persistence.CleanDb();
-        // Helper.CleanLog();
-        await persistence.CleanLog();
         return Ok();
     }
 
@@ -88,6 +89,20 @@ public class DefaultController : ControllerBase
             tasks.Add(grain.Reset());
         }
         await Task.WhenAll(tasks);
+    }
+
+    // should be called before shutting off the app server
+    [Route("/cleanup")]
+    [HttpPatch]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    public async Task<ActionResult> Cleanup()
+    {
+        this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
+        // Helper.TruncateOrleansStorage();
+        await persistence.TruncateStorage();
+        // Helper.CleanLog();
+        await persistence.CleanLog();
+        return Ok();
     }
 
 }

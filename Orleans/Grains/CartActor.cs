@@ -68,14 +68,13 @@ public class CartActor : Grain, ICartActor
         } catch(Exception e){
             _logger.LogError("Exception captured in actor {0}. Source: {1} Message: {2}", customerId, e.Source, e.StackTrace);
         } finally{
-            cart.State.status = CartStatus.OPEN;
-            this.cart.State.items.Clear();
-            await this.cart.WriteStateAsync();
+            await Seal();
         }
     }
 
     public async Task Seal()
     {
+        cart.State.status = CartStatus.OPEN;
         this.cart.State.items.Clear();
         await this.cart.WriteStateAsync();
     }
