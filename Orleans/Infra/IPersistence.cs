@@ -14,6 +14,34 @@ public interface IPersistence
     Task ResetActorStates();
 }
 
+public class EtcNullPersistence : IPersistence
+{
+    public Task CleanLog()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task Log(string type, string key, string value, string tableName = "log")
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task ResetActorStates()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task SetUpLog()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task TruncateStorage()
+    {
+        return Task.CompletedTask;
+    }
+}
+
 public class PostgreSQLPersistence : IPersistence
 {
     private readonly NpgsqlDataSource dataSource;

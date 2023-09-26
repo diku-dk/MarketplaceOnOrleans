@@ -69,6 +69,11 @@ public class SellerActor : Grain, ISellerActor
         return new StringBuilder(shipmentNotification.customerId.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
     }
 
+    private static string BuildUniqueOrderIdentifier(DeliveryNotification deliveryNotification)
+    {
+        return new StringBuilder(deliveryNotification.customerId.ToString()).Append('-').Append(deliveryNotification.orderId).ToString();
+    }
+
     public async Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
@@ -172,11 +177,11 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
-        string id = new StringBuilder(deliveryNotification.customerId).Append('-').Append(deliveryNotification.orderId).ToString();
+        string id = BuildUniqueOrderIdentifier(deliveryNotification);
         // interleaving of shipment and delivery
         if (this.orderEntries.State.ContainsKey(id))
         {
-            logger.LogWarning("Cannot process delivery notification event because invoice ID {0} has not been found", id);
+            logger.LogDebug("Cannot process delivery notification event because invoice ID {0} has not been found", id);
             return;
         }
         var entry = this.orderEntries.State[id].FirstOrDefault(oe=>oe.product_id == deliveryNotification.productId, null);
