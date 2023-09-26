@@ -217,9 +217,9 @@ public class ShipmentActor : Grain, IShipmentActor
                 shipment.status = ShipmentStatus.concluded;
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
-                tasks.Add(    GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
+                tasks.Add( GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification) );
-                tasks.Add(    GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
+                tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification) );
 
                 // log shipment and packages
@@ -229,6 +229,7 @@ public class ShipmentActor : Grain, IShipmentActor
 
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);
+
             }
 
         }

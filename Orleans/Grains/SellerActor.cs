@@ -112,7 +112,7 @@ public class SellerActor : Grain, ISellerActor
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
         if(!this.orderEntries.State.ContainsKey(id)) {
-            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            logger.LogWarning("Cannot process payment confirmed event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         }
         foreach (var item in this.orderEntries.State[id])
@@ -136,6 +136,11 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
         string id = BuildUniqueOrderIdentifier(shipmentNotification);
+        if (!this.orderEntries.State.ContainsKey(id))
+        {
+            logger.LogWarning("Cannot process shipment notification event because invoice ID {0} has not been found", id);
+            return; // Have been either removed from state already or not yet added to the state (due to interleaving)
+        }
         foreach (var item in this.orderEntries.State[id])
         {
             if(shipmentNotification.status == ShipmentStatus.approved){
@@ -171,16 +176,17 @@ public class SellerActor : Grain, ISellerActor
         // interleaving of shipment and delivery
         if (this.orderEntries.State.ContainsKey(id))
         {
-            var entry = this.orderEntries.State[id].FirstOrDefault(oe=>oe.product_id == deliveryNotification.productId, null);
-            if(entry is not null)
-            {
-                entry.package_id = deliveryNotification.packageId;
-                entry.delivery_status = PackageStatus.delivered;
-                entry.delivery_date = deliveryNotification.deliveryDate;
-                await this.orderEntries.WriteStateAsync();
-            }
+            logger.LogWarning("Cannot process delivery notification event because invoice ID {0} has not been found", id);
+            return;
         }
-        
+        var entry = this.orderEntries.State[id].FirstOrDefault(oe=>oe.product_id == deliveryNotification.productId, null);
+        if(entry is not null)
+        {
+            entry.package_id = deliveryNotification.packageId;
+            entry.delivery_status = PackageStatus.delivered;
+            entry.delivery_date = deliveryNotification.deliveryDate;
+            await this.orderEntries.WriteStateAsync();
+        }
     }
 
     public Task<SellerDashboard> QueryDashboard()
