@@ -12,11 +12,11 @@ public class DeliveryNotification
     public string productName { get; set; }
     public PackageStatus status { get; set; }
     public DateTime deliveryDate { get; set; }
-    public int instanceId { get; set; }
+    public string instanceId { get; set; }
     
     public DeliveryNotification(){ }
 
-    public DeliveryNotification(int customerId, int orderId, int packageId, int sellerId, int productId, string productName, PackageStatus status, DateTime deliveryDate, int instanceId)
+    public DeliveryNotification(int customerId, int orderId, int packageId, int sellerId, int productId, string productName, PackageStatus status, DateTime deliveryDate, string instanceId)
     {
         this.customerId = customerId;
         this.orderId = orderId;

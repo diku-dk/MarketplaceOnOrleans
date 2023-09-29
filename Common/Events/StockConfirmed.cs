@@ -7,14 +7,17 @@ namespace Common.Events;
 public class StockConfirmed
 {
     public DateTime timestamp { get; set; }
-    [JsonProperty("customer")]
+
+    //[JsonProperty("customer")]
     public CustomerCheckout customerCheckout { get; set; }
+
     public List<CartItem> items { get; set; }
-    public int instanceId { get; set; }
+
+    public string instanceId { get; set; }
 
     public StockConfirmed(){ }
 
-    public StockConfirmed(DateTime timestamp, CustomerCheckout customerCheckout, List<CartItem> items, int instanceId)
+    public StockConfirmed(DateTime timestamp, CustomerCheckout customerCheckout, List<CartItem> items, string instanceId)
     {
         this.timestamp = timestamp;
         this.customerCheckout = customerCheckout;

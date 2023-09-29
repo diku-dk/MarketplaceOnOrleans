@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -71,6 +72,30 @@ public class DefaultController : ControllerBase
                 await Task.WhenAll(tasks);
                 logger.LogWarning("{0} cart states resetted", num);
             }
+            if (stat.GrainType.SequenceEqual("Orleans.Grains.StockActor,Orleans"))
+            {
+                int num = stat.ActivationCount;
+                var tasks = new List<Task>();
+                for(int i = 1; i <= num; i++)
+                {
+                    for(int j = 1; j <= 10; j++)
+                        tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
+                }
+                await Task.WhenAll(tasks);
+                logger.LogWarning("{0} stock states resetted", num);
+            }
+            if (stat.GrainType.SequenceEqual("Orleans.Grains.ProductActor,Orleans"))
+            {
+                int num = stat.ActivationCount;
+                var tasks = new List<Task>();
+                for(int i = 1; i <= num; i++)
+                {
+                    for(int j = 1; j <= 10; j++)
+                        tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
+                }
+                await Task.WhenAll(tasks);
+                logger.LogWarning("{0} product states resetted", num);
+            }
         }
 
         // Helper.CleanLog();
@@ -80,7 +105,7 @@ public class DefaultController : ControllerBase
         return Ok();
     }
 
-    private static async Task ResetShipmentActors(IGrainFactory grains)
+    private async Task ResetShipmentActors(IGrainFactory grains)
     {
         List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
         for(int i = 0; i < Constants.NumShipmentActors; i++)
@@ -89,6 +114,7 @@ public class DefaultController : ControllerBase
             tasks.Add(grain.Reset());
         }
         await Task.WhenAll(tasks);
+        logger.LogWarning("{0} shipment states resetted", Constants.NumShipmentActors);
     }
 
     // should be called before shutting off the app server

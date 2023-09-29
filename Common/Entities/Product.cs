@@ -24,7 +24,7 @@
 
         public string status { get; set; }
 
-        public int version { get; set; }
+        public string version { get; set; }
 
         public bool active { get; set; }
 

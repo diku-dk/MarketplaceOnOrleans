@@ -189,7 +189,7 @@ public class CheckoutTest
                 qty_reserved = 0,
                 order_count = 0,
                 ytd = 1,
-                version = 1
+                version = "1"
             });
         }
     }
@@ -205,7 +205,7 @@ public class CheckoutTest
             Quantity = 1,
             Voucher = 1,
             ProductName = "test",
-            Version = 1
+            Version = "1"
         };
     }
 

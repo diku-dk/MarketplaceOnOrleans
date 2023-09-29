@@ -1,28 +1,27 @@
-﻿namespace Common.Entities
-{
-    public class CartItem {
+﻿namespace Common.Entities;
 
-        public int SellerId { get; set; }
+public class CartItem {
 
-        public int ProductId { get; set; }
+    public int SellerId { get; set; }
 
-        public string ProductName { get; set; } = "";
+    public int ProductId { get; set; }
 
-        public float UnitPrice { get; set; }
+    public string ProductName { get; set; }
 
-        public float FreightValue { get; set; }
+    public float UnitPrice { get; set; }
 
-        public int Quantity { get; set; }
+    public float FreightValue { get; set; }
 
-        public float Voucher { get; set; }
+    public int Quantity { get; set; }
 
-        public int Version { get; set; }
+    public float Voucher { get; set; }
 
-        public CartItem() { }
+    public string Version { get; set; }
 
-        public override string ToString()
-        {
-            return "{ SellerId "+SellerId+" ProductId "+ProductId+" }";
-        }
+    public CartItem() { }
+
+    public override string ToString()
+    {
+        return "{ SellerId "+SellerId+" ProductId "+ProductId+" }";
     }
 }

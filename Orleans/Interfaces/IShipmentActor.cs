@@ -9,7 +9,7 @@ public interface IShipmentActor : IGrainWithIntegerKey
 
     Task ProcessShipment(PaymentConfirmed paymentConfirmed);
 
-	Task UpdateShipment(int tid);
+	Task UpdateShipment(string tid);
 
     Task Reset();
 }

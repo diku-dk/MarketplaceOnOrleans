@@ -7,30 +7,37 @@ using System.Text.Json;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 using Orleans.Infra;
+using Common;
+using Microsoft.Extensions.Options;
+using Orleans.Concurrency;
 
 namespace Orleans.Grains;
 
+[Reentrant]
 public class SellerActor : Grain, ISellerActor
 {
 
     private readonly ILogger<SellerActor> logger;
-    readonly IPersistence _persistence;
+    private readonly IPersistence persistence;
 
     private int sellerId;
 
     private readonly IPersistentState<Seller> seller;
     private readonly IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries;
+    private readonly AppConfig config;
 
     public SellerActor(
         [PersistentState(stateName: "seller", storageName: Constants.OrleansStorage)] IPersistentState<Seller> seller,
         [PersistentState(stateName: "orderEntries", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
-        ILogger<SellerActor> logger,
-        IPersistence _persistence)
+        IPersistence persistence,
+        IOptions<AppConfig> options,
+        ILogger<SellerActor> logger)
     {
         this.seller = seller;
         this.orderEntries = orderEntries;
+        this.config = options.Value;
+        this.persistence = persistence;
         this.logger = logger;
-        this._persistence = _persistence;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -46,7 +53,8 @@ public class SellerActor : Grain, ISellerActor
     public async Task SetSeller(Seller seller)
     {
         this.seller.State = seller;
-        await this.seller.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.seller.WriteStateAsync();
     }
 
     private static string BuildUniqueOrderIdentifier(InvoiceIssued invoiceIssued)
@@ -77,7 +85,6 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
-
         try{
             this.orderEntries.State.Add(id, new List<OrderEntry>());
         } catch(Exception e)
@@ -86,7 +93,7 @@ public class SellerActor : Grain, ISellerActor
             return;
         }
 
-        foreach (var item in invoiceIssued.items.Where(x=>x.seller_id == this.sellerId))
+        foreach (var item in invoiceIssued.items)
         {
             OrderEntry orderEntry = new()
             {
@@ -110,21 +117,23 @@ public class SellerActor : Grain, ISellerActor
             this.orderEntries.State[id].Add(orderEntry);
         }
 
-        await this.orderEntries.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.orderEntries.WriteStateAsync();
     }
 
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
         if(!this.orderEntries.State.ContainsKey(id)) {
-            logger.LogWarning("Cannot process payment confirmed event because invoice ID {0} has not been found", id);
+            logger.LogDebug("Cannot process payment confirmed event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         }
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
         }
-        await this.orderEntries.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.orderEntries.WriteStateAsync();
     }
 
     public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
@@ -135,7 +144,8 @@ public class SellerActor : Grain, ISellerActor
         {
             item.order_status = OrderStatus.PAYMENT_FAILED;
         }
-        await this.orderEntries.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.orderEntries.WriteStateAsync();
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
@@ -143,7 +153,7 @@ public class SellerActor : Grain, ISellerActor
         string id = BuildUniqueOrderIdentifier(shipmentNotification);
         if (!this.orderEntries.State.ContainsKey(id))
         {
-            logger.LogWarning("Cannot process shipment notification event because invoice ID {0} has not been found", id);
+            logger.LogDebug("Cannot process shipment notification event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         }
         foreach (var item in this.orderEntries.State[id])
@@ -166,11 +176,14 @@ public class SellerActor : Grain, ISellerActor
         if (shipmentNotification.status == ShipmentStatus.concluded)
         {
             List<OrderEntry> entries = this.orderEntries.State[id];
-            var str = JsonSerializer.Serialize(entries);
-            await _persistence.Log(Name, id, str);
+            if(this.config.LogRecords){
+                var str = JsonSerializer.Serialize(entries);
+                await persistence.Log(Name, id, str);
+            }
             this.orderEntries.State.Remove(id);
         }
-        await this.orderEntries.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.orderEntries.WriteStateAsync();
     }
 
     private static readonly string Name = typeof(SellerActor).FullName;
@@ -190,7 +203,8 @@ public class SellerActor : Grain, ISellerActor
             entry.package_id = deliveryNotification.packageId;
             entry.delivery_status = PackageStatus.delivered;
             entry.delivery_date = deliveryNotification.deliveryDate;
-            await this.orderEntries.WriteStateAsync();
+            if(this.config.OrleansStorage)
+                await this.orderEntries.WriteStateAsync();
         }
     }
 
@@ -213,10 +227,15 @@ public class SellerActor : Grain, ISellerActor
         return Task.FromResult(new SellerDashboard(view,entries));
     }
 
-    public Task Reset()
+    public async Task Reset()
     {
         this.orderEntries.State.Clear();
-        return Task.CompletedTask;
+        if(this.config.OrleansStorage)
+            await this.orderEntries.WriteStateAsync();
     }
 
+    public Task<Seller> GetSeller()
+    {
+        return Task.FromResult(this.seller.State);
+    }
 }

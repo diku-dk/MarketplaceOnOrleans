@@ -49,7 +49,7 @@ namespace Common.Requests
         // if no credit card, must be 1
         public int Installments { get; set; } 
 
-        public int instanceId { get; set; }
+        public string instanceId { get; set; }
 
         public CustomerCheckout(){ }
 

@@ -6,12 +6,16 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using Orleans.Infra;
 using System.Text;
+using Common;
+using Microsoft.Extensions.Options;
+using Orleans.Concurrency;
 
 namespace Orleans.Grains;
 
+[Reentrant]
 public class ShipmentActor : Grain, IShipmentActor
 {
-    
+    private readonly AppConfig config;
     private int partitionId;
     private static readonly string Name = typeof(ShipmentActor).FullName;
     private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
@@ -32,15 +36,17 @@ public class ShipmentActor : Grain, IShipmentActor
     }
 
     public ShipmentActor(
-        ILogger<ShipmentActor> _logger,
-        IPersistence _persistence,
-        [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,Shipment>> shipments,
-         [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,List<Package>>> packages)
+         [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,Shipment>> shipments,
+         [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,List<Package>>> packages,
+         IPersistence _persistence,
+         IOptions<AppConfig> options,
+         ILogger<ShipmentActor> _logger)
 	{
-        this._logger = _logger;
-        this._persistence = _persistence;
         this.shipments = shipments;
         this.packages = packages;
+        this._persistence = _persistence;
+        this.config = options.Value;
+        this._logger = _logger;
         this.sellerInfo = new Dictionary<int, List<SellerEntry>>();
     }
 
@@ -54,14 +60,15 @@ public class ShipmentActor : Grain, IShipmentActor
         return Task.CompletedTask;
     }
 
-    public Task Reset()
+    public async Task Reset()
     {
         this.shipments.State.Clear();
-        // this.shipments.ClearStateAsync();
         this.packages.State.Clear();
-        // this.packages.ClearStateAsync();
         this.sellerInfo.Clear();
-        return Task.CompletedTask;
+        if (this.config.OrleansStorage)
+        {
+            await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
+        }
     }
 
     public async Task ProcessShipment(PaymentConfirmed paymentConfirmed)
@@ -89,8 +96,8 @@ public class ShipmentActor : Grain, IShipmentActor
 
         var id = new StringBuilder(paymentConfirmed.customer.CustomerId.ToString()).Append('-').Append(shipment.order_id).ToString();
         try{
-            shipments.State.Add(id, shipment);
-            packages.State.Add(id, new List<Package>());
+            this.shipments.State.Add(id, shipment);
+            this.packages.State.Add(id, new List<Package>());
         }
         catch(Exception)
         {
@@ -103,13 +110,13 @@ public class ShipmentActor : Grain, IShipmentActor
         foreach(var sellerId in sellerSet)
         {
             if (!sellerInfo.ContainsKey(sellerId)) {
-                sellerInfo.Add(sellerId, new List<SellerEntry>());
-                sellerInfo[sellerId].Add(new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+                this.sellerInfo.Add(sellerId, new List<SellerEntry>());
+                this.sellerInfo[sellerId].Add(new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
                 continue;
             }
             var index = 0;
             while (index < sellerInfo[sellerId].Count && sellerInfo[sellerId][index].request_date < now) index++;
-            sellerInfo[sellerId].Insert(index, new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
+            this.sellerInfo[sellerId].Insert(index, new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
         }
 
         foreach (var item in paymentConfirmed.items)
@@ -132,7 +139,8 @@ public class ShipmentActor : Grain, IShipmentActor
 
             package_id++;
         }
-        await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
+        if (this.config.OrleansStorage)
+            await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
 
         ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
         // inform seller
@@ -152,11 +160,12 @@ public class ShipmentActor : Grain, IShipmentActor
     private Dictionary<int,DateTime> GetOldestOpenShipmentPerSeller()
     {
         return sellerInfo.SelectMany(x=> x.Value ).GroupBy(x=>x.sellerId)
-              .Select(g => new { key = g.Key, Sort = g.Min(x => x.request_date) }).Take(10)
+              .Select(g => new { key = g.Key, Sort = g.Min(x => x.request_date) })
+              .Take(10)
               .ToDictionary(g => g.key, g => g.Sort);
     }
 
-    public async Task UpdateShipment(int tid)
+    public async Task UpdateShipment(string tid)
     {
         List<Task> tasks = new();
         // impossibility of ensuring one order per seller in this transaction
@@ -172,7 +181,7 @@ public class ShipmentActor : Grain, IShipmentActor
         foreach (var x in oldestShipments)
         {
             var info = sellerInfo[x.Key].First();
-            sellerInfo[x.Key].RemoveAt(0);
+            this.sellerInfo[x.Key].RemoveAt(0);
 
             var id = new StringBuilder(info.customerId.ToString()).Append('-').Append(info.orderId).ToString();
             List<Package> packages_;
@@ -223,10 +232,11 @@ public class ShipmentActor : Grain, IShipmentActor
                     .ProcessShipmentNotification(shipmentNotification) );
 
                 // log shipment and packages
-                var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = packages_ } );
-                var sb = new StringBuilder(shipment.customer_id.ToString()).Append('-').Append(shipment.order_id).ToString();
-                tasks.Add( _persistence.Log(Name, sb.ToString(), str) );
-
+                if (this.config.LogRecords){
+                    var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = packages_ } );
+                    var sb = new StringBuilder(shipment.customer_id.ToString()).Append('-').Append(shipment.order_id).ToString();
+                    tasks.Add( _persistence.Log(Name, sb.ToString(), str) );
+                }
                 this.shipments.State.Remove(id);
                 this.packages.State.Remove(id);
 
@@ -235,8 +245,10 @@ public class ShipmentActor : Grain, IShipmentActor
         }
 
         // no need to wait for oneway events
-        tasks.Add(this.shipments.WriteStateAsync());
-        tasks.Add(this.packages.WriteStateAsync());
+        if (this.config.OrleansStorage){
+            tasks.Add(this.shipments.WriteStateAsync());
+            tasks.Add(this.packages.WriteStateAsync());
+        }
         await Task.WhenAll( tasks );
     }
 

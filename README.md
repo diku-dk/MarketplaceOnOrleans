@@ -53,4 +53,8 @@ need to upload both server code and driver
 4. return to vm
 (1) run "unzip MarketplaceOrleans.zip"
 (2) run "unzip EventBenchmark.zip"
-5. 
+5.
+
+# Etc
+There is no default implementation for environment statistics: [link](https://github.com/dotnet/orleans/issues/8270)
+Some comments about Orleans [performance](https://stackoverflow.com/questions/74310628/orleans-slow-with-minimalistic-use-case)

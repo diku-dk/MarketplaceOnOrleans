@@ -1,4 +1,5 @@
-﻿using Common.Entities;
+﻿using System.Net;
+using Common.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Interfaces;
 
@@ -22,6 +23,15 @@ public class StockController : ControllerBase
         return Ok();
     }
 
+    [HttpGet("/stock/{sellerId:long}/{productId:long}")]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType(typeof(StockItem), (int)HttpStatusCode.OK)]
+    public async Task<ActionResult<StockItem>> GetBySellerIdAndProductId([FromServices] IGrainFactory grains, int sellerId, int productId)
+    {
+        var grain = grains.GetGrain<IStockActor>(sellerId, productId.ToString());
+        var item = await grain.GetItem();
+        return Ok(item);
+    }
 
 }
 

@@ -28,7 +28,7 @@
   <ItemGroup>
     <Folder Include="Scripts\" />
   </ItemGroup>
-  <ItemGroup>
+ <!-- <ItemGroup>
     <Content Remove="runtimeconfig.json" />
-  </ItemGroup>
+  </ItemGroup>-->
 </Project>

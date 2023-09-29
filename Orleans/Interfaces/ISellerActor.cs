@@ -9,6 +9,7 @@ public interface ISellerActor : IGrainWithIntegerKey
 {
 
     // if invoice fails, all subsequent fails
+    [OneWay]
     Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
 
     [OneWay]
@@ -24,6 +25,8 @@ public interface ISellerActor : IGrainWithIntegerKey
     Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification);
 
     Task SetSeller(Seller seller);
+
+    Task<Seller> GetSeller();
 
     Task<SellerDashboard> QueryDashboard();
 

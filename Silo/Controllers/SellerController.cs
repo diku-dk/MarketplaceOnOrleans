@@ -29,13 +29,23 @@ public class SellerController : ControllerBase
     }
 
     [HttpGet]
-    [Route("/seller/{sellerId}")]
+    [Route("/seller/dashboard/{sellerId}")]
     [ProducesResponseType(typeof(SellerDashboard),(int)HttpStatusCode.OK)]
     public async Task<ActionResult<SellerDashboard>> GetDashboard([FromServices] IGrainFactory grains, int sellerId)
     {
         var actor = grains.GetGrain<ISellerActor>(sellerId);
         var dash = await actor.QueryDashboard();
         return Ok(dash);
+    }
+
+    [HttpGet]
+    [Route("/seller/{sellerId}")]
+    [ProducesResponseType(typeof(Seller),(int)HttpStatusCode.OK)]
+    public async Task<ActionResult<Seller>> GetSeller([FromServices] IGrainFactory grains, int sellerId)
+    {
+        var actor = grains.GetGrain<ISellerActor>(sellerId);
+        var Seller = await actor.GetSeller();
+        return Ok(Seller);
     }
 
 }

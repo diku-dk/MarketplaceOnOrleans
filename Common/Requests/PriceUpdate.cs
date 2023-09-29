@@ -6,11 +6,11 @@ public class PriceUpdate
     public int sellerId { get; set; }
     public int productId { get; set; }
     public float price { get; set; }
-    public int instanceId { get; set; }
+    public string instanceId { get; set; }
 
     public PriceUpdate(){ }
 
-    public PriceUpdate(int sellerId, int productId, float price, int instanceId)
+    public PriceUpdate(int sellerId, int productId, float price, string instanceId)
     {
         this.sellerId = sellerId;
         this.productId = productId;

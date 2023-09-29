@@ -20,7 +20,7 @@
 
         public string data { get; set; }
 
-        public int version { get; set; }
+        public string version { get; set; }
 
         public StockItem(){ }
 

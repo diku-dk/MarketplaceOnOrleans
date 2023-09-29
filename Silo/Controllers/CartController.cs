@@ -35,8 +35,6 @@ public class CartController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
     public async Task<ActionResult> NotifyCheckout([FromServices] IGrainFactory grains, long customerId, [FromBody] CustomerCheckout customerCheckout)
     {
-        this.logger.LogDebug("[NotifyCheckout] received request for customer id {0}: {1} ",customerId,  customerCheckout.CustomerId);
-
         // use customerId as cartGrainId and orderGrainId
         var cartGrain = grains.GetGrain<ICartActor>(customerId);
         try 
@@ -49,6 +47,23 @@ public class CartController : ControllerBase
             return StatusCode((int)HttpStatusCode.MethodNotAllowed, e.Message);
         }
     }
-}
 
+    [Route("/cart/{customerId}/seal")]
+    [HttpPatch]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    public async Task<ActionResult> Seal([FromServices] IGrainFactory grains, int customerId)
+    {
+        var cartGrain = grains.GetGrain<ICartActor>(customerId);
+        try 
+        {
+            await cartGrain.Seal();
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.MethodNotAllowed, e.Message);
+        }
+    }
+}
 

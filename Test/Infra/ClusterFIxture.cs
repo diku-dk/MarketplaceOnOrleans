@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans.Hosting;
 using Orleans.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
@@ -16,24 +17,39 @@ public class ClusterFixture : IDisposable
 
     private class SiloConfigurator : ISiloConfigurator
     {
-      public void Configure(ISiloBuilder hostBuilder) =>
-         hostBuilder
-         .AddAdoNetGrainStorage("OrleansStorage", options =>
-         {
-             options.Invariant = "Npgsql";
-             options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
-         })
-         .ConfigureLogging(logging =>
-         {
-             logging.ClearProviders();
-             logging.AddConsole();
-             logging.SetMinimumLevel(LogLevel.Warning);
-         })
-         .Services.AddSerializer(ser =>
-         {
-             ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-         })
-         .AddSingleton<IPersistence,PostgreSQLPersistence>();
+        private readonly bool UsePostgreSql = false;
+        private readonly bool LogRecords = false;
+
+        public void Configure(ISiloBuilder hostBuilder) {
+
+            hostBuilder
+             .ConfigureLogging(logging =>
+             {
+                 logging.ClearProviders();
+                 logging.AddConsole();
+                 logging.SetMinimumLevel(LogLevel.Warning);
+             })
+             .Services.AddSerializer(ser =>
+             {
+                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
+             });
+
+            if (UsePostgreSql)
+            {
+                hostBuilder.AddAdoNetGrainStorage("OrleansStorage", options =>
+                 {
+                     options.Invariant = "Npgsql";
+                     options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
+                 });
+                if(LogRecords)
+                    hostBuilder.Services.AddSingleton<IPersistence,PostgreSQLPersistence>();
+            } else
+            {
+                hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+                hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+            }
+
+        }
     }
 
     private class ClientConfigurator : IClientBuilderConfigurator

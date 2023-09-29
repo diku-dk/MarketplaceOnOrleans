@@ -1,7 +1,9 @@
-﻿using Common.Entities;
+﻿using Common;
+using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
@@ -10,18 +12,19 @@ namespace Orleans.Grains;
 
 public class CartActor : Grain, ICartActor
 {
-
     private readonly IPersistentState<Cart> cart;
-
+    private readonly AppConfig config;
     private int customerId;
     private readonly ILogger<CartActor> _logger;
 
     public CartActor([PersistentState(
         stateName: "cart",
-        storageName: Constants.OrleansStorage)] IPersistentState<Cart> state, 
+        storageName: Constants.OrleansStorage)] IPersistentState<Cart> state,
+        IOptions<AppConfig> options,
         ILogger<CartActor> _logger)
     {
         this.cart = state;
+        this.config = options.Value;
         this._logger = _logger;
     }
 
@@ -53,7 +56,9 @@ public class CartActor : Grain, ICartActor
         }
 
         this.cart.State.items.Add(item);
-        await this.cart.WriteStateAsync();
+
+        if(config.OrleansStorage)
+            await this.cart.WriteStateAsync();
     }
 
     // customer decided to checkout
@@ -76,6 +81,7 @@ public class CartActor : Grain, ICartActor
     {
         cart.State.status = CartStatus.OPEN;
         this.cart.State.items.Clear();
-        await this.cart.WriteStateAsync();
+        if(config.OrleansStorage)
+            await this.cart.WriteStateAsync();
     }
 }

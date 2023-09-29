@@ -1,4 +1,5 @@
 ﻿using Common;
+using OpenTelemetry.Logs;
 using Orleans.Infra;
 using Orleans.Serialization;
 
@@ -6,20 +7,28 @@ var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 builder.Services.Configure<AppConfig>(configSection);
+
 var useDash = configSection.GetValue<bool>("UseDashboard");
+var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var memoryGrainStorage = configSection.GetValue<bool>("MemoryGrainStorage");
+var logRecord = configSection.GetValue<bool>("LogRecords");
+var useSwagger = configSection.GetValue<bool>("UseSwagger");
+
+bool usePostgreSQL = orleansStorage && !memoryGrainStorage;
 
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+if(useSwagger){
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+}
 
-if (memoryGrainStorage){
-    builder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
-} else {
+if (usePostgreSQL){
     builder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+} else {
+    builder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
 }
 
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
@@ -38,14 +47,8 @@ builder.Host.UseOrleans(siloBuilder =>
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
          });
          
-
-    if (memoryGrainStorage){
-        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-        siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
-    }
-    else
-    {
-        var connectionString = configSection.GetValue<string>("ConnectionString");
+    if (usePostgreSQL){
+         var connectionString = configSection.GetValue<string>("ConnectionString");
         siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
@@ -53,14 +56,20 @@ builder.Host.UseOrleans(siloBuilder =>
          });
         siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
     }
+    else
+    {
+        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+        siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+    }
 
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
     }
 });
+
 var app = builder.Build();
 
-if (!memoryGrainStorage){
+if (usePostgreSQL){
     var persistence = app.Services.GetService<IPersistence>();
     // init log table in PostgreSQL
     await persistence.SetUpLog();
@@ -69,18 +78,19 @@ if (!memoryGrainStorage){
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (useSwagger)
 {
-    if(useDash) app.Map("/dashboard", x => x.UseOrleansDashboard());
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+if(useDash) app.Map("/dashboard", x => x.UseOrleansDashboard());
 
 app.MapControllers();
 
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
+Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n MemoryGrainStorage: "+memoryGrainStorage+" \n Log Record: "+logRecord+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+Constants.NumShipmentActors+ " ");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

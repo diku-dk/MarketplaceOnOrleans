@@ -13,5 +13,6 @@ namespace Orleans.Interfaces
 
         Task ProcessPriceUpdate(PriceUpdate priceUpdate);
 
+        Task Reset();
     }
 }

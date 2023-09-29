@@ -1,25 +1,31 @@
-﻿using Common.Entities;
+﻿using Common;
+using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
 
 namespace Orleans.Grains;
 
+[Reentrant]
 public class ProductActor : Grain, IProductActor
 {
-
+    private readonly AppConfig config;
     private readonly IPersistentState<Product> product;
     private readonly ILogger<ProductActor> _logger;
 
     public ProductActor([PersistentState(
         stateName: "product",
         storageName: Constants.OrleansStorage)] IPersistentState<Product> state,
+        IOptions<AppConfig> options,
         ILogger<ProductActor> _logger)
     {
         this.product = state;
+        this.config = options.Value;
         this._logger = _logger;
     }
 
@@ -32,8 +38,10 @@ public class ProductActor : Grain, IProductActor
     public async Task SetProduct(Product product)
     {
         this.product.State = product;
+        this.product.State.active = true;
         this.product.State.created_at = DateTime.UtcNow;
-        await this.product.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.product.WriteStateAsync();
     }
 
     public async Task ProcessProductUpdate(Product product)
@@ -41,7 +49,8 @@ public class ProductActor : Grain, IProductActor
         product.created_at = this.product.State.created_at;
         product.updated_at = DateTime.UtcNow;
         this.product.State = product;
-        await this.product.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.product.WriteStateAsync();
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
         await stockGrain.ProcessProductUpdate(productUpdated);
@@ -56,7 +65,17 @@ public class ProductActor : Grain, IProductActor
     {
         this.product.State.price = priceUpdate.price;
         this.product.State.updated_at = DateTime.UtcNow;
-        await this.product.WriteStateAsync();
+        if(this.config.OrleansStorage)
+            await this.product.WriteStateAsync();
     }
+
+    public async Task Reset()
+    {
+        this.product.State.updated_at = DateTime.UtcNow;
+        this.product.State.version = "0";
+        if(this.config.OrleansStorage)
+            await this.product.WriteStateAsync();
+    }
+
 }
 

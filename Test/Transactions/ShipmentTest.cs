@@ -28,7 +28,7 @@ public class ShipmentTest
 
         var shipment = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
 
-        await shipment.UpdateShipment(1);
+        await shipment.UpdateShipment("1");
 
          // should have no shipments
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));

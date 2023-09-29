@@ -1,7 +1,0 @@
-﻿{
-  "runtimeOptions": {
-    "configProperties": {
-      "System.Threading.ThreadPool.MinThreads": 16
-    }
-  }
-}

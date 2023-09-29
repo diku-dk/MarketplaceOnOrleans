@@ -7,9 +7,13 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using System.Text;
 using System.Globalization;
+using Common;
+using Microsoft.Extensions.Options;
+using Orleans.Concurrency;
 
 namespace Orleans.Grains;
 
+[Reentrant]
 public class OrderActor : Grain, IOrderActor
 {
 
@@ -20,7 +24,9 @@ public class OrderActor : Grain, IOrderActor
         public NextOrderState(int value){ this.Value = value; }
         public NextOrderState GetNextOrderId()
         {
-            return new NextOrderState(this.Value + 1);
+            // return new NextOrderState(this.Value + 1);
+            this.Value++;
+            return this;
         }
     }
 
@@ -32,8 +38,9 @@ public class OrderActor : Grain, IOrderActor
         public OrderState(){ }
     }
 
+    private readonly AppConfig config;
     private readonly ILogger<OrderActor> logger;
-    private readonly IPersistence _persistence;
+    private readonly IPersistence persistence;
    
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
@@ -59,13 +66,16 @@ public class OrderActor : Grain, IOrderActor
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderState> nextOrderId,
-        ILogger<OrderActor> _logger,
-        IPersistence _persistence) 
+        IPersistence persistence,
+        IOptions<AppConfig> options,
+        ILogger<OrderActor> _logger)
     {
-        this.logger = _logger;
+      
         this.orders = orders;
         this.nextOrderId = nextOrderId;
-        this._persistence = _persistence;
+        this.persistence = persistence;
+        this.config = options.Value;
+        this.logger = _logger;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -117,7 +127,7 @@ public class OrderActor : Grain, IOrderActor
 
         float total_items = total_amount;
 
-        Dictionary<int, float> totalPerItem = new();
+        Dictionary<(int,int), float> totalPerItem = new();
         float total_incentive = 0;
         foreach (var item in itemsToCheckout)
         {
@@ -136,7 +146,7 @@ public class OrderActor : Grain, IOrderActor
                 total_item = 0;
             }
 
-            totalPerItem.Add(item.ProductId, total_item);
+            totalPerItem.Add((item.SellerId,item.ProductId), total_item);
         }
 
         nextOrderId.State = nextOrderId.State.GetNextOrderId();
@@ -174,7 +184,7 @@ public class OrderActor : Grain, IOrderActor
                 unit_price = item.UnitPrice,
                 quantity = item.Quantity,
                 total_items = item.UnitPrice * item.Quantity,
-                total_amount = totalPerItem[item.ProductId],
+                total_amount = totalPerItem[(item.SellerId,item.ProductId)],
                 freight_value = item.FreightValue,
                 shipping_limit_date = now.AddDays(3),
                 voucher = item.Voucher
@@ -193,12 +203,12 @@ public class OrderActor : Grain, IOrderActor
             }
             } } );
 
-        var tasks = new List<Task>
+        if (config.OrleansStorage)
         {
-            nextOrderId.WriteStateAsync(),
-            orders.WriteStateAsync()
-        };
-        await Task.WhenAll(tasks);
+            // possible solution for reentrancy: https://github.com/dotnet/orleans/issues/4697#issuecomment-398556401
+            // await nextOrderId.ReadStateAsync().ContinueWith(x=>nextOrderId.WriteStateAsync());
+            await Task.WhenAll(nextOrderId.WriteStateAsync(), orders.WriteStateAsync());
+        }
 
         var invoice = new InvoiceIssued
         (
@@ -211,12 +221,22 @@ public class OrderActor : Grain, IOrderActor
             reserveStock.instanceId
         );
 
-        tasks.Clear();
+        var tasks = new List<Task>();
         var sellerIds = items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellerIds)
         {
             var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
-            tasks.Add(sellerActor.ProcessNewInvoice(invoice));
+            var invoiceCustom = new InvoiceIssued
+            (
+                reserveStock.customerCheckout,
+                orderId,
+                invoiceNumber,
+                now,
+                order.total_invoice,
+                items.Where(id=>id.seller_id==sellerID).ToList(),
+                reserveStock.instanceId
+            );
+            tasks.Add(sellerActor.ProcessNewInvoice(invoiceCustom));
         }
         await Task.WhenAll(tasks);
 
@@ -240,7 +260,8 @@ public class OrderActor : Grain, IOrderActor
         var order = orders.State[paymentConfirmed.orderId].order;
         order.status = OrderStatus.PAYMENT_PROCESSED;
         order.updated_at = now;
-        await orders.WriteStateAsync();
+        if(config.OrleansStorage)
+            await orders.WriteStateAsync();
     }
 
     public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
@@ -260,12 +281,15 @@ public class OrderActor : Grain, IOrderActor
         order.status = OrderStatus.PAYMENT_PROCESSED;
         order.updated_at = now;
         // log finished order
-        var str = JsonSerializer.Serialize(orders.State[paymentFailed.orderId]);
-        var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
-        await _persistence.Log(Name, sb.ToString(), str);
-
+        if(config.LogRecords){
+            var str = JsonSerializer.Serialize(orders.State[paymentFailed.orderId]);
+            var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
+            await persistence.Log(Name, sb.ToString(), str);
+        }
         orders.State.Remove(paymentFailed.orderId);
-        await orders.WriteStateAsync();
+
+        if(config.OrleansStorage)
+            await orders.WriteStateAsync();
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
@@ -296,20 +320,25 @@ public class OrderActor : Grain, IOrderActor
             order.delivered_customer_date = shipmentNotification.eventDate;
         
             // log finished order
-            var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
-            var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
-            await _persistence.Log(Name, sb.ToString(), str);
-
+            if(config.LogRecords){
+                var str = JsonSerializer.Serialize(orders.State[shipmentNotification.orderId]);
+                var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
+                await persistence.Log(Name, sb.ToString(), str);
+            }
             orders.State.Remove(shipmentNotification.orderId);
         }
 
-        await orders.WriteStateAsync();
+        if(config.OrleansStorage)
+            await orders.WriteStateAsync();
     }
 
     private static string Name = typeof(OrderActor).FullName;
 
     public Task<List<Order>> GetOrders()
     {
+        //var lines = sellerHistogram.Select(kvp => kvp.Key + ": " + kvp.Value.ToString());
+        //var output = string.Join(Environment.NewLine, lines);
+        //logger.LogWarning(output);
         var res = this.orders.State.Select(x=>x.Value.order).ToList();
         return Task.FromResult(res);
     }
@@ -319,9 +348,10 @@ public class OrderActor : Grain, IOrderActor
         return Task.FromResult(this.nextOrderId.State.Value);
     }
 
-    public Task Reset()
+    public async Task Reset()
     {
         this.orders.State.Clear();
-        return Task.CompletedTask;
+        if(config.OrleansStorage)
+            await orders.WriteStateAsync();
     }
 }

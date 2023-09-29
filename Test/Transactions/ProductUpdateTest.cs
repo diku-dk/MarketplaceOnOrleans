@@ -29,7 +29,7 @@ public class ProductUpdateTest
             price = 10,
             freight_value = 1,
             active = true,
-            version = 1,
+            version = "1",
         };
 
         await productActor.SetProduct(product);
@@ -43,7 +43,7 @@ public class ProductUpdateTest
             qty_reserved = 0,
             order_count = 0,
             ytd = 1,
-            version = 1
+            version = "1"
         };
 
         var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1,"1");
@@ -56,13 +56,13 @@ public class ProductUpdateTest
             price = 10,
             freight_value = 1,
             active = true,
-            version = 2,
+            version = "2",
         };
 
         await productActor.ProcessProductUpdate(productUpdated);
 
         var newItem = await stock1.GetItem();
 
-        Assert.True( newItem.version == 2 );
+        Assert.True( newItem.version.SequenceEqual("2") );
     }
 }
