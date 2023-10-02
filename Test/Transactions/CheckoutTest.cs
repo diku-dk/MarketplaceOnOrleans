@@ -54,7 +54,7 @@ public class CheckoutTest
 
         Assert.Single(orders);
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0,1));
         var shipments = (await shipmentActor.GetShipments(0));
         var count = shipments.Count;
         Assert.True(count == 1);
@@ -99,7 +99,7 @@ public class CheckoutTest
         var order = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
         Assert.True(2 == await order.GetNumOrders());
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0,1));
         var shipments = (await shipmentActor.GetShipments(0));
         var count = shipments.Count;
         Assert.True(count == 2);
@@ -142,7 +142,7 @@ public class CheckoutTest
 
         for (var customerId = 0; customerId < numCustomer; customerId++)
         {
-            var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(customerId));
+            var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(customerId, 1));
             var shipments = (await shipmentActor.GetShipments(customerId));
             var count = shipments.Count;
             Console.WriteLine("Customer ID {0} Count {1}", customerId, count);

@@ -12,8 +12,6 @@ public sealed class Constants
 
     public static readonly Guid ProductStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC1");
 
-    public const int NumShipmentActors = 100;
-
     public static readonly string MarkNamespace = "MarkNs";
     public static readonly Guid CheckoutMarkStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC2");
     public static readonly Guid ProductUpdateMarkStreamId = new("AD713788-B5AE-49FF-8B2C-F311B9CB0CC3");

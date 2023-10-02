@@ -122,6 +122,9 @@ public class PaymentActor : Grain, IPaymentActor
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
 
+        //await Task.WhenAll(tasks);
+        //tasks.Clear();
+
         var paymentTs = DateTime.UtcNow;
         var paymentConfirmedWithItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, paymentTs, invoiceIssued.instanceId);
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
@@ -138,7 +141,7 @@ public class PaymentActor : Grain, IPaymentActor
         await Task.WhenAll(tasks);
 
         // proceed to shipment actor
-        var shipmentActorID = Helper.GetShipmentActorID(this.customerId);
+        var shipmentActorID = Helper.GetShipmentActorID(this.customerId, this.config.NumShipmentActors);
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
     }

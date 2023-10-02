@@ -1,6 +1,7 @@
 ﻿using System.Net;
+using Common;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Infra;
+using Microsoft.Extensions.Options;
 using Orleans.Interfaces;
 
 namespace Silo.Controllers;
@@ -8,10 +9,12 @@ namespace Silo.Controllers;
 [ApiController]
 public class ShipmentController : ControllerBase
 {
+    private readonly AppConfig config;
     private readonly ILogger<ShipmentController> logger;
 
-    public ShipmentController(ILogger<ShipmentController> logger)
+    public ShipmentController(IOptions<AppConfig> options, ILogger<ShipmentController> logger)
     {
+        this.config = options.Value;
         this.logger = logger;
     }
 
@@ -20,8 +23,8 @@ public class ShipmentController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, string instanceId)
     {
-        List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
-        for(int i = 0; i < Constants.NumShipmentActors; i++)
+        List<Task> tasks = new List<Task>(config.NumShipmentActors);
+        for(int i = 0; i < config.NumShipmentActors; i++)
         {
             var grain = grains.GetGrain<IShipmentActor>(i);
             tasks.Add(grain.UpdateShipment(instanceId));

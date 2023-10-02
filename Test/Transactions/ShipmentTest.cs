@@ -24,14 +24,14 @@ public class ShipmentTest
     {
         await checkoutTest.Checkout();
 
-        int shipmentActorId = Helper.GetShipmentActorID(0);
+        int shipmentActorId = Helper.GetShipmentActorID(0,1);
 
         var shipment = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
 
         await shipment.UpdateShipment("1");
 
          // should have no shipments
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0));
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0,1));
         var shipments = await shipmentActor.GetShipments(0);
         Assert.True(shipments.Count == 0);
 

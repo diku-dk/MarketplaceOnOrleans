@@ -1,5 +1,4 @@
 ﻿using Common;
-using OpenTelemetry.Logs;
 using Orleans.Infra;
 using Orleans.Serialization;
 
@@ -10,11 +9,12 @@ builder.Services.Configure<AppConfig>(configSection);
 
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
-var memoryGrainStorage = configSection.GetValue<bool>("MemoryGrainStorage");
+var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
 var logRecord = configSection.GetValue<bool>("LogRecords");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
+int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 
-bool usePostgreSQL = orleansStorage && !memoryGrainStorage;
+bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -73,8 +73,9 @@ if (usePostgreSQL){
     var persistence = app.Services.GetService<IPersistence>();
     // init log table in PostgreSQL
     await persistence.SetUpLog();
+    await persistence.CleanLog();
     // it guarantees that, upon activating the actor, the state is null
-    await persistence.ResetActorStates();
+    await persistence.TruncateStorage();
 }
 
 // Configure the HTTP request pipeline.
@@ -90,7 +91,7 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n MemoryGrainStorage: "+memoryGrainStorage+" \n Log Record: "+logRecord+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+Constants.NumShipmentActors+ " ");
+Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecord+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

@@ -4,13 +4,13 @@ public class AppConfig
 {
     public bool OrleansStorage { get; set; }
 
-	public bool MemoryGrainStorage { get; set; }
+	public bool AdoNetGrainStorage { get; set; }
 
 	public string ConnectionString { get; set; }
 
     public bool LogRecords { get; set; }
 
-    public int  NumShipments { get; set; }
+    public int  NumShipmentActors { get; set; }
 
 	public bool UseDashboard { get; set; }
 
@@ -18,6 +18,6 @@ public class AppConfig
 
     public override string ToString()
     {
-        return "MemoryGrainStorage: "+MemoryGrainStorage+" \nConnectionString: "+ConnectionString+" \nUseDashboard: "+UseDashboard;
+        return "OrleansStorage"+AdoNetGrainStorage+" \nAdoNetGrainStorage: "+AdoNetGrainStorage+" \nConnectionString: "+ConnectionString+" \nUseDashboard: "+UseDashboard;
     }
 }

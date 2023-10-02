@@ -117,8 +117,9 @@ public class SellerActor : Grain, ISellerActor
             this.orderEntries.State[id].Add(orderEntry);
         }
 
-        if(this.config.OrleansStorage)
+        if(this.config.OrleansStorage){
             await this.orderEntries.WriteStateAsync();
+        }
     }
 
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
@@ -190,6 +191,9 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
+        if(this.config.OrleansStorage){
+            await this.orderEntries.ReadStateAsync();
+        }
         string id = BuildUniqueOrderIdentifier(deliveryNotification);
         // interleaving of shipment and delivery
         if (this.orderEntries.State.ContainsKey(id))

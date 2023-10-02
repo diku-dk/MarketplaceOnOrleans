@@ -151,7 +151,7 @@ public class ShipmentActor : Grain, IShipmentActor
             var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
             tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
         }
-        await Task.WhenAll(tasks);
+        // await Task.WhenAll(tasks);
 
         var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.customer.CustomerId);
         await orderActor.ProcessShipmentNotification(shipmentNotification);

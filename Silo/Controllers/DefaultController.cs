@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Net;
+using Common;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
@@ -11,11 +13,13 @@ namespace Silo.Controllers;
 public class DefaultController : ControllerBase
 {
     private readonly IPersistence persistence;
+    private readonly AppConfig config;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IPersistence persistence, ILogger<DefaultController> logger)
+    public DefaultController(IPersistence persistence, IOptions<AppConfig> options, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
+        this.config = options.Value;
         this.logger = logger;
     }
 
@@ -107,14 +111,14 @@ public class DefaultController : ControllerBase
 
     private async Task ResetShipmentActors(IGrainFactory grains)
     {
-        List<Task> tasks = new List<Task>(Constants.NumShipmentActors);
-        for(int i = 0; i < Constants.NumShipmentActors; i++)
+        List<Task> tasks = new List<Task>(config.NumShipmentActors);
+        for(int i = 0; i < config.NumShipmentActors; i++)
         {
             var grain = grains.GetGrain<IShipmentActor>(i);
             tasks.Add(grain.Reset());
         }
         await Task.WhenAll(tasks);
-        logger.LogWarning("{0} shipment states resetted", Constants.NumShipmentActors);
+        logger.LogWarning("{0} shipment states resetted", config.NumShipmentActors);
     }
 
     // should be called before shutting off the app server

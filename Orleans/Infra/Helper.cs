@@ -2,6 +2,6 @@
 
 public static class Helper
 {
-    public static int GetShipmentActorID(int customerID) => customerID % Constants.NumShipmentActors;
+    public static int GetShipmentActorID(int customerID, int NumShipmentActors) => customerID % NumShipmentActors;
    
 }
