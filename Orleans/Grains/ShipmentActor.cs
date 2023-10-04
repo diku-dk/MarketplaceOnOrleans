@@ -17,16 +17,27 @@ public class ShipmentActor : Grain, IShipmentActor
 {
     private readonly AppConfig config;
     private int partitionId;
+    
     private static readonly string Name = typeof(ShipmentActor).FullName;
-    private readonly IPersistentState<Dictionary<string,Shipment>> shipments;
-    private readonly IPersistentState<Dictionary<string,List<Package>>> packages;   // key: customer ID + "-" + order ID
 
-    private record SellerEntry(DateTime request_date, int sellerId, int customerId, int orderId);
+    private readonly IPersistentState<SortedDictionary<int,Shipment>> shipments;
+    private readonly IPersistentState<SortedDictionary<int,List<Package>>> packages;   // key: customer ID + "-" + order ID
+    private readonly IPersistentState<NextShipmentIdState> nextShipmentId;
 
-    private readonly Dictionary<int, List<SellerEntry>> sellerInfo;    // key: seller ID, value: info of the oldest un-completed order
+    private readonly ILogger<ShipmentActor> logger;
+    private readonly IPersistence persistence;
 
-    private readonly ILogger<ShipmentActor> _logger;
-    private readonly IPersistence _persistence;
+    public class NextShipmentIdState
+    {
+        public int Value { get; set; }
+        public NextShipmentIdState(){ this.Value = 0; }
+        public NextShipmentIdState(int value){ this.Value = value; }
+        public NextShipmentIdState GetNextShipmentId()
+        {
+            this.Value++;
+            return this;
+        }
+    }
 
     private class ShipmentState
     {
@@ -36,18 +47,19 @@ public class ShipmentActor : Grain, IShipmentActor
     }
 
     public ShipmentActor(
-         [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,Shipment>> shipments,
-         [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string,List<Package>>> packages,
-         IPersistence _persistence,
+         [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,Shipment>> shipments,
+         [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,List<Package>>> packages,
+         [PersistentState(stateName: "nextShipmentId", storageName: Constants.OrleansStorage)] IPersistentState<NextShipmentIdState> nextShipmentId,
+         IPersistence persistence,
          IOptions<AppConfig> options,
-         ILogger<ShipmentActor> _logger)
+         ILogger<ShipmentActor> logger)
 	{
         this.shipments = shipments;
         this.packages = packages;
-        this._persistence = _persistence;
+        this.nextShipmentId = nextShipmentId;
+        this.persistence = persistence;
         this.config = options.Value;
-        this._logger = _logger;
-        this.sellerInfo = new Dictionary<int, List<SellerEntry>>();
+        this.logger = logger;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -56,7 +68,7 @@ public class ShipmentActor : Grain, IShipmentActor
         // persistence
         if(this.shipments.State is null) this.shipments.State = new();
         if(this.packages.State is null) this.packages.State = new();
-        // TODO rebuild seller cache from state so after a crash it is rebuilt correctly
+        
         return Task.CompletedTask;
     }
 
@@ -64,7 +76,6 @@ public class ShipmentActor : Grain, IShipmentActor
     {
         this.shipments.State.Clear();
         this.packages.State.Clear();
-        this.sellerInfo.Clear();
         if (this.config.OrleansStorage)
         {
             await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
@@ -73,8 +84,6 @@ public class ShipmentActor : Grain, IShipmentActor
 
     public async Task ProcessShipment(PaymentConfirmed paymentConfirmed)
     {
-        int package_id = 1;
-
         DateTime now = DateTime.UtcNow;
 
         Shipment shipment = new()
@@ -94,35 +103,24 @@ public class ShipmentActor : Grain, IShipmentActor
             state = paymentConfirmed.customer.State
         };
 
-        var id = new StringBuilder(paymentConfirmed.customer.CustomerId.ToString()).Append('-').Append(shipment.order_id).ToString();
+        var id = nextShipmentId.State.GetNextShipmentId().Value;
+        var packages = new List<Package>();
         try{
             this.shipments.State.Add(id, shipment);
-            this.packages.State.Add(id, new List<Package>());
+            this.packages.State.Add(id, packages);
         }
         catch(Exception)
         {
-            _logger.LogWarning("Shipment {0} processing customer ID {1}. Unique ID {2}", this.partitionId, paymentConfirmed.customer.CustomerId, id);
+            this.logger.LogWarning("Shipment {0} processing customer ID {1}. Unique ID {2}", this.partitionId, paymentConfirmed.customer.CustomerId, id);
             return;
         }
 
-        var sellerSet = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
-
-        foreach(var sellerId in sellerSet)
-        {
-            if (!sellerInfo.ContainsKey(sellerId)) {
-                this.sellerInfo.Add(sellerId, new List<SellerEntry>());
-                this.sellerInfo[sellerId].Add(new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
-                continue;
-            }
-            var index = 0;
-            while (index < sellerInfo[sellerId].Count && sellerInfo[sellerId][index].request_date < now) index++;
-            this.sellerInfo[sellerId].Insert(index, new(now, sellerId, paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId));
-        }
-
+        int package_id = 1;
         foreach (var item in paymentConfirmed.items)
         {
             Package package = new()
             {
+                shipment_id = id,
                 order_id = paymentConfirmed.orderId,
                 customer_id = shipment.customer_id,
                 package_id = package_id,
@@ -135,12 +133,13 @@ public class ShipmentActor : Grain, IShipmentActor
                 quantity = item.quantity
             };
 
-            packages.State[id].Add(package);
+            packages.Add(package);
 
             package_id++;
         }
+
         if (this.config.OrleansStorage)
-            await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync());
+            await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync(), this.nextShipmentId.WriteStateAsync());
 
         ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
         // inform seller
@@ -151,18 +150,15 @@ public class ShipmentActor : Grain, IShipmentActor
             var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
             tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
         }
-        // await Task.WhenAll(tasks);
-
+        
         var orderActor = GrainFactory.GetGrain<IOrderActor>(paymentConfirmed.customer.CustomerId);
-        await orderActor.ProcessShipmentNotification(shipmentNotification);
+        tasks.Add( orderActor.ProcessShipmentNotification(shipmentNotification) );
+        await Task.WhenAll(tasks);
     }
 
-    private Dictionary<int,DateTime> GetOldestOpenShipmentPerSeller()
+    private Dictionary<int,int> GetOldestOpenShipmentPerSeller()
     {
-        return sellerInfo.SelectMany(x=> x.Value ).GroupBy(x=>x.sellerId)
-              .Select(g => new { key = g.Key, Sort = g.Min(x => x.request_date) })
-              .Take(10)
-              .ToDictionary(g => g.key, g => g.Sort);
+        return packages.State.Take(10).SelectMany(x=> x.Value).GroupBy(x=>x.seller_id).Select(g => new { key = g.Key, Sort = g.Min(x => x.shipment_id) }).ToDictionary(g => g.key, g => g.Sort);
     }
 
     public async Task UpdateShipment(string tid)
@@ -178,25 +174,21 @@ public class ShipmentActor : Grain, IShipmentActor
         // get oldest 10 orders by seller
         var oldestShipments = GetOldestOpenShipmentPerSeller();
 
-        foreach (var x in oldestShipments)
+        foreach (var info in oldestShipments)
         {
-            var info = sellerInfo[x.Key].First();
-            this.sellerInfo[x.Key].RemoveAt(0);
-
-            var id = new StringBuilder(info.customerId.ToString()).Append('-').Append(info.orderId).ToString();
             List<Package> packages_;
             Shipment shipment;
             try{
-                packages_ = this.packages.State[id].Where( p=>p.seller_id == x.Key ).ToList();
-                shipment = this.shipments.State[id];
+                packages_ = this.packages.State[info.Value].Where( p=>p.seller_id == info.Key ).ToList();
+                shipment = this.shipments.State[info.Value];
             }
             catch (Exception)
             {
-                _logger.LogWarning("Error caught by shipment ator {0}. ID does not exist: {1} - {2}", this.partitionId, id, info);
+                this.logger.LogWarning("Error caught by shipment ator {0}. ID does not exist: {1} - {2}", this.partitionId, info.Value, info);
                 continue;
             }
             
-            int countDelivered = this.packages.State[id].Where( p=>p.status == PackageStatus.delivered ).Count();
+            int countDelivered = this.packages.State[info.Value].Where( p=>p.status == PackageStatus.delivered ).Count();
 
             foreach (var package in packages_)
             {
@@ -206,7 +198,7 @@ public class ShipmentActor : Grain, IShipmentActor
                     shipment.customer_id, package.order_id, package.package_id, package.seller_id,
                     package.product_id, package.product_name, PackageStatus.delivered, now, tid);
 
-                tasks.Add( GrainFactory.GetGrain<ICustomerActor>(info.customerId)
+                tasks.Add( GrainFactory.GetGrain<ICustomerActor>(package.customer_id)
                     .NotifyDelivery(deliveryNotification) );
                 tasks.Add( GrainFactory.GetGrain<ISellerActor>(package.seller_id)
                     .ProcessDeliveryNotification(deliveryNotification) );
@@ -226,6 +218,7 @@ public class ShipmentActor : Grain, IShipmentActor
                 shipment.status = ShipmentStatus.concluded;
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
+                // FIXME should notify all sellers included in the shipment
                 tasks.Add( GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification) );
                 tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
@@ -235,10 +228,10 @@ public class ShipmentActor : Grain, IShipmentActor
                 if (this.config.LogRecords){
                     var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = packages_ } );
                     var sb = new StringBuilder(shipment.customer_id.ToString()).Append('-').Append(shipment.order_id).ToString();
-                    tasks.Add( _persistence.Log(Name, sb.ToString(), str) );
+                    tasks.Add( persistence.Log(Name, sb.ToString(), str) );
                 }
-                this.shipments.State.Remove(id);
-                this.packages.State.Remove(id);
+                this.shipments.State.Remove(info.Value);
+                this.packages.State.Remove(info.Value);
 
             }
 

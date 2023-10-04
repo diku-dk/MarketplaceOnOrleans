@@ -1,27 +1,24 @@
 ﻿using Common.Entities;
+using Orleans.Infra;
 using Orleans.Interfaces;
-using Orleans.TestingHost;
 using Test.Infra;
 
 namespace Test.Transactions;
 
 [Collection(ClusterCollection.Name)]
-public class ProductUpdateTest
+public class ProductUpdateTest : BaseTest
 {
-    private readonly TestCluster _cluster;
 
-	public ProductUpdateTest(ClusterFixture fixture)
-	{
-        this._cluster = fixture.Cluster;
-	}
+    public ProductUpdateTest(ClusterFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task ProductUpdate()
     {
-        DBHelper.TruncateOrleansStorage();
+        IPersistence persistence = (IPersistence) _cluster.ServiceProvider.GetService(typeof(IPersistence));
+        await persistence.TruncateStorage();
 
         // set product first
-        var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,"1");
+        var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,1.ToString());
         var product = new Product()
         {
             seller_id = 1,
@@ -29,7 +26,7 @@ public class ProductUpdateTest
             price = 10,
             freight_value = 1,
             active = true,
-            version = "1",
+            version = 1.ToString(),
         };
 
         await productActor.SetProduct(product);
@@ -43,10 +40,10 @@ public class ProductUpdateTest
             qty_reserved = 0,
             order_count = 0,
             ytd = 1,
-            version = "1"
+            version = 1.ToString()
         };
 
-        var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1,"1");
+        var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1,1.ToString());
         await stock1.SetItem(item);
 
         // submit product update
@@ -56,13 +53,13 @@ public class ProductUpdateTest
             price = 10,
             freight_value = 1,
             active = true,
-            version = "2",
+            version = 2.ToString(),
         };
 
         await productActor.ProcessProductUpdate(productUpdated);
 
         var newItem = await stock1.GetItem();
 
-        Assert.True( newItem.version.SequenceEqual("2") );
+        Assert.True( newItem.version.SequenceEqual(2.ToString()) );
     }
 }

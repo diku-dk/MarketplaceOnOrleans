@@ -85,8 +85,9 @@ public class SellerActor : Grain, ISellerActor
     public async Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
+        var orderEntries = new List<OrderEntry>();
         try{
-            this.orderEntries.State.Add(id, new List<OrderEntry>());
+            this.orderEntries.State.Add(id, orderEntries);
         } catch(Exception e)
         {
             logger.LogError("Seller {0} caught error with customer ID {1} order ID {2}: {3}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, e.Message);
@@ -114,7 +115,7 @@ public class SellerActor : Grain, ISellerActor
                 unit_price = item.unit_price,
             };
 
-            this.orderEntries.State[id].Add(orderEntry);
+            orderEntries.Add(orderEntry);
         }
 
         if(this.config.OrleansStorage){
@@ -191,12 +192,9 @@ public class SellerActor : Grain, ISellerActor
 
     public async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
-        if(this.config.OrleansStorage){
-            await this.orderEntries.ReadStateAsync();
-        }
         string id = BuildUniqueOrderIdentifier(deliveryNotification);
         // interleaving of shipment and delivery
-        if (this.orderEntries.State.ContainsKey(id))
+        if (!this.orderEntries.State.ContainsKey(id))
         {
             logger.LogDebug("Cannot process delivery notification event because invoice ID {0} has not been found", id);
             return;

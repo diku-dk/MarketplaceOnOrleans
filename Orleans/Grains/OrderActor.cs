@@ -17,14 +17,13 @@ namespace Orleans.Grains;
 public class OrderActor : Grain, IOrderActor
 {
 
-    public class NextOrderState
+    public class NextOrderIdState
     {
         public int Value { get; set; }
-        public NextOrderState(){ this.Value = 0; }
-        public NextOrderState(int value){ this.Value = value; }
-        public NextOrderState GetNextOrderId()
+        public NextOrderIdState(){ this.Value = 0; }
+        public NextOrderIdState(int value){ this.Value = value; }
+        public NextOrderIdState GetNextOrderId()
         {
-            // return new NextOrderState(this.Value + 1);
             this.Value++;
             return this;
         }
@@ -45,7 +44,7 @@ public class OrderActor : Grain, IOrderActor
     // Dictionary<int, (Order, List<OrderItem>)> orders;   // <order ID, order state, order item state>
 
     private readonly IPersistentState<Dictionary<int, OrderState>> orders;
-    private readonly IPersistentState<NextOrderState> nextOrderId;
+    private readonly IPersistentState<NextOrderIdState> nextOrderId;
 
     private int customerId;
 
@@ -65,7 +64,7 @@ public class OrderActor : Grain, IOrderActor
 
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
-        [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderState> nextOrderId,
+        [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderId,
         IPersistence persistence,
         IOptions<AppConfig> options,
         ILogger<OrderActor> _logger)

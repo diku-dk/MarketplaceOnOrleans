@@ -14,6 +14,7 @@ namespace Orleans.Grains;
 [Reentrant]
 public class PaymentActor : Grain, IPaymentActor
 {
+    private static readonly string Name = typeof(PaymentActor).FullName;
     private readonly AppConfig config;
     private int customerId;
     private readonly ILogger<PaymentActor> logger;
@@ -145,7 +146,5 @@ public class PaymentActor : Grain, IPaymentActor
         var shipmentActor = GrainFactory.GetGrain<IShipmentActor>(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
     }
-
-    private static readonly string Name = typeof(PaymentActor).FullName;
 
 }

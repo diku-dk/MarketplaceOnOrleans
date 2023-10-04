@@ -2,6 +2,8 @@
 {
 	public class Package
 	{
+        public int shipment_id;
+
 		// PK
 		public int order_id;
         public int customer_id;

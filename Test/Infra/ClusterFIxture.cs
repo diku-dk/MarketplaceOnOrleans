@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Reflection;
+using Common;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Orleans.Hosting;
 using Orleans.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
@@ -14,14 +16,26 @@ namespace Test.Infra;
 */
 public class ClusterFixture : IDisposable
 {
+    private const string PostgresConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";
+
+    public static bool UsePostgreSql = false;
+    public static bool LogRecords = false;
+
+    public static int NumShipmentActors = 1;
+
+    public static Dictionary<string, string> myConfiguration = new Dictionary<string, string>
+                                        {
+                                            {"NumShipmentActors", NumShipmentActors.ToString()}
+                                        };
 
     private class SiloConfigurator : ISiloConfigurator
     {
-        private readonly bool UsePostgreSql = false;
-        private readonly bool LogRecords = false;
-
+        // https://stackoverflow.com/questions/55497800/populate-iconfiguration-for-unit-tests
         public void Configure(ISiloBuilder hostBuilder) {
 
+            var configuration = new ConfigurationBuilder()
+                                    .AddInMemoryCollection(myConfiguration)
+                                    .Build();
             hostBuilder
              .ConfigureLogging(logging =>
              {
@@ -32,21 +46,24 @@ public class ClusterFixture : IDisposable
              .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-             });
-
+             }).Configure<AppConfig>(configuration);
+            
             if (UsePostgreSql)
             {
-                hostBuilder.AddAdoNetGrainStorage("OrleansStorage", options =>
+                hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
                  {
                      options.Invariant = "Npgsql";
-                     options.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password";
+                     options.ConnectionString = PostgresConnectionString;
                  });
                 if(LogRecords)
-                    hostBuilder.Services.AddSingleton<IPersistence,PostgreSQLPersistence>();
+                    hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
             } else
             {
                 hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-                hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+                if(LogRecords)
+                    hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+                else
+                    hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
             }
 
         }
@@ -54,12 +71,17 @@ public class ClusterFixture : IDisposable
 
     private class ClientConfigurator : IClientBuilderConfigurator
     {
-      public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) => 
+      public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) {
         clientBuilder
             .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
              });
+            if(LogRecords)
+                clientBuilder.Services.AddSingleton<IPersistence,PostgreSQLPersistence>();
+            else
+                clientBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+        }
     }
 
     public ClusterFixture()
