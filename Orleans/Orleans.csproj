@@ -29,7 +29,6 @@
       <ProjectReference Include="..\Common\Common.csproj" />
     </ItemGroup>
     <ItemGroup>
-      <Folder Include="TransactionalGrains\" />
       <Folder Include="AbstractGrains\" />
     </ItemGroup>
 </Project>

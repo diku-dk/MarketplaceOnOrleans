@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Orleans.Grains;
 using Orleans.Infra;
 using Orleans.Interfaces;
+using Orleans.TransactionalGrains;
 
 namespace Orleans.AbstractGrains;
 
@@ -104,8 +105,6 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             totalPerItem.Add(item.ProductId, total_item);
         }
 
-        // nextOrderId.State = nextOrderId.State.GetNextOrderId();
-        // int orderId = nextOrderId.State.Value;
         int orderId = await GetNextOrderId();
 
         var invoiceNumber = Helper.GetInvoiceNumber(customerId, now, orderId);
@@ -160,9 +159,6 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             }
             } } );
 
-        var tasks = SpawnFullWriteStateAsync();
-        await Task.WhenAll(tasks);
-
         var invoice = new InvoiceIssued
         (
             reserveStock.customerCheckout,
@@ -174,18 +170,23 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             reserveStock.instanceId
         );
 
-        tasks.Clear();
         var sellerIds = items.Select(x => x.seller_id).ToHashSet();
+        var tasks = new List<Task>(sellerIds.Count);
         foreach (var sellerID in sellerIds)
         {
             // https://stackoverflow.com/questions/59327843/multiple-implementations-of-same-grain-interface-using-orleans
-            var sellerActor = UseTransactions ? GrainFactory.GetGrain<ISellerActor>(sellerID, "Orleans.TransactionalGrains.TransactionalSellerActor") : GrainFactory.GetGrain<ISellerActor>(sellerID, "Orleans.Grains.SellerActor");
+            var sellerActor = GetSellerActor(sellerID);
             tasks.Add(sellerActor.ProcessNewInvoice(invoice));
         }
         await Task.WhenAll(tasks);
 
         var paymentActor = GrainFactory.GetGrain<IPaymentActor>(this.customerId, "");
         await paymentActor.ProcessPayment(invoice);
+    }
+
+    public virtual ISellerActor GetSellerActor(int sellerId)
+    {
+        return GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
@@ -196,12 +197,11 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         if (shipmentNotification.status == ShipmentStatus.delivery_in_progress) orderStatus = OrderStatus.IN_TRANSIT;
         if (shipmentNotification.status == ShipmentStatus.concluded) orderStatus = OrderStatus.DELIVERED;
 
-        if( !await OrderExists(shipmentNotification.orderId)){
+        OrderState orderState = UseTransactions ? await GetOrderFromStateAsync(shipmentNotification.orderId) : GetOrderFromState(shipmentNotification.orderId);
+        if (orderState is null){
             _logger.LogWarning("Possible interleaving for customer ID {0} shipment customer ID {1} shipment order ID {2} status {3}", this.customerId, shipmentNotification.customerId, shipmentNotification.orderId, shipmentNotification.status);
             return;
         }
-
-        OrderState orderState = await GetOrderFromState(shipmentNotification.orderId);
 
         orderState.orderHistory.Add( new()
         {
@@ -222,21 +222,21 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
             await RemoveOrderFromState(shipmentNotification.orderId);
         }
-
-        await SpawnWriteStateAsync();
+        
     }
 
-    public abstract Task<bool> OrderExists(int orderId);
-
-    public abstract Task<OrderState> GetOrderFromState(int orderId);
+    public virtual Task<OrderState> GetOrderFromStateAsync(int orderId)
+    {
+        throw new ApplicationException("GetOrderFromStateAsync not implemented");
+    }
+    public virtual OrderState GetOrderFromState(int orderId)
+    {
+        throw new ApplicationException("GetOrderFromState not implemented");
+    }
 
     public abstract Task RemoveOrderFromState(int orderId);
 
     public abstract Task UpdateOrderState(int orderId, OrderState value);
-
-    public abstract Task SpawnWriteStateAsync();
-
-    public abstract List<Task> SpawnFullWriteStateAsync();
 
     public abstract Task<List<Order>> GetOrders();
 

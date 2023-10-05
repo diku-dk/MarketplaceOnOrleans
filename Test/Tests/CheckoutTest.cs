@@ -3,6 +3,7 @@ using Common.Requests;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
+using Orleans.TransactionalGrains;
 using Test.Infra;
 
 namespace Test.Tests;

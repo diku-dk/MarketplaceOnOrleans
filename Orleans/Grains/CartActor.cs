@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using Orleans.TransactionalGrains;
 
 namespace Orleans.Grains;
 

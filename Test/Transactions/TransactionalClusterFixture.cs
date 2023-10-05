@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.Metrics;
-using Common.Entities;
+﻿using Common.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,7 +7,7 @@ using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Serialization;
 using Orleans.TestingHost;
-using static Orleans.AbstractGrains.AbstractOrderActor;
+using Orleans.TransactionalGrains;
 
 namespace Test.Transactions;
 
@@ -19,12 +18,11 @@ public class TransactionalClusterFixture : IDisposable
     {
       public void Configure(ISiloBuilder hostBuilder) =>
          hostBuilder
-         .UseTransactions()
-         .AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-         {
-             options.Invariant = "Npgsql";
-             options.ConnectionString = Constants.postgresConnectionString;
-         })
+         //.UseTransactions()
+            .AddMemoryGrainStorage(Constants.OrleansStorage)
+         //.AddAdoNetGrainStorage(Constants.OrleansStorage, options => {
+         //    options.Invariant = "Npgsql";
+         //    options.ConnectionString = Constants.postgresConnectionString; })
          .ConfigureLogging(logging =>
          {
              logging.ClearProviders();
@@ -69,7 +67,7 @@ public class TransactionalClusterFixture : IDisposable
     {
         Init();
 
-        var order = Cluster.GrainFactory.GetGrain<IOrderActor>(0, "Orleans.TransactionalGrains.TransactionalOrderActor");
+        var order = Cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(0, "Orleans.TransactionalGrains.TransactionalOrderActor");
 
         var transactionClient = Cluster.Client.ServiceProvider.GetRequiredService<ITransactionClient>();
 
@@ -92,6 +90,7 @@ public class TransactionalClusterFixture : IDisposable
         Init();
 
         // method calls to transactional storage cannot be made in cases (i) transactions are not activated in the silo and (ii) no transactional client initiates a transaction
+        // a possible way is having an interface exclusive to transactional actor, then when transaction is not activated, the non transactional interface canbe called
         var order = Cluster.GrainFactory.GetGrain<IOrderActor>(0, "Orleans.Grains.OrderActor");
       
         await order.TestTransaction(new Order { id = 1, customer_id = 1 });

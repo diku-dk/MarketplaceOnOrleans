@@ -6,6 +6,7 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using Orleans.Infra;
 using System.Text;
+using Orleans.TransactionalGrains;
 
 namespace Orleans.Grains;
 

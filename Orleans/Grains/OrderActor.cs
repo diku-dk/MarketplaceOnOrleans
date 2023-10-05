@@ -43,7 +43,7 @@ public sealed class OrderActor : AbstractOrderActor
             orderHistory = new()
         };
         await UpdateOrderState(order.id, orderState);
-        await SpawnWriteStateAsync();
+ 
     }
 
     public override Task<List<Order>> GetOrders()
@@ -66,36 +66,20 @@ public sealed class OrderActor : AbstractOrderActor
     public override Task UpdateOrderState(int orderId, OrderState value)
     {
         this.orders.State.Add(orderId, value);
-        return Task.CompletedTask;
-    }
-
-    public override List<Task> SpawnFullWriteStateAsync()
-    {
-        return new List<Task>
-        {
+        return Task.WhenAll(
             nextOrderId.WriteStateAsync(),
             orders.WriteStateAsync()
-        };
+        );
     }
 
-    public override Task SpawnWriteStateAsync()
+    public override OrderState GetOrderFromState(int orderId)
     {
-        return orders.WriteStateAsync();
+        return orders.State[orderId];
     }
 
-    public override Task<bool> OrderExists(int orderId)
-    {
-         return Task.FromResult( orders.State.ContainsKey(orderId) );
-    }
-
-    public override Task<OrderState> GetOrderFromState(int orderId)
-    {
-        return Task.FromResult( orders.State[orderId] );
-    }
-
-    public override Task RemoveOrderFromState(int orderId)
+    public override async Task RemoveOrderFromState(int orderId)
     {
         orders.State.Remove(orderId);
-        return Task.CompletedTask;
+        await orders.WriteStateAsync();
     }
 }
