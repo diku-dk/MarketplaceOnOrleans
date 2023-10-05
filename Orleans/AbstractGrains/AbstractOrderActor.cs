@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 using Orleans.Grains;
 using Orleans.Infra;
 using Orleans.Interfaces;
-using Orleans.TransactionalGrains;
 
 namespace Orleans.AbstractGrains;
 
@@ -35,7 +34,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
     protected int customerId;
     protected readonly ILogger<OrderActor> _logger;
-    protected bool UseTransactions;
+    protected readonly bool UseTransactions;
 
     public AbstractOrderActor(IOptions<AppConfig> config, ILogger<OrderActor> _logger)
 	{
@@ -242,9 +241,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
     public abstract Task<int> GetNumOrders();
 
-    public virtual Task TestTransaction(Order order)
-    {
-        throw new NotImplementedException();
-    }
+    public abstract Task TestTransaction(Order order);
+
 }
 

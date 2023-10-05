@@ -14,10 +14,10 @@ namespace Orleans.TransactionalGrains
         [Transaction(TransactionOption.Join)]
         new Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
 
-        [Transaction(TransactionOption.Supported)]
+        [Transaction(TransactionOption.CreateOrJoin)]
         new Task<List<Order>> GetOrders();
 
-        [Transaction(TransactionOption.Supported)]
+        [Transaction(TransactionOption.CreateOrJoin)]
         new Task<int> GetNumOrders();
 
         [Transaction(TransactionOption.CreateOrJoin)]
