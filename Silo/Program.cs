@@ -20,6 +20,7 @@ AppConfig appConfig = new()
      AdoNetGrainStorage = adoNetGrainStorage,
      ConnectionString = connectionString,
      LogRecords = logRecords,
+     NumShipmentActors = numShipmentActors,
      UseDashboard = useDash,
      UseSwagger = useSwagger
 };
@@ -39,7 +40,7 @@ if(useSwagger){
     builder.Services.AddSwaggerGen();
 }
 
-if (usePostgreSQL){
+if (logRecords){
     builder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
 } else {
     builder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
@@ -67,14 +68,16 @@ builder.Host.UseOrleans(siloBuilder =>
              options.Invariant = "Npgsql";
              options.ConnectionString = connectionString;
          });
-        siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
     }
     else
     {
         siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+    }
+    if (logRecords){
+        siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+    } else {
         siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
     }
-
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
     }
@@ -82,7 +85,7 @@ builder.Host.UseOrleans(siloBuilder =>
 
 var app = builder.Build();
 
-if (usePostgreSQL){
+if (logRecords){
     var persistence = app.Services.GetService<IPersistence>();
     // init log table in PostgreSQL
     await persistence.SetUpLog();

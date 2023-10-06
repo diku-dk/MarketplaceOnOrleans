@@ -57,7 +57,8 @@ public class PaymentActor : Grain, IPaymentActor
                 payment_sequential = seq,
                 type = cc ? PaymentType.CREDIT_CARD : PaymentType.DEBIT_CARD,
                 installments = invoiceIssued.customer.Installments,
-                value = invoiceIssued.totalInvoice
+                value = invoiceIssued.totalInvoice,
+                status = Common.Integration.PaymentStatus.succeeded
             };
             orderPayments.Add(cardPaymentLine);
 

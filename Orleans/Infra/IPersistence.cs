@@ -80,7 +80,7 @@ public class PostgreSQLPersistence : IPersistence
     }
 
     // clean all orleans states in batch
-    // THIS METHOD DOES NOT CLEAN THE STATE INSIDE ACTOR MEMORY!!!
+    // THIS METHOD DOES NOT CLEAN THE STATE INSIDE ACTOR MEMORY ON RUNTIME!!!
     public async Task ResetActorStates()
     {
         var cmd = dataSource.CreateCommand("UPDATE public.orleansstorage SET payloadbinary=NULL");
