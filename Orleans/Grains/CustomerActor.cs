@@ -2,7 +2,6 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -23,11 +22,11 @@ public class CustomerActor : Grain, ICustomerActor
         stateName: "customer",
         storageName: Constants.OrleansStorage)]
         IPersistentState<Customer> state,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<CustomerActor> _logger)
     {
         this.customer = state;
-        this.config = options.Value;
+        this.config = options;
         this._logger = _logger;
     }
 

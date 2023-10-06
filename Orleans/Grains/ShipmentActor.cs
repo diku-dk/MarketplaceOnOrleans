@@ -7,7 +7,6 @@ using Orleans.Runtime;
 using Orleans.Infra;
 using System.Text;
 using Common;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 
 namespace Orleans.Grains;
@@ -39,7 +38,7 @@ public class ShipmentActor : Grain, IShipmentActor
         }
     }
 
-    private class ShipmentState
+    public class ShipmentState
     {
         public Shipment shipment { get; set; }
         public List<Package> packages { get; set; }
@@ -51,14 +50,14 @@ public class ShipmentActor : Grain, IShipmentActor
          [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,List<Package>>> packages,
          [PersistentState(stateName: "nextShipmentId", storageName: Constants.OrleansStorage)] IPersistentState<NextShipmentIdState> nextShipmentId,
          IPersistence persistence,
-         IOptions<AppConfig> options,
+         AppConfig options,
          ILogger<ShipmentActor> logger)
 	{
         this.shipments = shipments;
         this.packages = packages;
         this.nextShipmentId = nextShipmentId;
         this.persistence = persistence;
-        this.config = options.Value;
+        this.config = options;
         this.logger = logger;
     }
 
@@ -176,10 +175,10 @@ public class ShipmentActor : Grain, IShipmentActor
 
         foreach (var info in oldestShipments)
         {
-            List<Package> packages_;
+            List<Package> sellerPackages;
             Shipment shipment;
             try{
-                packages_ = this.packages.State[info.Value].Where( p=>p.seller_id == info.Key ).ToList();
+                sellerPackages = this.packages.State[info.Value].Where( p=>p.seller_id == info.Key ).ToList();
                 shipment = this.shipments.State[info.Value];
             }
             catch (Exception)
@@ -187,10 +186,11 @@ public class ShipmentActor : Grain, IShipmentActor
                 this.logger.LogWarning("Error caught by shipment ator {0}. ID does not exist: {1} - {2}", this.partitionId, info.Value, info);
                 continue;
             }
-            
-            int countDelivered = this.packages.State[info.Value].Where( p=>p.status == PackageStatus.delivered ).Count();
 
-            foreach (var package in packages_)
+            var shipmentPackages = this.packages.State[info.Value];
+            int countDelivered = shipmentPackages.Where( p=>p.status == PackageStatus.delivered ).Count();
+
+            foreach (var package in sellerPackages)
             {
                 package.status = PackageStatus.delivered;
                 package.delivery_date = now;
@@ -213,20 +213,20 @@ public class ShipmentActor : Grain, IShipmentActor
                     .ProcessShipmentNotification(shipmentNotification) );
             }
 
-            if (shipment.package_count == countDelivered + packages_.Count)
+            if (shipment.package_count == countDelivered + sellerPackages.Count)
             {
                 shipment.status = ShipmentStatus.concluded;
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
                 // FIXME should notify all sellers included in the shipment
-                tasks.Add( GrainFactory.GetGrain<ISellerActor>(packages_[0].seller_id)
+                tasks.Add( GrainFactory.GetGrain<ISellerActor>(sellerPackages[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification) );
                 tasks.Add( GrainFactory.GetGrain<IOrderActor>(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification) );
 
                 // log shipment and packages
                 if (this.config.LogRecords){
-                    var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = packages_ } );
+                    var str = JsonSerializer.Serialize(new ShipmentState{ shipment = shipment, packages = shipmentPackages } );
                     var sb = new StringBuilder(shipment.customer_id.ToString()).Append('-').Append(shipment.order_id).ToString();
                     tasks.Add( persistence.Log(Name, sb.ToString(), str) );
                 }

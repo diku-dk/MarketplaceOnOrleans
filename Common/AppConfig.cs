@@ -16,8 +16,16 @@ public class AppConfig
 
     public bool UseSwagger { get; set; }
 
+    public AppConfig(){ }
+
     public override string ToString()
     {
-        return "OrleansStorage"+AdoNetGrainStorage+" \nAdoNetGrainStorage: "+AdoNetGrainStorage+" \nConnectionString: "+ConnectionString+" \nUseDashboard: "+UseDashboard;
+        return "OrleansStorage"+AdoNetGrainStorage+
+            " \nAdoNetGrainStorage: "+AdoNetGrainStorage+
+            " \nConnectionString: "+ConnectionString+
+            " \nNumShipmentActors: "+NumShipmentActors+
+            " \nLogRecords: "+LogRecords+
+            " \nUseDashboard: "+UseDashboard+
+            " \nUseSwagger: "+UseSwagger;
     }
 }

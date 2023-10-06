@@ -46,12 +46,10 @@ public class PostgreSQLPersistence : IPersistence
 {
     private readonly NpgsqlDataSource dataSource;
     private readonly ILogger<PostgreSQLPersistence> logger;
-    private readonly AppConfig config;
 
-    public PostgreSQLPersistence(IOptions<AppConfig> config, ILogger<PostgreSQLPersistence> logger)
+    public PostgreSQLPersistence(AppConfig config, ILogger<PostgreSQLPersistence> logger)
     {
-        this.config = config.Value;
-        this.dataSource = NpgsqlDataSource.Create(config.Value.ConnectionString);
+        this.dataSource = NpgsqlDataSource.Create(config.ConnectionString);
         this.logger = logger;
     }
 
@@ -63,7 +61,7 @@ public class PostgreSQLPersistence : IPersistence
 
     public async Task CleanLog()
     {
-         var cmd = dataSource.CreateCommand("CREATE TABLE IF NOT EXISTS public.log (\"type\" varchar NULL,\"key\" varchar NULL, value varchar NULL);");
+         var cmd = dataSource.CreateCommand("TRUNCATE TABLE public.log;");
         await cmd.ExecuteNonQueryAsync();
     }
 

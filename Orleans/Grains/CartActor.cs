@@ -20,11 +20,11 @@ public class CartActor : Grain, ICartActor
     public CartActor([PersistentState(
         stateName: "cart",
         storageName: Constants.OrleansStorage)] IPersistentState<Cart> state,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<CartActor> _logger)
     {
         this.cart = state;
-        this.config = options.Value;
+        this.config = options;
         this._logger = _logger;
     }
 

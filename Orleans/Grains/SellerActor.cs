@@ -8,7 +8,6 @@ using Orleans.Interfaces;
 using Orleans.Runtime;
 using Orleans.Infra;
 using Common;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 
 namespace Orleans.Grains;
@@ -30,12 +29,12 @@ public class SellerActor : Grain, ISellerActor
         [PersistentState(stateName: "seller", storageName: Constants.OrleansStorage)] IPersistentState<Seller> seller,
         [PersistentState(stateName: "orderEntries", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
         IPersistence persistence,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<SellerActor> logger)
     {
         this.seller = seller;
         this.orderEntries = orderEntries;
-        this.config = options.Value;
+        this.config = options;
         this.persistence = persistence;
         this.logger = logger;
     }

@@ -17,8 +17,10 @@ namespace Orleans.Interfaces
         [OneWay]
         Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
 
+        [ReadOnly]
         Task<List<Order>> GetOrders();
 
+        [ReadOnly]
         Task<int> GetNumOrders();
 
         Task Reset();

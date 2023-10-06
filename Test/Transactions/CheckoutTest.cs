@@ -1,4 +1,5 @@
-﻿using Common.Entities;
+﻿using Common;
+using Common.Entities;
 using Common.Requests;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -18,15 +19,20 @@ public class CheckoutTest : BaseTest
         await InitData(1, 2);
         await BuildAndSendCheckout();
 
-        var order = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
-        List<Order> orders = await order.GetOrders();
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        List<Order> orders = await orderActor.GetOrders();
 
         Assert.Single(orders);
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0,1));
+        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         var shipments = (await shipmentActor.GetShipments(0));
         var count = shipments.Count;
         Assert.True(count == 1);
+
+        await shipmentActor.Reset();
+        await orderActor.Reset();
     }
 
     [Fact]
@@ -66,24 +72,31 @@ public class CheckoutTest : BaseTest
             await cart.NotifyCheckout(customerCheckout);
         }
 
-        var order = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
-        Assert.True(2 == await order.GetNumOrders());
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        var numOrders = await orderActor.GetNumOrders();
+        Console.WriteLine("[CheckoutTwoOrdersSameCustomer] Customer ID {0} Count {1}", 0, numOrders);
+        Assert.True(2 == numOrders);
+        await orderActor.Reset();
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(0,1));
+        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         var shipments = (await shipmentActor.GetShipments(0));
         var count = shipments.Count;
         Assert.True(count == 2);
+
+        await shipmentActor.Reset();
     }
 
     [Fact]
     public async Task CheckoutTwoOrdersDifferentCustomers()
     {
-        var numCustomer = 2;
+        var numCustomers = 2;
         await InitStorage();
-        await InitData(numCustomer, 2);
+        await InitData(numCustomers, 2);
 
         var tasks = new List<Task>();
-        for (var customerId = 0; customerId < numCustomer; customerId++)
+        for (var customerId = 0; customerId < numCustomers; customerId++)
         {
             CustomerCheckout customerCheckout = new()
             {
@@ -111,22 +124,33 @@ public class CheckoutTest : BaseTest
         }
         await Task.WhenAll(tasks);
 
-        for (var customerId = 0; customerId < numCustomer; customerId++)
-        {
-            var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(Helper.GetShipmentActorID(customerId, ClusterFixture.NumShipmentActors));
-            var shipments = (await shipmentActor.GetShipments(customerId));
-            var count = shipments.Count;
-            Console.WriteLine("Customer ID {0} Count {1}", customerId, count);
-            Assert.True(count == 1);
+        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
+        for (var customerId = 0; customerId < numCustomers; customerId++)
+        {  
+            var shipments = await shipmentActor.GetShipments(customerId);
+            var numShipments = shipments.Count;
+            Console.WriteLine("[CheckoutTwoOrdersDifferentCustomers] Customer ID {0} Count {1}", customerId, numShipments);
+            Assert.True(numShipments == 1);
+            var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
+            var numOrders = await orderActor.GetNumOrders();
+            Console.WriteLine("[CheckoutTwoOrdersDifferentCustomers] Customer ID {0} numOrders {1}", customerId, numOrders);
+            await orderActor.Reset();
         }
+        // clean so other tests do not fail
+        await shipmentActor.Reset();
     }
 
     async Task InitStorage()
     {
-        IPersistence persistence = (IPersistence) _cluster.ServiceProvider.GetService(typeof(IPersistence));
-        await persistence.SetUpLog();
-        await persistence.CleanLog();
-        await persistence.TruncateStorage();
+        IPersistence persistence = (IPersistence) _cluster.Client.ServiceProvider.GetService(typeof(IPersistence));   //ServiceProvider.GetService<IPersistence>();
+        if(ConfigHelper.DefaultAppConfig.LogRecords){
+            await persistence.SetUpLog();
+            await persistence.CleanLog();
+        }
+        if(ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
+            await persistence.TruncateStorage();
     }
 
 }

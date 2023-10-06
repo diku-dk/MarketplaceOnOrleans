@@ -2,7 +2,6 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -28,10 +27,10 @@ public class PaymentActor : Grain, IPaymentActor
         public PaymentState(){ }
     }
 
-    public PaymentActor(IPersistence persistence, IOptions<AppConfig> options, ILogger<PaymentActor> _logger)
+    public PaymentActor(IPersistence persistence, AppConfig options, ILogger<PaymentActor> _logger)
     {
         this.persistence = persistence;
-        this.config = options.Value;
+        this.config = options;
         this.logger = _logger;
     }
 
@@ -84,7 +83,8 @@ public class PaymentActor : Grain, IPaymentActor
                 payment_sequential = seq,
                 type = PaymentType.BOLETO,
                 installments = 1,
-                value = invoiceIssued.totalInvoice
+                value = invoiceIssued.totalInvoice,
+                status = Common.Integration.PaymentStatus.succeeded
             });
 
             seq++;
@@ -112,7 +112,7 @@ public class PaymentActor : Grain, IPaymentActor
 
         // Using strings below, but can also use byte arrays for both keys and values
         if(config.LogRecords){
-            var str = JsonSerializer.Serialize(new PaymentState(){ orderPayments= orderPayments, card = card });
+            var str = JsonSerializer.Serialize(new PaymentState(){ orderPayments = orderPayments, card = card });
             var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
             tasks.Add( persistence.Log(Name, key, str) );
         }
@@ -122,9 +122,6 @@ public class PaymentActor : Grain, IPaymentActor
             var stockActor = GrainFactory.GetGrain<IStockActor>(item.seller_id, item.product_id.ToString());
             tasks.Add(stockActor.ConfirmReservation(item.quantity));
         }
-
-        //await Task.WhenAll(tasks);
-        //tasks.Clear();
 
         var paymentTs = DateTime.UtcNow;
         var paymentConfirmedWithItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, paymentTs, invoiceIssued.instanceId);

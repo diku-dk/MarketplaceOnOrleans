@@ -1,5 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces;
 
@@ -15,6 +16,7 @@ public interface IStockActor : IGrainWithIntegerCompoundKey
 
     Task SetItem(StockItem item);
 
+    [ReadOnly]
     Task<StockItem> GetItem();
 
     Task Reset();

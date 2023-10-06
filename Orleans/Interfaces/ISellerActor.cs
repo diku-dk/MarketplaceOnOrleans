@@ -26,8 +26,10 @@ public interface ISellerActor : IGrainWithIntegerKey
 
     Task SetSeller(Seller seller);
 
+    [ReadOnly]
     Task<Seller> GetSeller();
 
+    [ReadOnly]
     Task<SellerDashboard> QueryDashboard();
 
     Task Reset();

@@ -7,8 +7,8 @@ public class OrderEntry
     public int package_id { get; set; }
 
     public int product_id { get; set; }
-    public string product_name { get; set; } = "";
-    public string product_category { get; set; } = "";
+    public string product_name { get; set; }
+    public string product_category { get; set; }
 
     public float unit_price { get; set; }
     public int quantity { get; set; }
@@ -28,9 +28,7 @@ public class OrderEntry
 
     public PackageStatus delivery_status { get; set; }
 
-    public OrderEntry()
-	{
-	}
+    public OrderEntry(){ }
 
 }
 

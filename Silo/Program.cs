@@ -5,16 +5,30 @@ using Orleans.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
-builder.Services.Configure<AppConfig>(configSection);
 
-var useDash = configSection.GetValue<bool>("UseDashboard");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
-var logRecord = configSection.GetValue<bool>("LogRecords");
-var useSwagger = configSection.GetValue<bool>("UseSwagger");
+var connectionString = configSection.GetValue<string>("ConnectionString");
+var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
+var useDash = configSection.GetValue<bool>("UseDashboard");
+var useSwagger = configSection.GetValue<bool>("UseSwagger");
+
+AppConfig appConfig = new()
+{
+     OrleansStorage = orleansStorage,
+     AdoNetGrainStorage = adoNetGrainStorage,
+     ConnectionString = connectionString,
+     LogRecords = logRecords,
+     UseDashboard = useDash,
+     UseSwagger = useSwagger
+};
 
 bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
+
+// Orleans testing has no support for IOptions apparently...
+// builder.Services.Configure<AppConfig>(configSection);
+builder.Services.AddSingleton<AppConfig>(appConfig);
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -48,7 +62,6 @@ builder.Host.UseOrleans(siloBuilder =>
          });
          
     if (usePostgreSQL){
-         var connectionString = configSection.GetValue<string>("ConnectionString");
         siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
@@ -91,7 +104,7 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecord+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
+Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

@@ -2,7 +2,6 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -21,11 +20,11 @@ public class StockActor : Grain, IStockActor
     public StockActor([PersistentState(
         stateName: "stock",
         storageName: Constants.OrleansStorage)] IPersistentState<StockItem> state,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<StockActor> _logger)
     {
         this.item = state;
-        this.config = options.Value;
+        this.config = options;
         this._logger = _logger;
     }
 

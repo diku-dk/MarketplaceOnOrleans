@@ -2,6 +2,7 @@
 using Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Orleans.Infra;
 using Orleans.Interfaces;
 
 namespace Silo.Controllers;
@@ -12,9 +13,9 @@ public class ShipmentController : ControllerBase
     private readonly AppConfig config;
     private readonly ILogger<ShipmentController> logger;
 
-    public ShipmentController(IOptions<AppConfig> options, ILogger<ShipmentController> logger)
+    public ShipmentController(AppConfig options, ILogger<ShipmentController> logger)
     {
-        this.config = options.Value;
+        this.config = options;
         this.logger = logger;
     }
 

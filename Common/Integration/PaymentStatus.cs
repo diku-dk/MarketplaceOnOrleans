@@ -1,5 +1,4 @@
-﻿using System;
-namespace Common.Integration
+﻿namespace Common.Integration
 {
     /**
      * Based on Stripe API

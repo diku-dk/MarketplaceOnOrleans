@@ -59,3 +59,4 @@ need to upload both server code and driver
 There is no default implementation for environment statistics: [link](https://github.com/dotnet/orleans/issues/8270)
 Some comments about Orleans [performance](https://stackoverflow.com/questions/74310628/orleans-slow-with-minimalistic-use-case)
 OneWay messages can lead to deadlock: [link](https://github.com/dotnet/orleans/issues/4808)
+Apparently there is no way to configure injection for IOptions<AppConfig> in Orleans testing. That is why a default AppConfig is provided in the Helper class. 

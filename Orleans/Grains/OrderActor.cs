@@ -8,7 +8,6 @@ using Orleans.Runtime;
 using System.Text;
 using System.Globalization;
 using Common;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 
 namespace Orleans.Grains;
@@ -66,14 +65,14 @@ public class OrderActor : Grain, IOrderActor
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderId,
         IPersistence persistence,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<OrderActor> _logger)
     {
       
         this.orders = orders;
         this.nextOrderId = nextOrderId;
         this.persistence = persistence;
-        this.config = options.Value;
+        this.config = options;
         this.logger = _logger;
     }
 
@@ -335,16 +334,13 @@ public class OrderActor : Grain, IOrderActor
 
     public Task<List<Order>> GetOrders()
     {
-        //var lines = sellerHistogram.Select(kvp => kvp.Key + ": " + kvp.Value.ToString());
-        //var output = string.Join(Environment.NewLine, lines);
-        //logger.LogWarning(output);
         var res = this.orders.State.Select(x=>x.Value.order).ToList();
         return Task.FromResult(res);
     }
 
     public Task<int> GetNumOrders()
     {
-        return Task.FromResult(this.nextOrderId.State.Value);
+        return Task.FromResult(this.orders.State.Count);
     }
 
     public async Task Reset()

@@ -1,10 +1,12 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces;
 
 public interface IShipmentActor : IGrainWithIntegerKey
 {
+    [ReadOnly]
     Task<List<Shipment>> GetShipments(int customerId);
 
     Task ProcessShipment(PaymentConfirmed paymentConfirmed);

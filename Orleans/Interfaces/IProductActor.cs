@@ -1,5 +1,6 @@
 ﻿using Common.Entities;
 using Common.Requests;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
 {
@@ -7,6 +8,7 @@ namespace Orleans.Interfaces
     {
         Task SetProduct(Product product);
 
+        [ReadOnly]
         Task<Product> GetProduct();
 
         Task ProcessProductUpdate(Product product);

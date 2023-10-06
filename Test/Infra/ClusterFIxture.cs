@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using Common;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -16,26 +14,13 @@ namespace Test.Infra;
 */
 public class ClusterFixture : IDisposable
 {
-    private const string PostgresConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";
-
-    public static bool UsePostgreSql = false;
-    public static bool LogRecords = false;
-
-    public static int NumShipmentActors = 1;
-
-    public static Dictionary<string, string> myConfiguration = new Dictionary<string, string>
-                                        {
-                                            {"NumShipmentActors", NumShipmentActors.ToString()}
-                                        };
+    public TestCluster Cluster { get; private set; }
 
     private class SiloConfigurator : ISiloConfigurator
     {
         // https://stackoverflow.com/questions/55497800/populate-iconfiguration-for-unit-tests
         public void Configure(ISiloBuilder hostBuilder) {
 
-            var configuration = new ConfigurationBuilder()
-                                    .AddInMemoryCollection(myConfiguration)
-                                    .Build();
             hostBuilder
              .ConfigureLogging(logging =>
              {
@@ -46,25 +31,26 @@ public class ClusterFixture : IDisposable
              .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-             }).Configure<AppConfig>(configuration);
-            
-            if (UsePostgreSql)
+             })
+             .AddSingleton(ConfigHelper.DefaultAppConfig)
+             ;
+
+            if (ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
             {
                 hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
                  {
                      options.Invariant = "Npgsql";
-                     options.ConnectionString = PostgresConnectionString;
+                     options.ConnectionString = ConfigHelper.PostgresConnectionString;
                  });
-                if(LogRecords)
-                    hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
             } else
             {
                 hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-                if(LogRecords)
-                    hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
-                else
-                    hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+                
             }
+            if(ConfigHelper.DefaultAppConfig.LogRecords)
+                hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+            else
+                hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
 
         }
     }
@@ -76,17 +62,17 @@ public class ClusterFixture : IDisposable
             .Services.AddSerializer(ser =>
              {
                  ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-             });
-            if(LogRecords)
-                clientBuilder.Services.AddSingleton<IPersistence,PostgreSQLPersistence>();
-            else
+             }).AddSingleton(ConfigHelper.DefaultAppConfig);
+             if(ConfigHelper.DefaultAppConfig.LogRecords)
+                clientBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+             else
                 clientBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
         }
     }
 
     public ClusterFixture()
     {
-        var builder = new TestClusterBuilder();
+        var builder = new TestClusterBuilder(1);
         builder.AddSiloBuilderConfigurator<SiloConfigurator>();
         builder.AddClientBuilderConfigurator<ClientConfigurator>();
         Cluster = builder.Build();
@@ -98,6 +84,5 @@ public class ClusterFixture : IDisposable
         Cluster.StopAllSilos();
     }
 
-    public TestCluster Cluster { get; private set; }
 }
 

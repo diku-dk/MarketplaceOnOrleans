@@ -16,10 +16,10 @@ public class DefaultController : ControllerBase
     private readonly AppConfig config;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IPersistence persistence, IOptions<AppConfig> options, ILogger<DefaultController> logger)
+    public DefaultController(IPersistence persistence, AppConfig options, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
-        this.config = options.Value;
+        this.config = options;
         this.logger = logger;
     }
 

@@ -11,6 +11,7 @@ namespace Orleans.Interfaces
 
         Task Clear();
 
+        [ReadOnly]
         Task<Customer> GetCustomer();
 
         [OneWay]

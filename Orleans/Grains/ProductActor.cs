@@ -3,7 +3,6 @@ using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orleans.Concurrency;
 using Orleans.Infra;
 using Orleans.Interfaces;
@@ -21,11 +20,11 @@ public class ProductActor : Grain, IProductActor
     public ProductActor([PersistentState(
         stateName: "product",
         storageName: Constants.OrleansStorage)] IPersistentState<Product> state,
-        IOptions<AppConfig> options,
+        AppConfig options,
         ILogger<ProductActor> _logger)
     {
         this.product = state;
-        this.config = options.Value;
+        this.config = options;
         this._logger = _logger;
     }
 

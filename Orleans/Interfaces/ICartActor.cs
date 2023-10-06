@@ -1,5 +1,6 @@
 ﻿using Common.Entities;
 using Common.Requests;
+using Orleans.Concurrency;
 
 namespace Orleans.Interfaces
 {
@@ -10,6 +11,7 @@ namespace Orleans.Interfaces
 
         public Task NotifyCheckout(CustomerCheckout basketCheckout);
 
+        [ReadOnly]
         public Task<Cart> GetCart();
 
         public Task Seal();
