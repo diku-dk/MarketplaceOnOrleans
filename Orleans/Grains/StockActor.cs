@@ -10,7 +10,7 @@ using Orleans.Runtime;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class StockActor : Grain, IStockActor
+public sealed class StockActor : Grain, IStockActor
 {
 
     private readonly IPersistentState<StockItem> item;
@@ -57,7 +57,7 @@ public class StockActor : Grain, IStockActor
 
     public async Task CancelReservation(int quantity)
     {
-        item.State.qty_reserved += quantity;
+        item.State.qty_reserved -= quantity;
         item.State.updated_at = DateTime.UtcNow;
         if(config.OrleansStorage)
             await item.WriteStateAsync();

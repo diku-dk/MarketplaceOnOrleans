@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Common;
 using Common.Entities;
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +11,12 @@ namespace Orleans.Controllers;
 public class ProductController : ControllerBase
 {
     private readonly ILogger<ProductController> logger;
+    private readonly string grainClassNamePrefix;
 
-    public ProductController(ILogger<ProductController> logger)
+    public ProductController(AppConfig config, ILogger<ProductController> logger)
     {
+        this.grainClassNamePrefix = config.OrleansTransactions ? "Orleans.Transactional.TransactionalProductActor" :
+            "Orleans.Grains.ProductActor";
         this.logger = logger;
     }
 
@@ -21,7 +25,7 @@ public class ProductController : ControllerBase
     public async Task<ActionResult> SetProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
         this.logger.LogDebug("[SetProduct] received for id {0} {1}", product.seller_id, product.product_id);
-        await grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString()).SetProduct(product);
+        await grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString(), grainClassNamePrefix).SetProduct(product);
         return Ok();
     }
 
@@ -30,7 +34,7 @@ public class ProductController : ControllerBase
     [ProducesResponseType(typeof(Product), (int)HttpStatusCode.OK)]
     public async Task<ActionResult<Product>> GetBySellerIdAndProductId([FromServices] IGrainFactory grains, int sellerId, int productId)
     {
-        var grain = grains.GetGrain<IProductActor>(sellerId, productId.ToString());
+        var grain = grains.GetGrain<IProductActor>(sellerId, productId.ToString(), grainClassNamePrefix);
         var product = await grain.GetProduct();
         if (product is null)
             return NotFound();
@@ -43,7 +47,7 @@ public class ProductController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
     {
-        var grain = grains.GetGrain<IProductActor>(update.sellerId, update.productId.ToString());
+        var grain = grains.GetGrain<IProductActor>(update.sellerId, update.productId.ToString(), grainClassNamePrefix);
         await grain.ProcessPriceUpdate(update);
         return Accepted();
     }
@@ -53,7 +57,7 @@ public class ProductController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> ProcessUpdateproduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
-        var grain = grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString());
+        var grain = grains.GetGrain<IProductActor>(product.seller_id, product.product_id.ToString(), grainClassNamePrefix);
         await grain.ProcessProductUpdate(product);
         return Accepted();
     }

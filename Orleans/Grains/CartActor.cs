@@ -3,14 +3,14 @@ using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
+using Orleans.Transactional;
 
 namespace Orleans.Grains;
 
-public class CartActor : Grain, ICartActor
+public sealed class CartActor : Grain, ICartActor
 {
     private readonly IPersistentState<Cart> cart;
     private readonly AppConfig config;
@@ -65,7 +65,7 @@ public class CartActor : Grain, ICartActor
     public async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
         // access the orderGrain for this specific order
-        var orderActor = this.GrainFactory.GetGrain<IOrderActor>(this.customerId);
+        var orderActor = GetOrderActor(this.customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
         cart.State.status = CartStatus.CHECKOUT_SENT;
         try{
@@ -75,6 +75,13 @@ public class CartActor : Grain, ICartActor
         } finally{
             await Seal();
         }
+    }
+
+    private IOrderActor GetOrderActor(int customerId)
+    {
+        if(config.OrleansTransactions)
+            return this.GrainFactory.GetGrain<ITransactionalOrderActor>(this.customerId);
+        return this.GrainFactory.GetGrain<IOrderActor>(this.customerId);
     }
 
     public async Task Seal()

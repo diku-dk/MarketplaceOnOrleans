@@ -10,7 +10,7 @@ using Orleans.Runtime;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class CustomerActor : Grain, ICustomerActor
+public sealed class CustomerActor : Grain, ICustomerActor
 {
     private readonly AppConfig config;
     private readonly IPersistentState<Customer> customer;

@@ -3,7 +3,7 @@ using Orleans.Infra;
 using Orleans.Interfaces;
 using Test.Infra;
 
-namespace Test.Transactions;
+namespace Test.Workflows;
 
 [Collection(ClusterCollection.Name)]
 public class ShipmentTest : BaseTest

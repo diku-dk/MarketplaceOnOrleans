@@ -5,12 +5,12 @@ using Orleans.Infra;
 using Orleans.Interfaces;
 using Test.Infra;
 
-namespace Test.Transactions;
+namespace Test.Workflows;
 
 [Collection(ClusterCollection.Name)]
 public class CheckoutTest : BaseTest
 {
-    public CheckoutTest(ClusterFixture fixture): base(fixture){ }
+    public CheckoutTest(ClusterFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Checkout()
@@ -24,10 +24,10 @@ public class CheckoutTest : BaseTest
 
         Assert.Single(orders);
 
-        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
-        var shipments = (await shipmentActor.GetShipments(0));
+        var shipments = await shipmentActor.GetShipments(0);
         var count = shipments.Count;
         Assert.True(count == 1);
 
@@ -78,10 +78,10 @@ public class CheckoutTest : BaseTest
         Assert.True(2 == numOrders);
         await orderActor.Reset();
 
-        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
-        var shipments = (await shipmentActor.GetShipments(0));
+        var shipments = await shipmentActor.GetShipments(0);
         var count = shipments.Count;
         Assert.True(count == 2);
 
@@ -124,11 +124,11 @@ public class CheckoutTest : BaseTest
         }
         await Task.WhenAll(tasks);
 
-        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         for (var customerId = 0; customerId < numCustomers; customerId++)
-        {  
+        {
             var shipments = await shipmentActor.GetShipments(customerId);
             var numShipments = shipments.Count;
             Console.WriteLine("[CheckoutTwoOrdersDifferentCustomers] Customer ID {0} Count {1}", customerId, numShipments);
@@ -144,12 +144,13 @@ public class CheckoutTest : BaseTest
 
     async Task InitStorage()
     {
-        IPersistence persistence = (IPersistence) _cluster.Client.ServiceProvider.GetService(typeof(IPersistence));   //ServiceProvider.GetService<IPersistence>();
-        if(ConfigHelper.DefaultAppConfig.LogRecords){
+        IPersistence persistence = (IPersistence)_cluster.Client.ServiceProvider.GetService(typeof(IPersistence));   //ServiceProvider.GetService<IPersistence>();
+        if (ConfigHelper.DefaultAppConfig.LogRecords)
+        {
             await persistence.SetUpLog();
             await persistence.CleanLog();
         }
-        if(ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
+        if (ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
             await persistence.TruncateStorage();
     }
 

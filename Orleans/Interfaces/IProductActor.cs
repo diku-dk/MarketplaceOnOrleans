@@ -2,19 +2,19 @@
 using Common.Requests;
 using Orleans.Concurrency;
 
-namespace Orleans.Interfaces
+namespace Orleans.Interfaces;
+
+public interface IProductActor : IGrainWithIntegerCompoundKey
 {
-    public interface IProductActor : IGrainWithIntegerCompoundKey
-    {
-        Task SetProduct(Product product);
+    Task SetProduct(Product product);
 
-        [ReadOnly]
-        Task<Product> GetProduct();
+    [ReadOnly]
+    Task<Product> GetProduct();
 
-        Task ProcessProductUpdate(Product product);
+    Task ProcessProductUpdate(Product product);
 
-        Task ProcessPriceUpdate(PriceUpdate priceUpdate);
+    Task ProcessPriceUpdate(PriceUpdate priceUpdate);
 
-        Task Reset();
-    }
+    Task Reset();
 }
+

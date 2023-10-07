@@ -13,7 +13,7 @@ using Orleans.Concurrency;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class SellerActor : Grain, ISellerActor
+public sealed class SellerActor : Grain, ISellerActor
 {
 
     private readonly ILogger<SellerActor> logger;

@@ -33,7 +33,4 @@
     <None Remove="Transactions\" />
     <None Remove="Infra\" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Infra\" />
-  </ItemGroup>
 </Project>

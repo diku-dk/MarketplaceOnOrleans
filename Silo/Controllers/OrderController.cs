@@ -1,4 +1,5 @@
 using System.Net;
+using Common;
 using Microsoft.AspNetCore.Mvc;
 using Orleans.Interfaces;
 
@@ -9,7 +10,7 @@ public class OrderController : ControllerBase
 {
     private readonly ILogger<OrderController> logger;
 
-    public OrderController(ILogger<OrderController> logger)
+    public OrderController( ILogger<OrderController> logger)
     {
         this.logger = logger;
     }

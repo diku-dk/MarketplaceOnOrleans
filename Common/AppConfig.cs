@@ -2,6 +2,9 @@
 
 public class AppConfig
 {
+
+    public bool OrleansTransactions { get; set; }
+
     public bool OrleansStorage { get; set; }
 
 	public bool AdoNetGrainStorage { get; set; }
@@ -20,7 +23,8 @@ public class AppConfig
 
     public override string ToString()
     {
-        return "OrleansStorage"+AdoNetGrainStorage+
+        return "OrleansTransactions" + OrleansTransactions +
+            " \nOrleansStorage" + OrleansStorage +
             " \nAdoNetGrainStorage: "+AdoNetGrainStorage+
             " \nConnectionString: "+ConnectionString+
             " \nNumShipmentActors: "+NumShipmentActors+

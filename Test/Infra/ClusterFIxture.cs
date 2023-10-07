@@ -35,6 +35,11 @@ public class ClusterFixture : IDisposable
              .AddSingleton(ConfigHelper.DefaultAppConfig)
              ;
 
+            if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
+            {
+                hostBuilder.UseTransactions();
+            }
+
             if (ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
             {
                 hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>

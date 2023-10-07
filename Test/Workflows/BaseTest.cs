@@ -4,7 +4,7 @@ using Orleans.Interfaces;
 using Orleans.TestingHost;
 using Test.Infra;
 
-namespace Test.Transactions;
+namespace Test.Workflows;
 
 public abstract class BaseTest
 {
@@ -39,8 +39,8 @@ public abstract class BaseTest
         };
 
         var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
-        await cart.AddItem(GenerateCartItem(1,1));
-        await cart.AddItem(GenerateCartItem(1,2));
+        await cart.AddItem(GenerateCartItem(1, 1));
+        await cart.AddItem(GenerateCartItem(1, 2));
 
         await cart.NotifyCheckout(customerCheckout);
     }

@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.Orleans.Serialization.NewtonsoftJson" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="7.2.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.11" />
+	<PackageReference Include="Microsoft.Orleans.Transactions" Version="7.2.1" />
   </ItemGroup>
   
     <ItemGroup>

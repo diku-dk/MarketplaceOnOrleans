@@ -12,7 +12,7 @@ using Orleans.Concurrency;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class ShipmentActor : Grain, IShipmentActor
+public sealed class ShipmentActor : Grain, IShipmentActor
 {
     private readonly AppConfig config;
     private int partitionId;

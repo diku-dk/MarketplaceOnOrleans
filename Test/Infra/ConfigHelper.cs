@@ -6,9 +6,10 @@ public class ConfigHelper
 {
     public static AppConfig DefaultAppConfig = new()
     {
+        OrleansTransactions = true,
         OrleansStorage = false,
         AdoNetGrainStorage = false,
-        LogRecords = true,
+        LogRecords = false,
         ConnectionString = PostgresConnectionString,
         NumShipmentActors = 1,
         UseDashboard = false,

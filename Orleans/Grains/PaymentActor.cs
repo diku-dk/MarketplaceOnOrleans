@@ -11,7 +11,7 @@ using System.Text.Json;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class PaymentActor : Grain, IPaymentActor
+public sealed class PaymentActor : Grain, IPaymentActor
 {
     private static readonly string Name = typeof(PaymentActor).FullName;
     private readonly AppConfig config;

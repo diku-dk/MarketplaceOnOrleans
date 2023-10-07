@@ -3,7 +3,7 @@ using Orleans.Infra;
 using Orleans.Interfaces;
 using Test.Infra;
 
-namespace Test.Transactions;
+namespace Test.Workflows;
 
 [Collection(ClusterCollection.Name)]
 public class ProductUpdateTest : BaseTest
@@ -14,11 +14,11 @@ public class ProductUpdateTest : BaseTest
     [Fact]
     public async Task ProductUpdate()
     {
-        IPersistence persistence = (IPersistence) _cluster.ServiceProvider.GetService(typeof(IPersistence));
+        IPersistence persistence = (IPersistence)_cluster.ServiceProvider.GetService(typeof(IPersistence));
         await persistence.TruncateStorage();
 
         // set product first
-        var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1,1.ToString());
+        var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1, 1.ToString());
         var product = new Product()
         {
             seller_id = 1,
@@ -43,11 +43,12 @@ public class ProductUpdateTest : BaseTest
             version = 1.ToString()
         };
 
-        var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1,1.ToString());
+        var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1, 1.ToString());
         await stock1.SetItem(item);
 
         // submit product update
-        var productUpdated = new Product(){
+        var productUpdated = new Product()
+        {
             seller_id = 1,
             product_id = 1,
             price = 10,
@@ -60,6 +61,6 @@ public class ProductUpdateTest : BaseTest
 
         var newItem = await stock1.GetItem();
 
-        Assert.True( newItem.version.SequenceEqual(2.ToString()) );
+        Assert.True(newItem.version.SequenceEqual(2.ToString()));
     }
 }

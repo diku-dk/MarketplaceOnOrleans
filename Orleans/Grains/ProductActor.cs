@@ -11,7 +11,7 @@ using Orleans.Runtime;
 namespace Orleans.Grains;
 
 [Reentrant]
-public class ProductActor : Grain, IProductActor
+public sealed class ProductActor : Grain, IProductActor
 {
     private readonly AppConfig config;
     private readonly IPersistentState<Product> product;
