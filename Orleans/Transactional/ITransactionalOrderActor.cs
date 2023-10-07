@@ -8,8 +8,16 @@ namespace Orleans.Transactional;
 
 public interface ITransactionalOrderActor : IOrderActor
 {
-    [Transaction(TransactionOption.Join)]
+    [Transaction(TransactionOption.Create)]
     new Task Checkout(ReserveStock reserveStock);
+
+    [OneWay]
+    [Transaction(TransactionOption.Join)]
+    new Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed);
+
+    [OneWay]
+    [Transaction(TransactionOption.Join)]
+    new Task ProcessPaymentFailed(PaymentFailed paymentFailed);
 
     [OneWay]
     [Transaction(TransactionOption.Join)]

@@ -27,7 +27,21 @@ public class TransactionalProductActor : Grain, ITransactionalProductActor
 
     public Task SetProduct(Product product)
     {
-        return this.product.PerformUpdate(p => p = product);
+        return this.product.PerformUpdate(p => {
+            p.price = product.price;
+            p.sku = product.sku;
+            p.version = product.version;
+            p.description = product.description;
+            p.seller_id = product.seller_id;
+            p.product_id = product.product_id;
+            p.category = product.category;
+            p.description = product.description;
+            p.active = true;
+            p.created_at = DateTime.UtcNow;
+            p.freight_value = product.freight_value;
+            p.name = product.name;
+            p.status = product.status;
+        });
     }
 
     public Task<Product> GetProduct()

@@ -37,7 +37,7 @@ public sealed class OrderActor : AbstractOrderActor
         this.customerId = (int)this.GetPrimaryKeyLong();
         return Task.CompletedTask;
     }
-    public override Task<int> GetNextOrderId()
+    protected override Task<int> GetNextOrderId()
     {
         this.nextOrderId.State = this.nextOrderId.State.GetNextOrderId();
         return Task.FromResult(this.nextOrderId.State.Value);

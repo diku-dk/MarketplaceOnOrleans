@@ -44,7 +44,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     public override IStockActor GetStockActor(int sellerId, int productId)
     {
-        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "Orleans.TransactionalGrains.TransactionalStockActor");
+        return this.GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId.ToString());
     }
 
     /*
@@ -54,9 +54,9 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
     }
     */
 
-    public override async Task<int> GetNextOrderId()
+    protected override async Task<int> GetNextOrderId()
     {
-        return (await this.nextOrderId.PerformUpdate(id => id = id.GetNextOrderId())).Value;
+         return await this.nextOrderId.PerformUpdate(id => ++id.Value);
     }
 
     public override async Task<int> GetNumOrders()

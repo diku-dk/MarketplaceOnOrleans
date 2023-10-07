@@ -15,8 +15,11 @@ namespace Orleans.Abstract;
 public abstract class AbstractOrderActor : Grain, IOrderActor
 {
     private static string Name = typeof(AbstractOrderActor).FullName;
+
+    [GenerateSerializer]
     public class NextOrderIdState
     {
+        [Id(0)]
         public int Value { get; set; }
         public NextOrderIdState() { this.Value = 0; }
         public NextOrderIdState(int value) { this.Value = value; }
@@ -318,7 +321,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "Orleans.Grains.PaymentActor");
     }
 
-    public abstract Task<int> GetNextOrderId();
+    protected abstract Task<int> GetNextOrderId();
 
     public abstract Task<List<Order>> GetOrders();
 

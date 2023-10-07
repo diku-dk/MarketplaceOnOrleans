@@ -9,8 +9,18 @@ namespace Test.Transactions;
 [Collection(ClusterCollection.Name)]
 public class ProductTransactions : BaseTest
 {
-    public ProductTransactions(ClusterFixture fixture) : base(fixture)
+    public ProductTransactions(ClusterFixture fixture) : base(fixture){}
+
+    [Fact]
+    public async Task TestCheckout()
     {
+        await InitData(1, 2);
+        await BuildAndSendCheckout();
+
+        var orderActor = _cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(0);
+        List<Order> orders = await orderActor.GetOrders();
+
+        Assert.Single(orders);
     }
 
     [Fact]

@@ -14,6 +14,7 @@ public sealed class CartActor : Grain, ICartActor
 {
     private readonly IPersistentState<Cart> cart;
     private readonly AppConfig config;
+    private readonly string grainClassNamePrefix;
     private int customerId;
     private readonly ILogger<CartActor> _logger;
 
@@ -25,6 +26,8 @@ public sealed class CartActor : Grain, ICartActor
     {
         this.cart = state;
         this.config = options;
+        this.grainClassNamePrefix = config.OrleansTransactions ? "Orleans.Transactional.TransactionalOrderActor" :
+    "Orleans.Grains.OrderActor";
         this._logger = _logger;
     }
 
@@ -65,7 +68,7 @@ public sealed class CartActor : Grain, ICartActor
     public async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
         // access the orderGrain for this specific order
-        var orderActor = GetOrderActor(this.customerId);
+        var orderActor = GetOrderActor();
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
         cart.State.status = CartStatus.CHECKOUT_SENT;
         try{
@@ -77,11 +80,11 @@ public sealed class CartActor : Grain, ICartActor
         }
     }
 
-    private IOrderActor GetOrderActor(int customerId)
+    private IOrderActor GetOrderActor()
     {
         if(config.OrleansTransactions)
             return this.GrainFactory.GetGrain<ITransactionalOrderActor>(this.customerId);
-        return this.GrainFactory.GetGrain<IOrderActor>(this.customerId);
+        return this.GrainFactory.GetGrain<IOrderActor>(this.customerId, grainClassNamePrefix);
     }
 
     public async Task Seal()

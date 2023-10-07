@@ -1,7 +1,9 @@
 ﻿using Common.Entities;
 using Common.Requests;
+using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.TestingHost;
+using Orleans.Transactional;
 using Test.Infra;
 
 namespace Test.Workflows;
@@ -10,11 +12,14 @@ public abstract class BaseTest
 {
 
     protected readonly TestCluster _cluster;
+    private readonly string stockGrainClassNamePrefix;
     protected readonly Random random = new Random();
 
     public BaseTest(ClusterFixture fixture)
     {
         this._cluster = fixture.Cluster;
+        this.stockGrainClassNamePrefix = ConfigHelper.DefaultAppConfig.OrleansTransactions ? "Orleans.Transactional.TransactionalStockActor" :
+    "Orleans.Grains.StockActor";
     }
 
     protected async Task BuildAndSendCheckout()
@@ -71,8 +76,12 @@ public abstract class BaseTest
         // add correspondent stock items
         for (var itemId = 1; itemId <= numStockItem; itemId++)
         {
-            var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString());
-            await stock1.SetItem(new StockItem()
+            IStockActor stockActor;
+            if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
+                stockActor = _cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, itemId.ToString());
+            else
+                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(), stockGrainClassNamePrefix);
+            await stockActor.SetItem(new StockItem()
             {
                 product_id = itemId,
                 seller_id = 1,
