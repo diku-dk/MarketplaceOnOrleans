@@ -5,6 +5,7 @@ using Orleans.Runtime;
 using Common;
 using Orleans.Concurrency;
 using Orleans.Abstract;
+using Orleans.Interfaces;
 
 namespace Orleans.Grains;
 
@@ -91,5 +92,20 @@ public sealed class OrderActor : AbstractOrderActor
             // await nextOrderId.ReadStateAsync().ContinueWith(x=>nextOrderId.WriteStateAsync());
             await orders.WriteStateAsync();
         }
+    }
+
+    public override ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
+    }
+
+    public override IStockActor GetStockActor(int sellerId, int productId)
+    {
+        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "Orleans.Grains.StockActor");
+    }
+
+    public override IPaymentActor GetPaymentActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "Orleans.Grains.PaymentActor");
     }
 }

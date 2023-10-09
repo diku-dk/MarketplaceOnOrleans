@@ -27,18 +27,15 @@ public class ClusterFixture : IDisposable
                  logging.ClearProviders();
                  logging.AddConsole();
                  logging.SetMinimumLevel(LogLevel.Warning);
-             })
-             .Services.AddSerializer(ser =>
-             {
-                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
-             })
-             .AddSingleton(ConfigHelper.DefaultAppConfig)
-             ;
-
+             });
+            
             if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
             {
                 hostBuilder.UseTransactions();
             }
+
+            hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("Orleans.Abstract")); })
+             .AddSingleton(ConfigHelper.DefaultAppConfig);
 
             if (ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
             {
@@ -66,7 +63,7 @@ public class ClusterFixture : IDisposable
         clientBuilder
             .Services.AddSerializer(ser =>
              {
-                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
+                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("Orleans.Abstract"));
              }).AddSingleton(ConfigHelper.DefaultAppConfig);
              if(ConfigHelper.DefaultAppConfig.LogRecords)
                 clientBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();

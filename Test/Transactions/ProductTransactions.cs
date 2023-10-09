@@ -24,6 +24,18 @@ public class ProductTransactions : BaseTest
     }
 
     [Fact]
+    public async Task TestDelivery()
+    {
+        await InitData(1, 2);
+        await BuildAndSendCheckout();
+
+        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
+        var shipments = await shipmentActor.GetShipments(0);
+
+        Assert.Single(shipments);
+    }
+
+    [Fact]
     public async Task TestPriceUpdate()
     {
 

@@ -48,6 +48,7 @@ public abstract class BaseTest
         await cart.AddItem(GenerateCartItem(1, 2));
 
         await cart.NotifyCheckout(customerCheckout);
+
     }
 
     protected async Task InitData(int numCustomer, int numStockItem)

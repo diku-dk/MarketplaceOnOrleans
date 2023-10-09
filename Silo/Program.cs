@@ -1,11 +1,13 @@
 ﻿using Common;
 using Orleans.Infra;
 using Orleans.Serialization;
+using System.Transactions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
+var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
 var connectionString = configSection.GetValue<string>("ConnectionString");
@@ -61,6 +63,11 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
          });
+
+    if (orleansTransactions)
+    {
+        siloBuilder.UseTransactions();
+    }
          
     if (usePostgreSQL){
         siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
@@ -107,7 +114,7 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansStorage: "+orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
+Console.WriteLine(" OrleansTransactions: "+ orleansTransactions + " \n OrleansStorage: " + orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

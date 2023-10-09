@@ -35,24 +35,20 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
         await InsertOrderIntoState(order.id, orderState);
     }
 
-    /*
     public override ISellerActor GetSellerActor(int sellerId)
     {
-        return GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.TransactionalGrains.TransactionalSellerActor");
+        return GrainFactory.GetGrain<ISellerActor>(sellerId); //, "Orleans.TransactionalGrains.TransactionalSellerActor");
     }
-    */
 
     public override IStockActor GetStockActor(int sellerId, int productId)
     {
         return this.GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId.ToString());
     }
 
-    /*
-    public virtual IPaymentActor GetPaymentActor(int customerId)
+    public override IPaymentActor GetPaymentActor(int customerId)
     {
-        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "Orleans.Grains.CustomerActor");
+        return this.GrainFactory.GetGrain<ITransactionalPaymentActor>(customerId);
     }
-    */
 
     protected override async Task<int> GetNextOrderId()
     {

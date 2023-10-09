@@ -16,10 +16,8 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 {
     private static string Name = typeof(AbstractOrderActor).FullName;
 
-    [GenerateSerializer]
     public class NextOrderIdState
     {
-        [Id(0)]
         public int Value { get; set; }
         public NextOrderIdState() { this.Value = 0; }
         public NextOrderIdState(int value) { this.Value = value; }
@@ -306,20 +304,11 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
     }
 
-    public virtual ISellerActor GetSellerActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
-    }
+    public abstract ISellerActor GetSellerActor(int sellerId);
 
-    public virtual IStockActor GetStockActor(int sellerId, int productId)
-    {
-        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "Orleans.Grains.StockActor");
-    }
+    public abstract IStockActor GetStockActor(int sellerId, int productId);
 
-    public virtual IPaymentActor GetPaymentActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "Orleans.Grains.PaymentActor");
-    }
+    public abstract IPaymentActor GetPaymentActor(int customerId);
 
     protected abstract Task<int> GetNextOrderId();
 
