@@ -22,7 +22,7 @@ public class ShipmentController : ControllerBase
         return grains.GetGrain<IShipmentActor>(partitionId);
     }
 
-        private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
+    private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
     {
         return grains.GetGrain<ITransactionalShipmentActor>(partitionId);
     }
@@ -31,7 +31,7 @@ public class ShipmentController : ControllerBase
     {
         this.config = options;
         this.logger = logger;
-        this.callback = config.OrleansStorage ? GetTransactionalShipmentActor : GetShipmentActor;
+        this.callback = config.OrleansTransactions ? GetTransactionalShipmentActor : GetShipmentActor;
     }
 
     [HttpPatch]
@@ -40,15 +40,20 @@ public class ShipmentController : ControllerBase
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, string instanceId)
     {
         List<Task> tasks = new List<Task>(config.NumShipmentActors);
-        for(int i = 0; i < config.NumShipmentActors; i++)
-        {
-            var grain = this.callback(grains, i);
-            tasks.Add(grain.UpdateShipment(instanceId));
-        }
+        try{
+            for(int i = 0; i < config.NumShipmentActors; i++)
+            {
+                var grain = this.callback(grains, i);
+                tasks.Add(grain.UpdateShipment(instanceId));
+            }
 
-        await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks);
+            return Accepted();
+        } catch(Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        }
         
-        return Accepted();
     }
     
 }

@@ -74,6 +74,7 @@ public sealed class CartActor : Grain, ICartActor
             await orderActor.Checkout(checkout);
         } catch(Exception e){
             _logger.LogError("Exception captured in actor {0}. Source: {1} Message: {2}", customerId, e.Source, e.StackTrace);
+            throw;
         } finally{
             await Seal();
         }

@@ -47,18 +47,30 @@ public class ProductController : ControllerBase
     public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
     {
         var grain = this.callback(grains, update.sellerId, update.productId);
-        await grain.ProcessPriceUpdate(update);
-        return Accepted();
+        try{
+            await grain.ProcessPriceUpdate(update);
+            return Accepted();
+        } catch(Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        }
+        
     }
 
     [HttpPut]
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    public async Task<ActionResult> ProcessUpdateproduct([FromServices] IGrainFactory grains, [FromBody] Product product)
+    public async Task<ActionResult> ProcessUpdateProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
         var grain = this.callback(grains, product.seller_id, product.product_id);
-        await grain.ProcessProductUpdate(product);
-        return Accepted();
+        try{
+            await grain.ProcessProductUpdate(product);
+            return Accepted();
+        } catch(Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        }
+       
     }
 
     private delegate IProductActor GetProductActorDelegate(IGrainFactory grains, int sellerId, int productId);

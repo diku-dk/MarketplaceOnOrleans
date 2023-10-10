@@ -81,19 +81,14 @@ public class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalS
             GroupBy(x => x.seller_id).
             Select(g => new { key = g.Key, Sort = g.Min(x => x.shipment_id) }).
             ToDictionary(g => g.key, g => g.Sort));
-
     }
 
     protected override async void SetPackageToDelivered(int id, Package package, DateTime time)
     {
         await this.packages.PerformUpdate(p => {
-            /*
             var package_ = p[id].Where(p => p.package_id == package.package_id).First();
             package_.status = PackageStatus.delivered;
             package_.delivery_date = time;
-            */
-            package.status = PackageStatus.delivered;
-            package.delivery_date = time;
         });
     }
 
