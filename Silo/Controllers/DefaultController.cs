@@ -2,7 +2,6 @@
 using System.Net;
 using Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Orleans.Infra;
 using Orleans.Interfaces;
 using Orleans.Runtime;
@@ -102,7 +101,6 @@ public class DefaultController : ControllerBase
             }
         }
 
-        // Helper.CleanLog();
         await persistence.CleanLog();
         await ResetShipmentActors(grains);
 
@@ -128,9 +126,7 @@ public class DefaultController : ControllerBase
     public async Task<ActionResult> Cleanup()
     {
         this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        // Helper.TruncateOrleansStorage();
         await persistence.TruncateStorage();
-        // Helper.CleanLog();
         await persistence.CleanLog();
         return Ok();
     }

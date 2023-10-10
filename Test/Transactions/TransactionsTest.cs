@@ -7,9 +7,9 @@ using Test.Workflows;
 namespace Test.Transactions;
 
 [Collection(ClusterCollection.Name)]
-public class ProductTransactions : BaseTest
+public class TransactionsTest : BaseTest
 {
-    public ProductTransactions(ClusterFixture fixture) : base(fixture){}
+    public TransactionsTest(ClusterFixture fixture) : base(fixture){}
 
     [Fact]
     public async Task TestCheckout()
@@ -21,6 +21,11 @@ public class ProductTransactions : BaseTest
         List<Order> orders = await orderActor.GetOrders();
 
         Assert.Single(orders);
+
+        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
+        var shipments = await shipmentActor.GetShipments(0);
+
+        Assert.Single(shipments);
     }
 
     [Fact]
@@ -30,9 +35,12 @@ public class ProductTransactions : BaseTest
         await BuildAndSendCheckout();
 
         var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
+        // var shipments = await shipmentActor.GetShipments(0);
+
+        await shipmentActor.UpdateShipment(0.ToString());
         var shipments = await shipmentActor.GetShipments(0);
 
-        Assert.Single(shipments);
+        Assert.True(shipments.Count == 0);
     }
 
     [Fact]

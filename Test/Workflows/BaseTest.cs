@@ -12,14 +12,11 @@ public abstract class BaseTest
 {
 
     protected readonly TestCluster _cluster;
-    private readonly string stockGrainClassNamePrefix;
     protected readonly Random random = new Random();
 
     public BaseTest(ClusterFixture fixture)
     {
         this._cluster = fixture.Cluster;
-        this.stockGrainClassNamePrefix = ConfigHelper.DefaultAppConfig.OrleansTransactions ? "Orleans.Transactional.TransactionalStockActor" :
-    "Orleans.Grains.StockActor";
     }
 
     protected async Task BuildAndSendCheckout()
@@ -81,7 +78,8 @@ public abstract class BaseTest
             if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
                 stockActor = _cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, itemId.ToString());
             else
-                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(), stockGrainClassNamePrefix);
+                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(),  "Orleans.Grains.StockActor");
+
             await stockActor.SetItem(new StockItem()
             {
                 product_id = itemId,

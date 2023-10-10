@@ -37,7 +37,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     public override ISellerActor GetSellerActor(int sellerId)
     {
-        return GrainFactory.GetGrain<ISellerActor>(sellerId); //, "Orleans.TransactionalGrains.TransactionalSellerActor");
+        return GrainFactory.GetGrain<ISellerActor>(sellerId);
     }
 
     public override IStockActor GetStockActor(int sellerId, int productId)

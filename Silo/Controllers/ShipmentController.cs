@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Orleans.Infra;
 using Orleans.Interfaces;
+using Orleans.Transactional;
 
 namespace Silo.Controllers;
 
@@ -12,11 +13,25 @@ public class ShipmentController : ControllerBase
 {
     private readonly AppConfig config;
     private readonly ILogger<ShipmentController> logger;
+    private readonly GetShipmentActorDelegate callback;
+
+    private delegate IShipmentActor GetShipmentActorDelegate(IGrainFactory grains, int partitionId);
+
+    private IShipmentActor GetShipmentActor(IGrainFactory grains, int partitionId)
+    {
+        return grains.GetGrain<IShipmentActor>(partitionId);
+    }
+
+        private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
+    {
+        return grains.GetGrain<ITransactionalShipmentActor>(partitionId);
+    }
 
     public ShipmentController(AppConfig options, ILogger<ShipmentController> logger)
     {
         this.config = options;
         this.logger = logger;
+        this.callback = config.OrleansStorage ? GetTransactionalShipmentActor : GetShipmentActor;
     }
 
     [HttpPatch]
@@ -27,7 +42,7 @@ public class ShipmentController : ControllerBase
         List<Task> tasks = new List<Task>(config.NumShipmentActors);
         for(int i = 0; i < config.NumShipmentActors; i++)
         {
-            var grain = grains.GetGrain<IShipmentActor>(i);
+            var grain = this.callback(grains, i);
             tasks.Add(grain.UpdateShipment(instanceId));
         }
 

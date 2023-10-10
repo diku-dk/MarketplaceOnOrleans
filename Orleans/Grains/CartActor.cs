@@ -14,9 +14,9 @@ public sealed class CartActor : Grain, ICartActor
 {
     private readonly IPersistentState<Cart> cart;
     private readonly AppConfig config;
-    private readonly string grainClassNamePrefix;
     private int customerId;
     private readonly ILogger<CartActor> _logger;
+    private readonly GetOrderActorDelegate callback;
 
     public CartActor([PersistentState(
         stateName: "cart",
@@ -26,8 +26,7 @@ public sealed class CartActor : Grain, ICartActor
     {
         this.cart = state;
         this.config = options;
-        this.grainClassNamePrefix = config.OrleansTransactions ? "Orleans.Transactional.TransactionalOrderActor" :
-    "Orleans.Grains.OrderActor";
+        this.callback = config.OrleansTransactions ? new GetOrderActorDelegate(GetTransactionalOrderActor) : new GetOrderActorDelegate(GetOrderActor);
         this._logger = _logger;
     }
 
@@ -68,7 +67,7 @@ public sealed class CartActor : Grain, ICartActor
     public async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
         // access the orderGrain for this specific order
-        var orderActor = GetOrderActor();
+        var orderActor = this.callback(customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
         cart.State.status = CartStatus.CHECKOUT_SENT;
         try{
@@ -80,11 +79,16 @@ public sealed class CartActor : Grain, ICartActor
         }
     }
 
-    private IOrderActor GetOrderActor()
+    private delegate IOrderActor GetOrderActorDelegate(int customerId);
+
+    private IOrderActor GetOrderActor(int customerId)
     {
-        if(config.OrleansTransactions)
-            return this.GrainFactory.GetGrain<ITransactionalOrderActor>(this.customerId);
-        return this.GrainFactory.GetGrain<IOrderActor>(this.customerId, grainClassNamePrefix);
+        return this.GrainFactory.GetGrain<IOrderActor>(customerId);
+    }
+
+    private ITransactionalOrderActor GetTransactionalOrderActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
     }
 
     public async Task Seal()
