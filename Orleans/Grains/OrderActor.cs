@@ -1,13 +1,13 @@
 ﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra;
+using OrleansApp.Infra;
 using Orleans.Runtime;
 using Common;
 using Orleans.Concurrency;
-using Orleans.Abstract;
-using Orleans.Interfaces;
+using OrleansApp.Abstract;
+using OrleansApp.Interfaces;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class OrderActor : AbstractOrderActor
@@ -29,15 +29,14 @@ public sealed class OrderActor : AbstractOrderActor
         this.nextOrderId = nextOrderId;
     }
 
-    public override Task OnActivateAsync(CancellationToken token)
+    public override async Task OnActivateAsync(CancellationToken token)
     {
         // orleans storage
         if(this.orders.State is null) this.orders.State = new();
         if(this.nextOrderId.State is null) this.nextOrderId.State = new();
-        
-        this.customerId = (int)this.GetPrimaryKeyLong();
-        return Task.CompletedTask;
+        await base.OnActivateAsync(token);
     }
+
     protected override Task<int> GetNextOrderId()
     {
         this.nextOrderId.State = this.nextOrderId.State.GetNextOrderId();

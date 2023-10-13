@@ -3,19 +3,19 @@ using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Runtime;
-using Orleans.Transactional;
+using OrleansApp.Transactional;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 public sealed class CartActor : Grain, ICartActor
 {
     private readonly IPersistentState<Cart> cart;
     private readonly AppConfig config;
     private int customerId;
-    private readonly ILogger<CartActor> _logger;
+    private readonly ILogger<CartActor> logger;
     private readonly GetOrderActorDelegate callback;
 
     public CartActor([PersistentState(
@@ -27,7 +27,7 @@ public sealed class CartActor : Grain, ICartActor
         this.cart = state;
         this.config = options;
         this.callback = config.OrleansTransactions ? new GetOrderActorDelegate(GetTransactionalOrderActor) : new GetOrderActorDelegate(GetOrderActor);
-        this._logger = _logger;
+        this.logger = _logger;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -72,11 +72,11 @@ public sealed class CartActor : Grain, ICartActor
         cart.State.status = CartStatus.CHECKOUT_SENT;
         try{
             await orderActor.Checkout(checkout);
-        } catch(Exception e){
-            _logger.LogError("Exception captured in actor {0}. Source: {1} Message: {2}", customerId, e.Source, e.StackTrace);
-            throw;
-        } finally{
             await Seal();
+        } catch(Exception e)
+        {
+            logger.LogError("Checkout exception catched in cart {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
+            throw;
         }
     }
 

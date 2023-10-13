@@ -2,7 +2,7 @@
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 
 namespace Silo.Controllers;
 
@@ -19,8 +19,6 @@ public class CartController : ControllerBase
     [Route("/cart/{customerId}/add")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    [ProducesResponseType((int)HttpStatusCode.MethodNotAllowed)]
-    [ProducesResponseType((int)HttpStatusCode.Conflict)]
     public async Task<ActionResult> AddItem([FromServices] IGrainFactory grains, long customerId, [FromBody] CartItem item)
     {
         var cartGrain = grains.GetGrain<ICartActor>(customerId);
@@ -31,27 +29,23 @@ public class CartController : ControllerBase
     [Route("/cart/{customerId}/checkout")]
     [HttpPost]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    [ProducesResponseType(typeof(Cart), (int)HttpStatusCode.MethodNotAllowed)]
-    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> NotifyCheckout([FromServices] IGrainFactory grains, long customerId, [FromBody] CustomerCheckout customerCheckout)
     {
-        // use customerId as cartGrainId and orderGrainId
         var cartGrain = grains.GetGrain<ICartActor>(customerId);
-        try 
-        {
+        try{
             await cartGrain.NotifyCheckout(customerCheckout);
             return Ok();
-        }
-        catch (Exception e)
+        } catch(Exception e)
         {
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, e.Message);
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
     }
 
     [Route("/cart/{customerId}/seal")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
-    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> Seal([FromServices] IGrainFactory grains, int customerId)
     {
         var cartGrain = grains.GetGrain<ICartActor>(customerId);
@@ -62,7 +56,7 @@ public class CartController : ControllerBase
         }
         catch (Exception e)
         {
-            return StatusCode((int)HttpStatusCode.MethodNotAllowed, e.Message);
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
     }
 }

@@ -2,7 +2,7 @@
 using Common.Requests;
 using Orleans.Concurrency;
 
-namespace Orleans.Interfaces;
+namespace OrleansApp.Interfaces;
 
 public interface IProductActor : IGrainWithIntegerCompoundKey
 {

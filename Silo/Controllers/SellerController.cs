@@ -1,7 +1,7 @@
 ﻿using Common.Entities;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 using Common.Integration;
 
 namespace Silo.Controllers;

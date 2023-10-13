@@ -1,7 +1,7 @@
 ﻿using Common.Events;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public interface ITransactionalPaymentActor : IPaymentActor
 {

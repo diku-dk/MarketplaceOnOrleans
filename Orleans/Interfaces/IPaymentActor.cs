@@ -1,6 +1,6 @@
 ﻿using Common.Events;
 
-namespace Orleans.Interfaces;
+namespace OrleansApp.Interfaces;
 
 public interface IPaymentActor : IGrainWithIntegerKey
 {

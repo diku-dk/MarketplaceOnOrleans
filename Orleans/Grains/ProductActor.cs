@@ -4,11 +4,11 @@ using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Runtime;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class ProductActor : Grain, IProductActor

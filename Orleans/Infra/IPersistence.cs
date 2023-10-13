@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
-namespace Orleans.Infra;
+namespace OrleansApp.Infra;
 
 public interface IPersistence
 {

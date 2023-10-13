@@ -2,11 +2,11 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Orleans.Grains;
-using Orleans.Infra;
+using OrleansApp.Grains;
+using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 {
@@ -59,7 +59,6 @@ public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
                     $"Reserving {cartItem.Quantity} units from item " +
                     $"\"{i.seller_id}:{i.product_id}\" is not possible." +
                     $" This item has {i.qty_available} units available.");
-              
             }
             i.qty_reserved += cartItem.Quantity;
             i.updated_at = DateTime.UtcNow;

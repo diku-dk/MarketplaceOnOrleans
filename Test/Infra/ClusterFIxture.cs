@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra;
+using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
 

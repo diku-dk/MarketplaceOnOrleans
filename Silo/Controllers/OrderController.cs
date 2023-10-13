@@ -1,8 +1,8 @@
 using System.Net;
 using Common;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Interfaces;
-using Orleans.Transactional;
+using OrleansApp.Interfaces;
+using OrleansApp.Transactional;
 
 namespace Order.Controllers;
 

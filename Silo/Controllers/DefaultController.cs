@@ -2,8 +2,8 @@
 using System.Net;
 using Common;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Runtime;
 
 namespace Silo.Controllers;

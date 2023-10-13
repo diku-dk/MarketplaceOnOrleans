@@ -1,6 +1,5 @@
 ﻿using Common.Entities;
 using Common.Requests;
-using Newtonsoft.Json;
 
 namespace Common.Events;
 /*
@@ -11,7 +10,6 @@ namespace Common.Events;
     */
 public class InvoiceIssued
 {
-    //[JsonProperty("customer")]
     public CustomerCheckout customer { get; set; }
 
     public int orderId { get; set; }

@@ -1,9 +1,9 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 using System.Transactions;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public interface ITransactionalOrderActor : IOrderActor
 {

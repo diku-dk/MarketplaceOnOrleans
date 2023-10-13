@@ -1,9 +1,9 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Orleans.Concurrency;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public interface ITransactionalShipmentActor : IShipmentActor
 {

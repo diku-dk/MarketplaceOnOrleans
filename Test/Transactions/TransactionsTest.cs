@@ -1,6 +1,6 @@
 ﻿using Common.Entities;
 using Common.Requests;
-using Orleans.Transactional;
+using OrleansApp.Transactional;
 using Test.Infra;
 using Test.Workflows;
 

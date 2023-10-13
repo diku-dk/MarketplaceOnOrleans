@@ -1,12 +1,12 @@
 ﻿using Common;
 using Common.Entities;
 using Microsoft.Extensions.Logging;
-using Orleans.Abstract;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Abstract;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Transactions.Abstractions;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalShipmentActor
 {

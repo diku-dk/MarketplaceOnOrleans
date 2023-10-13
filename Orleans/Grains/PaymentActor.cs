@@ -1,11 +1,11 @@
 ﻿using Common;
 using Microsoft.Extensions.Logging;
-using Orleans.Abstract;
+using OrleansApp.Abstract;
 using Orleans.Concurrency;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class PaymentActor : AbstractPaymentActor

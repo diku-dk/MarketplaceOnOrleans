@@ -1,8 +1,8 @@
 ﻿using Common;
 using Common.Entities;
 using Common.Requests;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Test.Infra;
 
 namespace Test.Workflows;

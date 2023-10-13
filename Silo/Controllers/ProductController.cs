@@ -3,10 +3,10 @@ using Common;
 using Common.Entities;
 using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Interfaces;
-using Orleans.Transactional;
+using OrleansApp.Interfaces;
+using OrleansApp.Transactional;
 
-namespace Orleans.Controllers;
+namespace OrleansApp.Controllers;
 
 [ApiController]
 public class ProductController : ControllerBase
@@ -42,8 +42,8 @@ public class ProductController : ControllerBase
 
     [HttpPatch]
     [Route("/product")]
-    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
     {
         var grain = this.callback(grains, update.sellerId, update.productId);
@@ -54,15 +54,16 @@ public class ProductController : ControllerBase
         {
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
-        
     }
 
     [HttpPut]
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> ProcessUpdateProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
     {
         var grain = this.callback(grains, product.seller_id, product.product_id);
+
         try{
             await grain.ProcessProductUpdate(product);
             return Accepted();
@@ -70,7 +71,6 @@ public class ProductController : ControllerBase
         {
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
-       
     }
 
     private delegate IProductActor GetProductActorDelegate(IGrainFactory grains, int sellerId, int productId);

@@ -2,8 +2,8 @@
 using Common;
 using Common.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Orleans.Interfaces;
-using Orleans.Transactional;
+using OrleansApp.Interfaces;
+using OrleansApp.Transactional;
 
 namespace Silo.Controllers;
 

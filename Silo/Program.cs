@@ -1,7 +1,7 @@
 ﻿using Common;
-using Orleans.Infra;
+using Orleans.Configuration;
+using OrleansApp.Infra;
 using Orleans.Serialization;
-using System.Transactions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +18,7 @@ var useSwagger = configSection.GetValue<bool>("UseSwagger");
 
 AppConfig appConfig = new()
 {
+     OrleansTransactions = orleansTransactions,
      OrleansStorage = orleansStorage,
      AdoNetGrainStorage = adoNetGrainStorage,
      ConnectionString = connectionString,
@@ -31,7 +32,7 @@ bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
 
 // Orleans testing has no support for IOptions apparently...
 // builder.Services.Configure<AppConfig>(configSection);
-builder.Services.AddSingleton<AppConfig>(appConfig);
+builder.Services.AddSingleton(appConfig);
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -57,16 +58,35 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              logging.ClearProviders();
              logging.AddConsole();
-             logging.SetMinimumLevel(LogLevel.Warning);
-         })
-         .Services.AddSerializer(ser =>
-         {
-             ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common"));
+             //logging.SetMinimumLevel(LogLevel.Warning);
          });
 
     if (orleansTransactions)
     {
         siloBuilder.UseTransactions();
+        siloBuilder.Configure<ClientMessagingOptions>(options=>{
+            //options.ResponseTimeout = TimeSpan.FromMinutes(1);
+            options.ResponseTimeoutWithDebugger = TimeSpan.FromMinutes(10);
+           //options.DropExpiredMessages = true;
+        });
+        siloBuilder.Configure<SiloMessagingOptions>(options=>{
+            // options.ResponseTimeout = TimeSpan.FromMinutes(1);
+            options.ResponseTimeoutWithDebugger = TimeSpan.FromMinutes(10);
+            //options.DropExpiredMessages = true;
+        });
+
+        siloBuilder.Configure<TransactionalStateOptions>(options => {
+            //options.LockAcquireTimeout = TimeSpan.FromMinutes(1);
+            //options.LockTimeout = TimeSpan.FromMilliseconds(10000);
+            //options.MaxLockGroupSize = 100;
+            
+        });
+
+        // TransactionalStateOptions
+        siloBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp")); });
+    } else
+    {
+        siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
     }
          
     if (usePostgreSQL){
@@ -114,7 +134,7 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansTransactions: "+ orleansTransactions + " \n OrleansStorage: " + orleansStorage+" \n AdoNetGrainStorage: "+adoNetGrainStorage+" \n Log Record: "+logRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+useDash+" \n NumShipmentActors: "+numShipmentActors+ " ");
+Console.WriteLine(" OrleansTransactions: "+ appConfig.OrleansTransactions + " \n OrleansStorage: " + appConfig.OrleansStorage+" \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage+" \n Log Records: "+appConfig.LogRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+appConfig.UseDashboard+" \n NumShipmentActors: "+appConfig.NumShipmentActors+ " ");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

@@ -2,13 +2,14 @@
 using Common.Events;
 using Common;
 using Microsoft.Extensions.Logging;
-using Orleans.Grains;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Grains;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 
-namespace Orleans.Abstract;
+namespace OrleansApp.Abstract;
 
 public abstract class AbstractPaymentActor : Grain, IPaymentActor
 {
@@ -41,6 +42,9 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
 
     public async Task ProcessPayment(InvoiceIssued invoiceIssued)
     {
+
+        // Debug.Assert(invoiceIssued.customer.CustomerId == this.customerId);
+
         int seq = 1;
 
         var cc = invoiceIssued.customer.PaymentType.Equals(PaymentType.CREDIT_CARD.ToString());
@@ -114,7 +118,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         if (config.LogRecords)
         {
             var str = JsonSerializer.Serialize(new PaymentState() { orderPayments = orderPayments, card = card });
-            var key = new StringBuilder(invoiceIssued.customer.CustomerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
+            var key = new StringBuilder(this.customerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
             tasks.Add(persistence.Log(Name, key, str));
         }
         // inform related stock actors to reduce the amount because the payment has succeeded
@@ -135,8 +139,8 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
 
         var paymentConfirmedNoItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, null, paymentTs, invoiceIssued.instanceId);
 
-        tasks.Add(GrainFactory.GetGrain<ICustomerActor>(invoiceIssued.customer.CustomerId).NotifyPaymentConfirmed(paymentConfirmedNoItems));
-        tasks.Add(GetOrderActor(invoiceIssued.customer.CustomerId).ProcessPaymentConfirmed(paymentConfirmedNoItems));
+        tasks.Add(GrainFactory.GetGrain<ICustomerActor>(this.customerId).NotifyPaymentConfirmed(paymentConfirmedNoItems));
+        tasks.Add(GetOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems));
         await Task.WhenAll(tasks);
 
         // proceed to shipment actor

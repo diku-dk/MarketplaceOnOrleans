@@ -2,13 +2,13 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Orleans.Grains;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Grains;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
 
-namespace Orleans.Abstract;
+namespace OrleansApp.Abstract;
 
 public abstract class AbstractShipmentActor : Grain, IShipmentActor
 {

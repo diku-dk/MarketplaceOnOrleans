@@ -1,27 +1,23 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra;
+using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public class TransactionalProductActor : Grain, ITransactionalProductActor
 {
     private readonly ITransactionalState<Product> product;
-    private readonly AppConfig config;
     private readonly ILogger<TransactionalProductActor> _logger;
 
     public TransactionalProductActor([TransactionalState(
         stateName: "product",
         storageName: Constants.OrleansStorage)] ITransactionalState<Product> state,
-        AppConfig options,
         ILogger<TransactionalProductActor> _logger)
     {
         this.product = state;
-        this.config = options;
         this._logger = _logger;
     }
 
@@ -61,10 +57,21 @@ public class TransactionalProductActor : Grain, ITransactionalProductActor
     {
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<ITransactionalStockActor>(product.seller_id, product.product_id.ToString());
-        Task task1 = this.product.PerformUpdate(product_ => {
-            product.created_at = product_.created_at;
-            product.updated_at = DateTime.UtcNow;
-            product_ = product;
+        Task task1 = this.product.PerformUpdate(p => {
+            p.price = product.price;
+            p.sku = product.sku;
+            p.version = product.version;
+            p.description = product.description;
+            p.seller_id = product.seller_id;
+            p.product_id = product.product_id;
+            p.category = product.category;
+            p.description = product.description;
+            p.active = true;
+            p.created_at = p.created_at;
+            p.updated_at = DateTime.UtcNow;
+            p.freight_value = product.freight_value;
+            p.name = product.name;
+            p.status = product.status;
         });
         
         Task task2 = stockGrain.ProcessProductUpdate(productUpdated);

@@ -4,13 +4,13 @@ using Common.Events;
 using Common.Integration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Orleans.Interfaces;
+using OrleansApp.Interfaces;
 using Orleans.Runtime;
-using Orleans.Infra;
+using OrleansApp.Infra;
 using Common;
 using Orleans.Concurrency;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class SellerActor : Grain, ISellerActor
@@ -85,11 +85,9 @@ public sealed class SellerActor : Grain, ISellerActor
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
         var orderEntries = new List<OrderEntry>();
-        try{
-            this.orderEntries.State.Add(id, orderEntries);
-        } catch(Exception e)
-        {
-            logger.LogError("Seller {0} caught error with customer ID {1} order ID {2}: {3}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, e.Message);
+        var added =  this.orderEntries.State.TryAdd(id, orderEntries);
+        if(!added){
+            logger.LogError("Seller {0} - Customer ID {1} Order ID {2} already exists. {3},{4}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, invoiceIssued.items[0].order_id, this.orderEntries.State[id][0].order_id);
             return;
         }
 

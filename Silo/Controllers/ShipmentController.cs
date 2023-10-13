@@ -1,10 +1,8 @@
 ﻿using System.Net;
 using Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using Orleans.Infra;
-using Orleans.Interfaces;
-using Orleans.Transactional;
+using OrleansApp.Interfaces;
+using OrleansApp.Transactional;
 
 namespace Silo.Controllers;
 
@@ -37,6 +35,7 @@ public class ShipmentController : ControllerBase
     [HttpPatch]
     [Route("/shipment/{instanceId}")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, string instanceId)
     {
         List<Task> tasks = new List<Task>(config.NumShipmentActors);

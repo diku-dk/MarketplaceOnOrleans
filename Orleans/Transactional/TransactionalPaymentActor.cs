@@ -1,11 +1,11 @@
 ﻿using Common;
 using Microsoft.Extensions.Logging;
-using Orleans.Abstract;
-using Orleans.Grains;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Abstract;
+using OrleansApp.Grains;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public class TransactionalPaymentActor : AbstractPaymentActor, ITransactionalPaymentActor
 {

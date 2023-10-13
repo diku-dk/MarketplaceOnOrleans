@@ -1,4 +1,4 @@
-﻿namespace Orleans.Infra;
+﻿namespace OrleansApp.Infra;
 
 public sealed class Constants
 {

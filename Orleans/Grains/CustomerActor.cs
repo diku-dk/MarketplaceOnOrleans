@@ -3,11 +3,11 @@ using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Runtime;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class CustomerActor : Grain, ICustomerActor

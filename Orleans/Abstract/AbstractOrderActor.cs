@@ -2,14 +2,15 @@
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using System.Text;
 using System.Globalization;
 using Common;
 using Orleans.Concurrency;
+using System.Diagnostics;
 
-namespace Orleans.Abstract;
+namespace OrleansApp.Abstract;
 
 [Reentrant]
 public abstract class AbstractOrderActor : Grain, IOrderActor
@@ -65,8 +66,17 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         this.logger = _logger;
     }
 
+    public override Task OnActivateAsync(CancellationToken token)
+    {
+        this.customerId = (int)this.GetPrimaryKeyLong();
+        return Task.CompletedTask;
+    }
+   
+
     public async Task Checkout(ReserveStock reserveStock)
     {
+        // Debug.Assert(reserveStock.customerCheckout.CustomerId == this.customerId);
+
         var now = DateTime.Now;
 
         // coordinate with all IStock
@@ -128,7 +138,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
 
         int orderId = await GetNextOrderId();
-        var invoiceNumber = GetInvoiceNumber(customerId, now, orderId);
+        var invoiceNumber = GetInvoiceNumber(this.customerId, now, orderId);
         var order = new Order()
         {
             id = orderId,
@@ -194,7 +204,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         );
 
         var tasks = new List<Task>();
-        var sellerIds = items.Select(x => x.seller_id).ToHashSet();
+        var sellerIds = items.Select(x => x.seller_id).Distinct();
         foreach (var sellerID in sellerIds)
         {
             var sellerActor = GetSellerActor(sellerID);
@@ -322,6 +332,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
     {
         throw new ApplicationException("GetOrderFromStateAsync not implemented");
     }
+
     public virtual OrderState GetOrderFromState(int orderId)
     {
         throw new ApplicationException("GetOrderFromState not implemented");

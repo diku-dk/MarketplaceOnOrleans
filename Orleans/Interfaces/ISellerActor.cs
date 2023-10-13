@@ -3,7 +3,7 @@ using Common.Events;
 using Common.Integration;
 using Orleans.Concurrency;
 
-namespace Orleans.Interfaces;
+namespace OrleansApp.Interfaces;
 
 public interface ISellerActor : IGrainWithIntegerKey
 {

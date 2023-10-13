@@ -2,14 +2,14 @@
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Runtime;
-using Orleans.Infra;
+using OrleansApp.Infra;
 using Common;
 using Orleans.Concurrency;
-using Orleans.Abstract;
-using Orleans.Interfaces;
-using Orleans.Transactional;
+using OrleansApp.Abstract;
+using OrleansApp.Interfaces;
+using OrleansApp.Transactional;
 
-namespace Orleans.Grains;
+namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class ShipmentActor : AbstractShipmentActor

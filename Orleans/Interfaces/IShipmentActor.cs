@@ -2,7 +2,7 @@
 using Common.Events;
 using Orleans.Concurrency;
 
-namespace Orleans.Interfaces;
+namespace OrleansApp.Interfaces;
 
 public interface IShipmentActor : IGrainWithIntegerKey
 {

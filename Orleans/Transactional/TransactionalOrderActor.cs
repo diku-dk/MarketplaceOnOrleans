@@ -1,12 +1,12 @@
 ﻿using Common;
 using Common.Entities;
 using Microsoft.Extensions.Logging;
-using Orleans.Abstract;
-using Orleans.Infra;
-using Orleans.Interfaces;
+using OrleansApp.Abstract;
+using OrleansApp.Infra;
+using OrleansApp.Interfaces;
 using Orleans.Transactions.Abstractions;
 
-namespace Orleans.Transactional;
+namespace OrleansApp.Transactional;
 
 public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactionalOrderActor
 {
@@ -52,7 +52,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     protected override async Task<int> GetNextOrderId()
     {
-         return await this.nextOrderId.PerformUpdate(id => ++id.Value);
+         return await this.nextOrderId.PerformUpdate(id => id.GetNextOrderId().Value);
     }
 
     public override async Task<int> GetNumOrders()
@@ -62,7 +62,16 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     public override async Task<OrderState> GetOrderFromStateAsync(int orderId)
     {
-        return await this.orders.PerformRead(order => order[orderId]);
+        return await this.orders.PerformRead(order => {
+
+            if (!order.ContainsKey(orderId))
+            {
+                  throw new InvalidOperationException(
+                    $"Order ID {orderId} " +
+                    $" not found in order actor {this.customerId}.");
+            }
+            return order[orderId];
+        });
     }
 
     public override Task<List<Order>> GetOrders()
