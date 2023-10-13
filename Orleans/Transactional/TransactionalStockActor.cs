@@ -47,23 +47,22 @@ public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 
     public async Task<ItemStatus> AttemptReservation(CartItem cartItem)
     {
-        var version_ = await this.item.PerformRead(p => p.version);
-        if (version_.CompareTo(cartItem.Version) != 0)
-        {
-            return ItemStatus.UNAVAILABLE;
-        }
-        await this.item.PerformUpdate(i => {
+        var status = await this.item.PerformUpdate(i => {
+
+            if (i.version.CompareTo(cartItem.Version) != 0)
+            {
+                return ItemStatus.UNAVAILABLE;
+            }
+
             if (i.qty_reserved + cartItem.Quantity > i.qty_available)
             {
-                throw new InvalidOperationException(
-                    $"Reserving {cartItem.Quantity} units from item " +
-                    $"\"{i.seller_id}:{i.product_id}\" is not possible." +
-                    $" This item has {i.qty_available} units available.");
+                return ItemStatus.OUT_OF_STOCK;
             }
             i.qty_reserved += cartItem.Quantity;
             i.updated_at = DateTime.UtcNow;
+            return ItemStatus.IN_STOCK;
         });
-        return ItemStatus.IN_STOCK;
+        return status;
     }
 
     public Task CancelReservation(int quantity)

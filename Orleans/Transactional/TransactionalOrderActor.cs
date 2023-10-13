@@ -67,8 +67,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
             if (!order.ContainsKey(orderId))
             {
                   throw new InvalidOperationException(
-                    $"Order ID {orderId} " +
-                    $" not found in order actor {this.customerId}.");
+                    $"Order ID {orderId} not found in order actor {this.customerId}.");
             }
             return order[orderId];
         });
@@ -96,6 +95,10 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     public override Task UpdateOrderState(int orderId, OrderState value)
     {
-        return this.orders.PerformUpdate(id => { id[orderId] = value; });
+        return this.orders.PerformUpdate(id => {
+            id[orderId].order.status = value.order.status;
+            id[orderId].order.updated_at = value.order.updated_at;
+            id[orderId].orderHistory.Add(value.orderHistory.Last());
+        });
     }
 }

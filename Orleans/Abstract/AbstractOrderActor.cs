@@ -232,7 +232,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         OrderState orderState = config.OrleansTransactions ? await GetOrderFromStateAsync(paymentConfirmed.orderId) : GetOrderFromState(paymentConfirmed.orderId);
         if (orderState is null)
         {
-            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            this.logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
             return;
         }
         orderState.orderHistory.Add(new()
@@ -253,7 +253,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         OrderState orderState = config.OrleansTransactions ? await GetOrderFromStateAsync(paymentFailed.orderId) : GetOrderFromState(paymentFailed.orderId);
         if (orderState is null)
         {
-            logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
+            this.logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
             return;
         }
         orderState.orderHistory.Add(new()
@@ -269,7 +269,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         if (config.LogRecords)
         {
             var str = JsonSerializer.Serialize(orderState);
-            var sb = new StringBuilder(order.customer_id.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
+            var sb = new StringBuilder(this.customerId.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
             await persistence.Log(Name, sb.ToString(), str);
         }
         await RemoveOrderFromState(paymentFailed.orderId);
@@ -307,7 +307,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             if (config.LogRecords)
             {
                 var str = JsonSerializer.Serialize(orderState);
-                var sb = new StringBuilder(orderState.order.customer_id.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
+                var sb = new StringBuilder(this.customerId.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
                 await persistence.Log(Name, sb.ToString(), str);
             }
             await RemoveOrderFromState(shipmentNotification.orderId);

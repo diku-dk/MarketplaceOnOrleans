@@ -81,8 +81,6 @@ builder.Host.UseOrleans(siloBuilder =>
             //options.MaxLockGroupSize = 100;
             
         });
-
-        // TransactionalStateOptions
         siloBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp")); });
     } else
     {
