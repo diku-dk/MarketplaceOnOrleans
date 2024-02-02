@@ -7,15 +7,19 @@ using Orleans.Concurrency;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Runtime;
+using Orleans.Streams;
 
 namespace OrleansApp.Grains;
 
 [Reentrant]
 public sealed class ProductActor : Grain, IProductActor
 {
+    private IStreamProvider streamProvider;
+    private IAsyncStream<Product> stream;
+    
     private readonly AppConfig config;
     private readonly IPersistentState<Product> product;
-    private readonly ILogger<ProductActor> _logger;
+    private readonly ILogger<ProductActor> logger;
 
     public ProductActor([PersistentState(
         stateName: "product",
@@ -25,12 +29,19 @@ public sealed class ProductActor : Grain, IProductActor
     {
         this.product = state;
         this.config = options;
-        this._logger = _logger;
+        this.logger = _logger;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
-    {
-        // int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
+    { 
+        if (this.config.StreamReplication)
+        {
+            int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
+            string ID = string.Format("{0}|{1}", primaryKey, keyExtension);
+            this.logger.LogInformation("Setting up replication in product actor " + ID);
+            this.streamProvider = this.GetStreamProvider(Constants.DefaultStreamProvider);
+            this.stream = streamProvider.GetStream<Product>(Constants.ProductNameSpace, ID);
+        }
         return Task.CompletedTask;
     }
 
@@ -52,7 +63,14 @@ public sealed class ProductActor : Grain, IProductActor
             await this.product.WriteStateAsync();
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
-        await stockGrain.ProcessProductUpdate(productUpdated);
+        if (this.config.StreamReplication)
+        {
+            await Task.WhenAll(this.stream.OnNextAsync(this.product.State), stockGrain.ProcessProductUpdate(productUpdated));
+        }
+        else
+        {
+            await stockGrain.ProcessProductUpdate(productUpdated);
+        }
     }
 
     public Task<Product> GetProduct()
@@ -66,6 +84,10 @@ public sealed class ProductActor : Grain, IProductActor
         this.product.State.updated_at = DateTime.UtcNow;
         if(this.config.OrleansStorage)
             await this.product.WriteStateAsync();
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(this.product.State);
+        }
     }
 
     public async Task Reset()

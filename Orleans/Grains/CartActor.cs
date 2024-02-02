@@ -10,12 +10,12 @@ using OrleansApp.Transactional;
 
 namespace OrleansApp.Grains;
 
-public sealed class CartActor : Grain, ICartActor
+public class CartActor : Grain, ICartActor
 {
-    private readonly IPersistentState<Cart> cart;
-    private readonly AppConfig config;
-    private int customerId;
-    private readonly ILogger<CartActor> logger;
+    protected readonly IPersistentState<Cart> cart;
+    protected readonly AppConfig config;
+    protected int customerId;
+    protected readonly ILogger<CartActor> logger;
     private readonly GetOrderActorDelegate callback;
 
     public CartActor([PersistentState(
@@ -33,9 +33,9 @@ public sealed class CartActor : Grain, ICartActor
     public override Task OnActivateAsync(CancellationToken token)
     {
         this.customerId = (int) this.GetPrimaryKeyLong();
-        if(cart.State is null) {
-            cart.State = new Cart();
-            cart.State.customerId = this.customerId;
+        if(this.cart.State is null) {
+            this.cart.State = new Cart();
+            this.cart.State.customerId = this.customerId;
         }
         return Task.CompletedTask;
     }
@@ -45,14 +45,14 @@ public sealed class CartActor : Grain, ICartActor
         return Task.FromResult(this.cart.State);
     }
 
-    public async Task AddItem(CartItem item)
+    public virtual async Task AddItem(CartItem item)
     {
         if (item.Quantity <= 0)
         {
             throw new Exception("Item " + item.ProductId + " shows no positive quantity.");
         }
 
-        if (cart.State.status == CartStatus.CHECKOUT_SENT)
+        if (this.cart.State.status == CartStatus.CHECKOUT_SENT)
         {
             throw new Exception("Cart for customer " + this.customerId + " already sent for checkout.");
         }
@@ -64,18 +64,18 @@ public sealed class CartActor : Grain, ICartActor
     }
 
     // customer decided to checkout
-    public async Task NotifyCheckout(CustomerCheckout customerCheckout)
+    public virtual async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
         // access the orderGrain for this specific order
-        var orderActor = this.callback(customerId);
-        var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, cart.State.items, customerCheckout.instanceId);
-        cart.State.status = CartStatus.CHECKOUT_SENT;
+        var orderActor = this.callback(this.customerId);
+        var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, this.cart.State.items, customerCheckout.instanceId);
+        this.cart.State.status = CartStatus.CHECKOUT_SENT;
         try{
             await orderActor.Checkout(checkout);
-            await Seal();
+            await this.Seal();
         } catch(Exception e)
         {
-            logger.LogError("Checkout exception catched in cart {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
+            this.logger.LogError("Checkout exception catched in cart {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
             throw;
         }
     }
@@ -94,9 +94,10 @@ public sealed class CartActor : Grain, ICartActor
 
     public async Task Seal()
     {
-        cart.State.status = CartStatus.OPEN;
+        this.cart.State.status = CartStatus.OPEN;
         this.cart.State.items.Clear();
-        if(config.OrleansStorage)
+        if(this.config.OrleansStorage)
             await this.cart.WriteStateAsync();
     }
+
 }

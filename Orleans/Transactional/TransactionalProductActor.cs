@@ -4,21 +4,42 @@ using Common.Requests;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
+using Orleans.Streams;
+using Common;
 
 namespace OrleansApp.Transactional;
 
 public class TransactionalProductActor : Grain, ITransactionalProductActor
 {
+    private IStreamProvider streamProvider;
+    private IAsyncStream<Product> stream;
+
     private readonly ITransactionalState<Product> product;
-    private readonly ILogger<TransactionalProductActor> _logger;
+    private readonly AppConfig config;
+    private readonly ILogger<TransactionalProductActor> logger;
 
     public TransactionalProductActor([TransactionalState(
         stateName: "product",
         storageName: Constants.OrleansStorage)] ITransactionalState<Product> state,
+        AppConfig config,
         ILogger<TransactionalProductActor> _logger)
     {
         this.product = state;
-        this._logger = _logger;
+        this.config = config;
+        this.logger = _logger;
+    }
+
+    public override Task OnActivateAsync(CancellationToken token)
+    {
+        if (this.config.StreamReplication)
+        {
+            int primaryKey = (int)this.GetPrimaryKeyLong(out string keyExtension);
+            string ID = string.Format("{0}|{1}", primaryKey, keyExtension);
+            this.logger.LogInformation("Setting up replication in transactional product actor " + ID);
+            this.streamProvider = this.GetStreamProvider(Constants.DefaultStreamProvider);
+            this.stream = streamProvider.GetStream<Product>(Constants.ProductNameSpace, ID);
+        }
+        return Task.CompletedTask;
     }
 
     public Task SetProduct(Product product)
@@ -45,15 +66,19 @@ public class TransactionalProductActor : Grain, ITransactionalProductActor
         return this.product.PerformRead(p => p);
     }
 
-    public Task ProcessPriceUpdate(PriceUpdate priceUpdate)
+    public async Task ProcessPriceUpdate(PriceUpdate priceUpdate)
     {
-        return this.product.PerformUpdate(p => { 
+        await this.product.PerformUpdate(p => { 
             p.price = priceUpdate.price; 
             p.updated_at = DateTime.UtcNow;
         });
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
+        }
     }
 
-    public Task ProcessProductUpdate(Product product)
+    public async Task ProcessProductUpdate(Product product)
     {
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<ITransactionalStockActor>(product.seller_id, product.product_id.ToString());
@@ -75,7 +100,17 @@ public class TransactionalProductActor : Grain, ITransactionalProductActor
         });
         
         Task task2 = stockGrain.ProcessProductUpdate(productUpdated);
-        return Task.WhenAll(task1, task2);
+        if (this.config.StreamReplication)
+        {
+            // transactional guarantee
+            await Task.WhenAll(task1, task2);
+            // wait for transaction success to replicate
+            await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
+        }
+        else
+        {
+            await Task.WhenAll(task1, task2);
+        }
     }
 
     public Task Reset()
@@ -85,7 +120,6 @@ public class TransactionalProductActor : Grain, ITransactionalProductActor
             p.version = "0";
         });
     }
-
 
 }
 

@@ -3,7 +3,7 @@
 namespace Common.Entities
 {
 
-    public class Cart
+    public sealed class Cart
     {
         // no inter identified within an actor. so it requires an id
         public int customerId { get; set; } = 0;

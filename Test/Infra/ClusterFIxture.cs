@@ -21,14 +21,19 @@ public class ClusterFixture : IDisposable
         // https://stackoverflow.com/questions/55497800/populate-iconfiguration-for-unit-tests
         public void Configure(ISiloBuilder hostBuilder) {
 
-            hostBuilder
-             .ConfigureLogging(logging =>
-             {
-                 logging.ClearProviders();
-                 logging.AddConsole();
-                 logging.SetMinimumLevel(LogLevel.Warning);
-             });
-            
+            hostBuilder.ConfigureLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddConsole();
+                logging.SetMinimumLevel(LogLevel.Warning);
+            });
+
+            if (ConfigHelper.DefaultAppConfig.StreamReplication)
+            {
+                hostBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
+                            .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+            }
+
             if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
             {
                 hostBuilder.UseTransactions();

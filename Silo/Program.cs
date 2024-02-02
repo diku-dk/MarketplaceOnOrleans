@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
+var streamReplication = configSection.GetValue<bool>("StreamReplication");
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
@@ -61,6 +62,12 @@ builder.Host.UseOrleans(siloBuilder =>
              //logging.SetMinimumLevel(LogLevel.Warning);
          });
 
+    if (streamReplication)
+    {
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
+                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+    }
+
     if (orleansTransactions)
     {
         siloBuilder.UseTransactions();
@@ -98,14 +105,18 @@ builder.Host.UseOrleans(siloBuilder =>
     {
         siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
     }
+
     if (logRecords){
         siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
     } else {
         siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
     }
+
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
     }
+
+
 });
 
 var app = builder.Build();

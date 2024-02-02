@@ -2,6 +2,7 @@
 
 public class AppConfig
 {
+    public bool StreamReplication { get; set; }
 
     public bool OrleansTransactions { get; set; }
 
@@ -13,7 +14,7 @@ public class AppConfig
 
     public bool LogRecords { get; set; }
 
-    public int  NumShipmentActors { get; set; }
+    public int NumShipmentActors { get; set; }
 
 	public bool UseDashboard { get; set; }
 

@@ -14,7 +14,7 @@ public class CartItem {
 
     public int Quantity { get; set; }
 
-    public float Voucher { get; set; }
+    public float Voucher { get; set; } = 0;
 
     public string Version { get; set; }
 

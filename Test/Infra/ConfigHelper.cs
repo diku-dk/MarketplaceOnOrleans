@@ -6,6 +6,7 @@ public class ConfigHelper
 {
     public static AppConfig DefaultAppConfig = new()
     {
+        StreamReplication = true,
         OrleansTransactions = true,
         OrleansStorage = false,
         AdoNetGrainStorage = false,
