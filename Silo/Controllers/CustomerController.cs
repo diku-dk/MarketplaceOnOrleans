@@ -6,7 +6,7 @@ using OrleansApp.Interfaces;
 namespace Silo.Controllers;
 
 [ApiController]
-public class CustomerController : ControllerBase
+public sealed class CustomerController : ControllerBase
 {
 
 	private readonly ILogger<SellerController> logger;

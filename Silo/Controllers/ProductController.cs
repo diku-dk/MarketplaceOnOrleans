@@ -9,7 +9,7 @@ using OrleansApp.Transactional;
 namespace OrleansApp.Controllers;
 
 [ApiController]
-public class ProductController : ControllerBase
+public sealed class ProductController : ControllerBase
 {
     private readonly ILogger<ProductController> logger;
     private readonly GetProductActorDelegate callback;

@@ -7,7 +7,7 @@ using OrleansApp.Transactional;
 namespace Order.Controllers;
 
 [ApiController]
-public class OrderController : ControllerBase
+public sealed class OrderController : ControllerBase
 {
     private readonly ILogger<OrderController> logger;
     private readonly GetOrderActorDelegate callback;

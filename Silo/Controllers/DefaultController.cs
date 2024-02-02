@@ -9,7 +9,7 @@ using Orleans.Runtime;
 namespace Silo.Controllers;
 
 [ApiController]
-public class DefaultController : ControllerBase
+public sealed class DefaultController : ControllerBase
 {
     private readonly IPersistence persistence;
     private readonly AppConfig config;

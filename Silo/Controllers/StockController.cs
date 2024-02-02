@@ -7,7 +7,7 @@ using OrleansApp.Transactional;
 
 namespace Silo.Controllers;
 
-public class StockController : ControllerBase
+public sealed class StockController : ControllerBase
 {
     private readonly ILogger<StockController> logger;
 

@@ -7,7 +7,7 @@ using OrleansApp.Transactional;
 namespace Silo.Controllers;
 
 [ApiController]
-public class ShipmentController : ControllerBase
+public sealed class ShipmentController : ControllerBase
 {
     private readonly AppConfig config;
     private readonly ILogger<ShipmentController> logger;

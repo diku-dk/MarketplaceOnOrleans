@@ -7,7 +7,7 @@ using Common.Integration;
 namespace Silo.Controllers;
 
 [ApiController]
-public class SellerController : ControllerBase
+public sealed class SellerController : ControllerBase
 {
 
 	private readonly ILogger<SellerController> logger;
