@@ -6,16 +6,17 @@ using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using System.Text;
 using System.Globalization;
-using Common;
-using Orleans.Concurrency;
-using System.Diagnostics;
+using Common.Config;
+using Orleans.Interfaces.SellerView;
 
 namespace OrleansApp.Abstract;
 
-[Reentrant]
 public abstract class AbstractOrderActor : Grain, IOrderActor
 {
-    private static string Name = typeof(AbstractOrderActor).FullName;
+    private static readonly string Name = typeof(AbstractOrderActor).FullName;
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    private readonly GetSellerActorDelegate getSellerDelegate;
 
     public class NextOrderIdState
     {
@@ -39,7 +40,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
     protected readonly AppConfig config;
     protected readonly ILogger<AbstractOrderActor> logger;
-    protected readonly IPersistence persistence;
+    protected readonly IAuditLogger persistence;
 
     protected int customerId;
 
@@ -57,13 +58,14 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
                               .Append(timestamp.ToString("d", enUS)).Append('-')
                               .Append(orderId).ToString();
 
-    public AbstractOrderActor(IPersistence persistence,
-                                AppConfig options,
-                                ILogger<AbstractOrderActor> _logger)
+    public AbstractOrderActor(IAuditLogger persistence,
+                              AppConfig options,
+                              ILogger<AbstractOrderActor> _logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.logger = _logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -72,11 +74,8 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         return Task.CompletedTask;
     }
    
-
     public async Task Checkout(ReserveStock reserveStock)
     {
-        // Debug.Assert(reserveStock.customerCheckout.CustomerId == this.customerId);
-
         var now = DateTime.Now;
 
         // coordinate with all IStock
@@ -85,7 +84,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         for (var idx = 0; idx < reserveStock.items.Count; idx++)
         {
             var item = reserveStock.items[idx];
-            var stockActor = GetStockActor(item.SellerId, item.ProductId);
+            var stockActor = this.GetStockActor(item.SellerId, item.ProductId);
             statusResp.Insert(idx, stockActor.AttemptReservation(item));
         }
         await Task.WhenAll(statusResp);
@@ -137,7 +136,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             totalPerItem.Add((item.SellerId, item.ProductId), total_item);
         }
 
-        int orderId = await GetNextOrderId();
+        int orderId = await this.GetNextOrderId();
         var invoiceNumber = GetInvoiceNumber(this.customerId, now, orderId);
         var order = new Order()
         {
@@ -179,7 +178,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             id++;
         }
 
-        await InsertOrderIntoState(orderId, new()
+        await this.InsertOrderIntoState(orderId, new()
         {
             order = order,
             orderItems = items,
@@ -207,7 +206,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         var sellerIds = items.Select(x => x.seller_id).Distinct();
         foreach (var sellerID in sellerIds)
         {
-            var sellerActor = GetSellerActor(sellerID);
+            var sellerActor = this.getSellerDelegate(sellerID);
             var invoiceCustom = new InvoiceIssued
             (
                 reserveStock.customerCheckout,
@@ -222,14 +221,15 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
         await Task.WhenAll(tasks);
 
-        var paymentActor = GetPaymentActor(this.customerId);
+        var paymentActor = this.GetPaymentActor(this.customerId);
         await paymentActor.ProcessPayment(invoice);
     }
 
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         DateTime now = DateTime.UtcNow;
-        OrderState orderState = config.OrleansTransactions ? await GetOrderFromStateAsync(paymentConfirmed.orderId) : GetOrderFromState(paymentConfirmed.orderId);
+        OrderState orderState = this.config.OrleansTransactions ? 
+            await this.GetOrderFromStateAsync(paymentConfirmed.orderId) : this.GetOrderFromState(paymentConfirmed.orderId);
         if (orderState is null)
         {
             this.logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
@@ -244,13 +244,14 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         var order = orderState.order;
         order.status = OrderStatus.PAYMENT_PROCESSED;
         order.updated_at = now;
-        await UpdateOrderState(orderState.order.id, orderState);
+        await this.UpdateOrderState(orderState.order.id, orderState);
     }
 
     public async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
         DateTime now = DateTime.UtcNow;
-        OrderState orderState = config.OrleansTransactions ? await GetOrderFromStateAsync(paymentFailed.orderId) : GetOrderFromState(paymentFailed.orderId);
+        OrderState orderState = this.config.OrleansTransactions ? 
+            await this.GetOrderFromStateAsync(paymentFailed.orderId) : this.GetOrderFromState(paymentFailed.orderId);
         if (orderState is null)
         {
             this.logger.LogWarning("Cannot process payment confirmed event because invoice has not been found");
@@ -270,9 +271,9 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         {
             var str = JsonSerializer.Serialize(orderState);
             var sb = new StringBuilder(this.customerId.ToString()).Append('-').Append(paymentFailed.orderId).ToString();
-            await persistence.Log(Name, sb.ToString(), str);
+            await this.persistence.Log(Name, sb.ToString(), str);
         }
-        await RemoveOrderFromState(paymentFailed.orderId);
+        await this.RemoveOrderFromState(paymentFailed.orderId);
     }
 
     public async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
@@ -304,17 +305,25 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
             orderState.order.delivered_customer_date = shipmentNotification.eventDate;
 
             // log finished order
-            if (config.LogRecords)
+            if (this.config.LogRecords)
             {
                 var str = JsonSerializer.Serialize(orderState);
                 var sb = new StringBuilder(this.customerId.ToString()).Append('-').Append(shipmentNotification.orderId).ToString();
                 await persistence.Log(Name, sb.ToString(), str);
             }
-            await RemoveOrderFromState(shipmentNotification.orderId);
+            await this.RemoveOrderFromState(shipmentNotification.orderId);
         }
     }
 
-    public abstract ISellerActor GetSellerActor(int sellerId);
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
+    }
 
     public abstract IStockActor GetStockActor(int sellerId, int productId);
 

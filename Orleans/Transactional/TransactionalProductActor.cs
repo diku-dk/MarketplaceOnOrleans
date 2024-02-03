@@ -5,11 +5,13 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 using Orleans.Streams;
-using Common;
+using Common.Config;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
-public class TransactionalProductActor : Grain, ITransactionalProductActor
+[Reentrant]
+public sealed class TransactionalProductActor : Grain, ITransactionalProductActor
 {
     private IStreamProvider streamProvider;
     private IAsyncStream<Product> stream;

@@ -19,5 +19,6 @@ public class OrderSellerView
 	public OrderSellerView()
 	{
 	}
+
 }
 

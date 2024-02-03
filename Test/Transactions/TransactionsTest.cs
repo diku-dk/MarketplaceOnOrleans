@@ -1,29 +1,30 @@
 ﻿using Common.Entities;
 using Common.Requests;
 using OrleansApp.Transactional;
-using Test.Infra;
+using Test.Infra.Transactional;
 using Test.Workflows;
 
 namespace Test.Transactions;
 
-[Collection(ClusterCollection.Name)]
+[Collection(TransactionalClusterCollection.Name)]
 public class TransactionsTest : BaseTest
 {
-    public TransactionsTest(ClusterFixture fixture) : base(fixture){}
+    public TransactionsTest(TransactionalClusterFixture fixture) : base(fixture.Cluster){}
 
     [Fact]
     public async Task TestCheckout()
     {
+        int customerId = 1;
         await InitData(1, 2);
-        await BuildAndSendCheckout();
+        await BuildAndSendCheckout(1);
 
-        var orderActor = _cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(0);
+        var orderActor = _cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
         List<Order> orders = await orderActor.GetOrders();
 
         Assert.Single(orders);
 
         var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
-        var shipments = await shipmentActor.GetShipments(0);
+        var shipments = await shipmentActor.GetShipments(customerId);
 
         Assert.Single(shipments);
     }
@@ -31,11 +32,10 @@ public class TransactionsTest : BaseTest
     [Fact]
     public async Task TestDelivery()
     {
-        await InitData(1, 2);
-        await BuildAndSendCheckout();
+        await this.InitData(1, 2);
+        await this.BuildAndSendCheckout(1);
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
-        // var shipments = await shipmentActor.GetShipments(0);
+        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(1);
 
         await shipmentActor.UpdateShipment(0.ToString());
         var shipments = await shipmentActor.GetShipments(0);
@@ -46,7 +46,6 @@ public class TransactionsTest : BaseTest
     [Fact]
     public async Task TestPriceUpdate()
     {
-
         var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1,1.ToString());
 
         await productActor.SetProduct( new Product()
@@ -66,13 +65,11 @@ public class TransactionsTest : BaseTest
         var newPrice = (await productActor.GetProduct()).price;
 
         Assert.True(newPrice == priceUpdate.price);
-
     }
 
     [Fact]
     public async Task TestProductUpdate()
     {
-
         var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1, 1.ToString());
 
         await productActor.SetProduct(new Product()
@@ -100,7 +97,6 @@ public class TransactionsTest : BaseTest
         var version = (await stockActor.GetItem()).version;
 
         Assert.True(version.SequenceEqual("2"));
-
     }
 
 }

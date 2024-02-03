@@ -1,14 +1,27 @@
-﻿using Common;
+﻿using Common.Config;
 
 namespace Test.Infra;
 
 public class ConfigHelper
 {
-    public static AppConfig DefaultAppConfig = new()
+    public static AppConfig TransactionalDefaultAppConfig = new()
     {
         StreamReplication = true,
         OrleansTransactions = true,
-        OrleansStorage = false,
+        OrleansStorage = true,
+        AdoNetGrainStorage = false,
+        LogRecords = false,
+        ConnectionString = PostgresConnectionString,
+        NumShipmentActors = 1,
+        UseDashboard = false,
+        UseSwagger = false,
+    };
+
+    public static AppConfig NonTransactionalDefaultAppConfig = new()
+    {
+        StreamReplication = true,
+        OrleansTransactions = false,
+        OrleansStorage = true,
         AdoNetGrainStorage = false,
         LogRecords = false,
         ConnectionString = PostgresConnectionString,

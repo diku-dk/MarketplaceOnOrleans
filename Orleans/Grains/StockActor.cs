@@ -1,11 +1,11 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Runtime;
+using Common.Config;
 
 namespace OrleansApp.Grains;
 
@@ -43,9 +43,14 @@ public sealed class StockActor : Grain, IStockActor
 
     public async Task<ItemStatus> AttemptReservation(CartItem cartItem)
     {
+        if(item.State.version is null)
+        {
+            this._logger.LogError("Stock {0}:{1} has version null", item.State.seller_id, item.State.product_id);
+            throw new Exception("Version is null");
+        }
         if (item.State.version.CompareTo(cartItem.Version) != 0) return ItemStatus.UNAVAILABLE;
         if (item.State.qty_reserved + cartItem.Quantity > item.State.qty_available) {
-            _logger.LogWarning("Stock {0}:{1} running out", item.State.seller_id, item.State.product_id);
+            this._logger.LogWarning("Stock {0}:{1} running out", item.State.seller_id, item.State.product_id);
             return ItemStatus.OUT_OF_STOCK;
         }
         item.State.qty_reserved += cartItem.Quantity;

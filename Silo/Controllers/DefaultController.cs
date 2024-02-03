@@ -1,21 +1,21 @@
 ﻿using System;
 using System.Net;
-using Common;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Runtime;
+using Common.Config;
 
 namespace Silo.Controllers;
 
 [ApiController]
 public sealed class DefaultController : ControllerBase
 {
-    private readonly IPersistence persistence;
+    private readonly IAuditLogger persistence;
     private readonly AppConfig config;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IPersistence persistence, AppConfig options, ILogger<DefaultController> logger)
+    public DefaultController(IAuditLogger persistence, AppConfig options, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
         this.config = options;
@@ -39,7 +39,7 @@ public sealed class DefaultController : ControllerBase
         foreach(var stat in stats)
         {
             logger.LogDebug("{stat}",stat.ToString());
-            if (stat.GrainType.SequenceEqual("Orleans.Grains.OrderActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.OrderActor,Orleans"))
             {
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
@@ -51,7 +51,7 @@ public sealed class DefaultController : ControllerBase
                 logger.LogWarning("{0} order states resetted", num);
                 continue;
             }
-            if (stat.GrainType.SequenceEqual("Orleans.Grains.SellerActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.SellerActor,Orleans"))
             {
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
@@ -64,7 +64,7 @@ public sealed class DefaultController : ControllerBase
                 continue;
             }
             // seal carts that have not checked out in past run
-            if (stat.GrainType.SequenceEqual("Orleans.Grains.CartActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.CartActor,Orleans"))
             {
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
@@ -75,7 +75,7 @@ public sealed class DefaultController : ControllerBase
                 await Task.WhenAll(tasks);
                 logger.LogWarning("{0} cart states resetted", num);
             }
-            if (stat.GrainType.SequenceEqual("Orleans.Grains.StockActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,Orleans"))
             {
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();
@@ -87,7 +87,7 @@ public sealed class DefaultController : ControllerBase
                 await Task.WhenAll(tasks);
                 logger.LogWarning("{0} stock states resetted", num);
             }
-            if (stat.GrainType.SequenceEqual("Orleans.Grains.ProductActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,Orleans"))
             {
                 int num = stat.ActivationCount;
                 var tasks = new List<Task>();

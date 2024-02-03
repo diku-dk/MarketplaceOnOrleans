@@ -2,10 +2,10 @@
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Runtime;
-using Common;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Interfaces;
+using Common.Config;
 
 namespace OrleansApp.Grains;
 
@@ -21,7 +21,7 @@ public sealed class OrderActor : AbstractOrderActor
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig options,
         ILogger<OrderActor> _logger) : base(persistence, options, _logger)
     {
@@ -93,18 +93,13 @@ public sealed class OrderActor : AbstractOrderActor
         }
     }
 
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
-    }
-
     public override IStockActor GetStockActor(int sellerId, int productId)
     {
-        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "Orleans.Grains.StockActor");
+        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "OrleansApp.Grains.StockActor");
     }
 
     public override IPaymentActor GetPaymentActor(int customerId)
     {
-        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "Orleans.Grains.PaymentActor");
+        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "OrleansApp.Grains.PaymentActor");
     }
 }

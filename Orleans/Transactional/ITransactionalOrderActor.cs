@@ -25,7 +25,4 @@ public interface ITransactionalOrderActor : IOrderActor
     [Transaction(TransactionOption.CreateOrJoin)]
     new Task<int> GetNumOrders();
 
-    [Transaction(TransactionOption.CreateOrJoin)]
-    Task TestTransaction(Order order);
-
 }

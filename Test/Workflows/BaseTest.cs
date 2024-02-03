@@ -5,6 +5,7 @@ using OrleansApp.Interfaces;
 using Orleans.TestingHost;
 using OrleansApp.Transactional;
 using Test.Infra;
+using Common.Config;
 
 namespace Test.Workflows;
 
@@ -14,16 +15,16 @@ public abstract class BaseTest
     protected readonly TestCluster _cluster;
     protected readonly Random random = new Random();
 
-    public BaseTest(ClusterFixture fixture)
+    public BaseTest(TestCluster cluster)
     {
-        this._cluster = fixture.Cluster;
+        this._cluster = cluster;
     }
 
-    protected async Task BuildAndSendCheckout()
+    protected async Task BuildAndSendCheckout(int customerId = 1)
     {
         CustomerCheckout customerCheckout = new()
         {
-            CustomerId = 0,
+            CustomerId = customerId,
             FirstName = "Customer",
             LastName = "Test",
             Street = "Some unknown street",
@@ -40,18 +41,17 @@ public abstract class BaseTest
             Installments = 1
         };
 
-        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
+        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
         await cart.AddItem(GenerateCartItem(1, 1));
         await cart.AddItem(GenerateCartItem(1, 2));
 
         await cart.NotifyCheckout(customerCheckout);
-
     }
 
     protected async Task InitData(int numCustomer, int numStockItem)
     {
         // load customer in customer actor
-        for (var customerId = 0; customerId < numCustomer; customerId++)
+        for (var customerId = 1; customerId <= numCustomer; customerId++)
         {
             var customer = _cluster.GrainFactory.GetGrain<ICustomerActor>(customerId);
             await customer.SetCustomer(new Customer()
@@ -71,14 +71,16 @@ public abstract class BaseTest
             });
         }
 
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+
         // add correspondent stock items
         for (var itemId = 1; itemId <= numStockItem; itemId++)
         {
             IStockActor stockActor;
-            if (ConfigHelper.DefaultAppConfig.OrleansTransactions)
+            if (config.OrleansTransactions)
                 stockActor = _cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, itemId.ToString());
             else
-                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(),  "Orleans.Grains.StockActor");
+                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(), "OrleansApp.Grains.StockActor");
 
             await stockActor.SetItem(new StockItem()
             {

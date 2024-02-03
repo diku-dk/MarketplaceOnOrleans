@@ -1,20 +1,20 @@
 ﻿using Common.Entities;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
-using Test.Infra;
+using Test.Infra.Eventual;
 
 namespace Test.Workflows;
 
-[Collection(ClusterCollection.Name)]
+[Collection(NonTransactionalClusterCollection.Name)]
 public class ProductUpdateTest : BaseTest
 {
 
-    public ProductUpdateTest(ClusterFixture fixture) : base(fixture) { }
+    public ProductUpdateTest(NonTransactionalClusterFixture fixture) : base(fixture.Cluster) { }
 
     [Fact]
     public async Task ProductUpdate()
     {
-        IPersistence persistence = (IPersistence)_cluster.ServiceProvider.GetService(typeof(IPersistence));
+        IAuditLogger persistence = (IAuditLogger)_cluster.ServiceProvider.GetService(typeof(IAuditLogger));
         await persistence.TruncateStorage();
 
         // set product first

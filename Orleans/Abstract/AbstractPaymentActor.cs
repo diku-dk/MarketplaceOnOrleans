@@ -1,13 +1,13 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Common;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
-using System.Diagnostics;
+using Common.Config;
+using Orleans.Interfaces.SellerView;
 
 namespace OrleansApp.Abstract;
 
@@ -17,7 +17,10 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
     private readonly AppConfig config;
     private int customerId;
     private readonly ILogger<PaymentActor> logger;
-    private readonly IPersistence persistence;
+    private readonly IAuditLogger persistence;
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    private readonly GetSellerActorDelegate getSellerDelegate;
 
     private class PaymentState
     {
@@ -27,11 +30,12 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         public PaymentState() { }
     }
 
-    public AbstractPaymentActor(IPersistence persistence, AppConfig options, ILogger<PaymentActor> _logger)
+    public AbstractPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.logger = _logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -42,9 +46,6 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
 
     public async Task ProcessPayment(InvoiceIssued invoiceIssued)
     {
-
-        // Debug.Assert(invoiceIssued.customer.CustomerId == this.customerId);
-
         int seq = 1;
 
         var cc = invoiceIssued.customer.PaymentType.Equals(PaymentType.CREDIT_CARD.ToString());
@@ -133,20 +134,30 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)
         {
-            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
+            var sellerActor = this.getSellerDelegate(sellerID);
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmedWithItems));
         }
 
         var paymentConfirmedNoItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, null, paymentTs, invoiceIssued.instanceId);
 
         tasks.Add(GrainFactory.GetGrain<ICustomerActor>(this.customerId).NotifyPaymentConfirmed(paymentConfirmedNoItems));
-        tasks.Add(GetOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems));
+        tasks.Add(this.GetOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems));
         await Task.WhenAll(tasks);
 
         // proceed to shipment actor
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId, this.config.NumShipmentActors);
-        var shipmentActor = GetShipmentActor(shipmentActorID);
+        var shipmentActor = this.GetShipmentActor(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
+    }
+
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }
 
     protected abstract IShipmentActor GetShipmentActor(int id);

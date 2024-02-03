@@ -1,43 +1,55 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Common.Requests;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Test.Infra;
+using Test.Infra.Eventual;
 
 namespace Test.Workflows;
 
-[Collection(ClusterCollection.Name)]
+[Collection(NonTransactionalClusterCollection.Name)]
 public class CheckoutTest : BaseTest
 {
-    public CheckoutTest(ClusterFixture fixture) : base(fixture) { }
+    public CheckoutTest(NonTransactionalClusterFixture fixture) : base(fixture.Cluster) { }
 
     [Fact]
     public async Task Checkout()
     {
+        // make sure transactions is not activated
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        //config.OrleansTransactions = false;
+
+        int customerId = 1;
         await InitStorage();
         await InitData(1, 2);
-        await BuildAndSendCheckout();
+        await BuildAndSendCheckout(customerId);
 
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
         List<Order> orders = await orderActor.GetOrders();
 
         Assert.Single(orders);
-
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
+ 
+        int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
-        var shipments = await shipmentActor.GetShipments(0);
+        var shipments = await shipmentActor.GetShipments(customerId);
         var count = shipments.Count;
         Assert.True(count == 1);
 
         await shipmentActor.Reset();
         await orderActor.Reset();
+
+        //config.OrleansTransactions = true;
     }
 
     [Fact]
     public async Task CheckoutTwoOrdersSameCustomer()
     {
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        //config.OrleansTransactions = false;
+
+        int customerId = 1;
+
         await InitStorage();
         await InitData(1, 2);
 
@@ -46,7 +58,7 @@ public class CheckoutTest : BaseTest
 
         CustomerCheckout customerCheckout = new()
         {
-            CustomerId = 0,
+            CustomerId = customerId,
             FirstName = "",
             LastName = "",
             Street = "",
@@ -63,7 +75,7 @@ public class CheckoutTest : BaseTest
             Installments = 1
         };
 
-        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(0);
+        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
 
         for (var i = 0; i < 2; i++)
         {
@@ -72,31 +84,35 @@ public class CheckoutTest : BaseTest
             await cart.NotifyCheckout(customerCheckout);
         }
 
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
         var numOrders = await orderActor.GetNumOrders();
         Console.WriteLine("[CheckoutTwoOrdersSameCustomer] Customer ID {0} Count {1}", 0, numOrders);
         Assert.True(2 == numOrders);
         await orderActor.Reset();
 
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
+        int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
-        var shipments = await shipmentActor.GetShipments(0);
+        var shipments = await shipmentActor.GetShipments(customerId);
         var count = shipments.Count;
         Assert.True(count == 2);
 
         await shipmentActor.Reset();
+
+       // config.OrleansTransactions = true;
     }
 
     [Fact]
     public async Task CheckoutTwoOrdersDifferentCustomers()
     {
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        //config.OrleansTransactions = false;
+
         var numCustomers = 2;
         await InitStorage();
         await InitData(numCustomers, 2);
 
         var tasks = new List<Task>();
-        for (var customerId = 0; customerId < numCustomers; customerId++)
+        for (var customerId = 1; customerId < numCustomers; customerId++)
         {
             CustomerCheckout customerCheckout = new()
             {
@@ -124,10 +140,9 @@ public class CheckoutTest : BaseTest
         }
         await Task.WhenAll(tasks);
 
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
         int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
-        for (var customerId = 0; customerId < numCustomers; customerId++)
+        for (var customerId = 1; customerId < numCustomers; customerId++)
         {
             var shipments = await shipmentActor.GetShipments(customerId);
             var numShipments = shipments.Count;
@@ -140,17 +155,19 @@ public class CheckoutTest : BaseTest
         }
         // clean so other tests do not fail
         await shipmentActor.Reset();
+
+        //config.OrleansTransactions = false;
     }
 
     async Task InitStorage()
     {
-        IPersistence persistence = (IPersistence)_cluster.Client.ServiceProvider.GetService(typeof(IPersistence));
-        if (ConfigHelper.DefaultAppConfig.LogRecords)
+        IAuditLogger persistence = (IAuditLogger)_cluster.Client.ServiceProvider.GetService(typeof(IAuditLogger));
+        if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords)
         {
             await persistence.SetUpLog();
             await persistence.CleanLog();
         }
-        if (ConfigHelper.DefaultAppConfig.AdoNetGrainStorage)
+        if (ConfigHelper.TransactionalDefaultAppConfig.AdoNetGrainStorage)
             await persistence.TruncateStorage();
     }
 

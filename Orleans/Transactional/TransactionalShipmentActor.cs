@@ -1,26 +1,27 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Transactions.Abstractions;
+using Common.Config;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
-public class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalShipmentActor
+[Reentrant]
+public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalShipmentActor
 {
 
     private readonly ITransactionalState<SortedDictionary<int, Shipment>> shipments;
     private readonly ITransactionalState<SortedDictionary<int, List<Package>>> packages;
     private readonly ITransactionalState<NextShipmentIdState> nextShipmentId;
 
-
     public TransactionalShipmentActor(
          [TransactionalState(stateName: "shipments", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int, Shipment>> shipments,
          [TransactionalState(stateName: "packages", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int, List<Package>>> packages,
          [TransactionalState(stateName: "nextShipmentId", storageName: Constants.OrleansStorage)] ITransactionalState<NextShipmentIdState> nextShipmentId,
-         IPersistence persistence, 
+         IAuditLogger persistence, 
          AppConfig options, 
          ILogger<TransactionalShipmentActor> logger) : base(persistence, options, logger)
     {
@@ -41,7 +42,9 @@ public class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalS
 
     public override async Task<List<Shipment>> GetShipments(int customerId)
     {
-        return await this.shipments.PerformRead(s => s.Select(x=>x.Value).Where(x => x.customer_id == customerId).ToList());
+        return await this.shipments.PerformRead(s => {
+            return s.Select(x => x.Value).Where(x => x.customer_id == customerId).ToList();
+        });
     }
 
     public override Task InsertShipmentIntoState(int id, Shipment shipment, List<Package> packages)

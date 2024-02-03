@@ -1,13 +1,15 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Transactions.Abstractions;
+using Common.Config;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
+[Reentrant]
 public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactionalOrderActor
 {
     private readonly ITransactionalState<Dictionary<int, OrderState>> orders;
@@ -16,28 +18,12 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
     public TransactionalOrderActor(
         [TransactionalState(stateName: "orders", storageName: Constants.OrleansStorage)] ITransactionalState<Dictionary<int, OrderState>> orders,
         [TransactionalState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] ITransactionalState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig config,
         ILogger<TransactionalOrderActor> _logger) : base(persistence, config, _logger)
     {
         this.orders = orders;
         this.nextOrderId = nextOrderId;
-    }
-
-    public async Task TestTransaction(Order order)
-    {
-        OrderState orderState = new OrderState
-        {
-            order = order,
-            orderItems = new(),
-            orderHistory = new()
-        };
-        await InsertOrderIntoState(order.id, orderState);
-    }
-
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return GrainFactory.GetGrain<ISellerActor>(sellerId);
     }
 
     public override IStockActor GetStockActor(int sellerId, int productId)
@@ -80,17 +66,17 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
 
     public override Task RemoveOrderFromState(int orderId)
     {
-        return this.orders.PerformUpdate(id => { id.Remove(orderId); });
+        return this.orders.PerformUpdate(state => { state.Remove(orderId); });
     }
 
     public override Task InsertOrderIntoState(int orderId, OrderState value)
     {
-        return this.orders.PerformUpdate(id => { id.Add(orderId, value); });
+        return this.orders.PerformUpdate(state => { state.Add(orderId, value); });
     }
 
     public override Task Reset()
     {
-        return this.orders.PerformUpdate(dic => { dic.Clear(); });
+        return this.orders.PerformUpdate(state => { state.Clear(); });
     }
 
     public override Task UpdateOrderState(int orderId, OrderState value)

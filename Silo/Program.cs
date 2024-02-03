@@ -1,12 +1,15 @@
-﻿using Common;
-using Orleans.Configuration;
+﻿using Orleans.Configuration;
 using OrleansApp.Infra;
 using Orleans.Serialization;
+using SellerMS.Infra;
+using Microsoft.EntityFrameworkCore;
+using Common.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
+var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
 var streamReplication = configSection.GetValue<bool>("StreamReplication");
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
@@ -29,8 +32,6 @@ AppConfig appConfig = new()
      UseSwagger = useSwagger
 };
 
-bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
-
 // Orleans testing has no support for IOptions apparently...
 // builder.Services.Configure<AppConfig>(configSection);
 builder.Services.AddSingleton(appConfig);
@@ -45,9 +46,9 @@ if(useSwagger){
 }
 
 if (logRecords){
-    builder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+    builder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
 } else {
-    builder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+    builder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
 }
 
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
@@ -62,10 +63,14 @@ builder.Host.UseOrleans(siloBuilder =>
              //logging.SetMinimumLevel(LogLevel.Warning);
          });
 
+    if (sellerViewPostgres)
+    {
+        siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
+    }
+
     if (streamReplication)
     {
-        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
-                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider);
     }
 
     if (orleansTransactions)
@@ -86,7 +91,6 @@ builder.Host.UseOrleans(siloBuilder =>
             //options.LockAcquireTimeout = TimeSpan.FromMinutes(1);
             //options.LockTimeout = TimeSpan.FromMilliseconds(10000);
             //options.MaxLockGroupSize = 100;
-            
         });
         siloBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp")); });
     } else
@@ -94,22 +98,29 @@ builder.Host.UseOrleans(siloBuilder =>
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
     }
          
-    if (usePostgreSQL){
-        siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-         {
-             options.Invariant = "Npgsql";
-             options.ConnectionString = connectionString;
-         });
-    }
-    else
+    if (orleansStorage)
     {
-        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+        if (adoNetGrainStorage)
+        {
+            siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
+             {
+                 options.Invariant = "Npgsql";
+                 options.ConnectionString = connectionString;
+             });
+        }
+        else
+        {
+            siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+        }
+    } else
+    {
+        siloBuilder.AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
 
     if (logRecords){
-        siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+        siloBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
     } else {
-        siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+        siloBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
     }
 
     if(useDash){
@@ -121,8 +132,22 @@ builder.Host.UseOrleans(siloBuilder =>
 
 var app = builder.Build();
 
+if (sellerViewPostgres)
+{
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<SellerDbContext>();
+        context.Database.Migrate();
+
+        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
+        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
+    }
+}
+
 if (logRecords){
-    var persistence = app.Services.GetService<IPersistence>();
+    var persistence = app.Services.GetService<IAuditLogger>();
     // init log table in PostgreSQL
     await persistence.SetUpLog();
     await persistence.CleanLog();

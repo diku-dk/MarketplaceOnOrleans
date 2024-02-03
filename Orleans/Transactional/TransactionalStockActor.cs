@@ -1,13 +1,15 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
+using Common.Config;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
+[Reentrant]
 public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 {
 
@@ -15,7 +17,8 @@ public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
     private readonly AppConfig config;
     private readonly ILogger<StockActor> _logger;
 
-    public TransactionalStockActor([TransactionalState(
+    public TransactionalStockActor(
+        [TransactionalState(
         stateName: "stock",
         storageName: Constants.OrleansStorage)] ITransactionalState<StockItem> state,
         AppConfig options,

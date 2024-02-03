@@ -1,7 +1,8 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
+using Orleans.Interfaces.SellerView;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
@@ -18,7 +19,21 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     protected static readonly string Name = typeof(ShipmentActor).FullName;
 
     protected readonly ILogger<IShipmentActor> logger;
-    protected readonly IPersistence persistence;
+    protected readonly IAuditLogger persistence;
+
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    private readonly GetSellerActorDelegate getSellerDelegate;
+
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
+    }
 
     public class NextShipmentIdState
     {
@@ -39,13 +54,14 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         public ShipmentState() { }
     }
 
-    public AbstractShipmentActor(IPersistence persistence,
+    public AbstractShipmentActor(IAuditLogger persistence,
          AppConfig options,
          ILogger<IShipmentActor> logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.logger = logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -108,11 +124,11 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerId in sellers)
         {
-            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerId);
+            var sellerActor = this.getSellerDelegate(sellerId);
             tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
         }
         
-        var orderActor = GetOrderActor(paymentConfirmed.customer.CustomerId);
+        var orderActor = this.GetOrderActor(paymentConfirmed.customer.CustomerId);
         tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
         await Task.WhenAll(tasks);
     }
@@ -121,8 +137,8 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     {
         List<Task> tasks = new();
         // impossibility of ensuring one order per seller in this transaction
-        // since sellers' packages are distributed across many
-        // shipment actors
+        // (without coordination among all shipments!)
+        // since sellers' packages are distributed across many shipment actors
 
         var now = DateTime.UtcNow;
         // https://stackoverflow.com/questions/5231845/c-sharp-linq-group-by-on-multiple-columns
@@ -149,7 +165,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
 
                 tasks.Add(GrainFactory.GetGrain<ICustomerActor>(package.customer_id)
                     .NotifyDelivery(deliveryNotification));
-                tasks.Add(GrainFactory.GetGrain<ISellerActor>(package.seller_id)
+                tasks.Add(this.getSellerDelegate(package.seller_id)
                     .ProcessDeliveryNotification(deliveryNotification));
             }
 
@@ -169,7 +185,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                 shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
                 // FIXME should notify all sellers included in the shipment
-                tasks.Add(GrainFactory.GetGrain<ISellerActor>(sellerPackages[0].seller_id)
+                tasks.Add(this.getSellerDelegate(sellerPackages[0].seller_id)
                     .ProcessShipmentNotification(shipmentNotification));
                 tasks.Add(GetOrderActor(shipment.customer_id)
                     .ProcessShipmentNotification(shipmentNotification));

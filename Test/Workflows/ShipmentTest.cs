@@ -1,26 +1,29 @@
-﻿using Common;
+﻿using Common.Config;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
-using Test.Infra;
+using Test.Infra.Eventual;
 
 namespace Test.Workflows;
 
-[Collection(ClusterCollection.Name)]
+[Collection(NonTransactionalClusterCollection.Name)]
 public class ShipmentTest : BaseTest
 {
 
     int numCheckouts = 10;
 
-    public ShipmentTest(ClusterFixture fixture) : base(fixture) {}
+    public ShipmentTest(NonTransactionalClusterFixture fixture) : base(fixture.Cluster) {}
 
     [Fact]
     public async Task SimpleDeliveryTest()
     {
-        await InitData(1,2);
-        await BuildAndSendCheckout();
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        //config.OrleansTransactions = false;
 
-        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        int customerId = 1;
+        await InitData(1,2);
+        await BuildAndSendCheckout(customerId);
+
+        int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
 
         var shipmentActor = this._cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
 
@@ -31,42 +34,50 @@ public class ShipmentTest : BaseTest
         Assert.True(shipments.Count == 0);
 
         // should have no orders
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
         Assert.True( ( await orderActor.GetOrders()).Count == 0 );
 
         await shipmentActor.Reset();
         await orderActor.Reset();
-	}
+
+       // config.OrleansTransactions = true;
+    }
 
     
     [Fact]
     public async Task ManyCheckoutsDeliveryTest()
     {
-        await InitData(1, 2);
+
+        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+       // config.OrleansTransactions = false;
+
+        int customerId = 1;
+        await InitData(customerId, 2);
 
         for(int i = 1; i <= numCheckouts; i++){
-            await BuildAndSendCheckout();
+            await BuildAndSendCheckout(customerId);
         }
 
         int numToRetrieve = numCheckouts - 1;
 
-        var config = (AppConfig) this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        int shipmentActorId = Helper.GetShipmentActorID(0,config.NumShipmentActors);
+        int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
 
         var shipmentActor = this._cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
 
         await shipmentActor.UpdateShipment(1.ToString());
 
         // should have a shipment
-        var shipments = await shipmentActor.GetShipments(0);
+        var shipments = await shipmentActor.GetShipments(customerId);
         Assert.True(shipments.Count == numToRetrieve);
 
         // should have an order
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(0);
+        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
         Assert.True( ( await orderActor.GetOrders()).Count == numToRetrieve);
 
         await shipmentActor.Reset();
         await orderActor.Reset();
-	}
+
+       // config.OrleansTransactions = true;
+    }
 
 }  

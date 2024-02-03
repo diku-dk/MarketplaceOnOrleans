@@ -18,7 +18,10 @@ Further details about the benchmark can be found in the benchmark driver [reposi
 ### <a name="prerequisites"></a>Prerequisites
 
 - [.NET Framework 7](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
+- [PostgreSQL](https://www.postgresql.org/): If you want to either have durable state, audit logging, or seller dashboard performed via PostgreSQL
 - IDE (if you want to modify or debug the code): [Visual Studio](https://visualstudio.microsoft.com/vs/community/) or [VSCode](https://code.visualstudio.com/)
+- [dotnet-ef](https://learn.microsoft.com/en-us/ef/core/cli/dotnet): Version > '7.0.11'. Install only if you want to perform chances in the seller dashboard schema
+
 
 ### <a name="orleans"></a>New Orleans Users
 
@@ -48,16 +51,56 @@ Seller, Order, and Shipment.
 
 ### <a name="config"></a>Configuration
 
-The file `appsettings.Production.json` defines entries that refer to configuration parameters. These are applied dynamically on application startup. The parameters and possible values are found in the table below:
+Applicatins settings ca be defined per environment using two files: Development (`appsettings.Development.json`) and Production (`appsettings.Production.json`). We suggest using development file while evolving the application or debugging; while the production file should be used when running experiments.
+
+The `settings.[Development|Production].json` file defines entries that refer to configuration parameters. These are applied dynamically on application startup. The parameters and possible values are found in the table below:
 
 Parameter     | Description                                                                         | Value                                             |
 ------------- |-------------------------------------------------------------------------------------|---------------------------------------------------|
-OrleansTransactions | Defines whether Orleans transactions is enabled                                     | `true/false`                                        |
-OrleansStorage | Defines whether Orleans storage is enabled                                          | `true/false`                                      |
-AdoNetGrainStorage | Defines whether PostgreSQL is used for Orleans storage (otherwise in-memory is used) | `true/false`                                        |
-ConnectionString | Defines the connection string to access PostgreSQL                                  | `"Host=?;Port=5432;Database=?;Username=?;Password=?;"` |
-LogRecords | Defines whether PostgreSQL is used for logging historical records                   | `true/false`                                        |
-NumShipmentActors | Defines the number of shipment actors | `1-N` |
+OrleansStorage | Defines whether Orleans storage is enabled (default to in-memory). Works independently of Orleans Transactions.  | `true/false` |
+OrleansTransactions | Defines whether Orleans transactions is enabled. Only works if Orleans Storage is set to true.  | `true/false`    |
+AdoNetGrainStorage | Defines whether PostgreSQL is used for Orleans storage (otherwise in-mmeory is used). Only applies if OrleansStorage is set to true. | `true/false`  |
+SellerViewPostgres  | Defines whether PostgreSQL is used to provide the Seller Dashboard            | `true/false`                          |
+StreamReplication   | Defines whether Orleans Streams is used to stream product updates to Cart actors |  `true/false`                      |
+LogRecords        | Defines whether PostgreSQL is used for audit logging                            | `true/false`                          |
+ConnectionString  | Defines the connection string to access PostgreSQL. Must be set in case LogRecords or AdoNetGrainStorage is enabled                 | `"Host=?;Port=5432;Database=?;Username=?;Password=?;"` |
+NumShipmentActors | Defines the number of shipment actors                                           | `1-N`                                  |
+
+We understand that the number of possibilities for deploying MarketplaceOnOrleans may lead to a certain confusion for newcomers, so we prepared a list of configuration templates that you can follow while experimenting with MarketplaceOnOrleans.
+
+* Eventual consistency + In memory grain state (not managed by Orleans Storage) + Seller actor providing dashboard + No replication of products:
+
+
+Parameter     | Value
+--------------|-------|
+OrleansTransactions | false |
+OrleansStorage      | false |
+StreamReplication   | false |
+SellerViewPostgres  | false |
+
+* Transactional consistency + Durable state + PostgreSQL providing Seller Dashboard + Replication of products:
+
+Parameter     | Value
+--------------|-------|
+OrleansTransactions | true |
+OrleansStorage      | true |
+AdoNetGrainStorage  | true |
+StreamReplication   | true |
+SellerViewPostgres  | true |
+
+* Eventual consistency + Durable state + Seller actor providing dashboard + No replication of products + Audit logging:
+
+Parameter     | Value
+--------------|-------|
+OrleansTransactions | false |
+OrleansStorage      | true  |
+StreamReplication   | false |
+SellerViewPostgres  | false |
+LogRecords          | true  |
+
+
+As can be seen above, the parameters are used to drive a myriad of guarantees and functionalities in OnlineMarketplace.
+
 
 ### <a name="deploy"></a>Deploy
 
@@ -71,9 +114,13 @@ dotnet run --environment Production --urls "http://*:8081" --project Silo
 dotnet run --launch-profile "Silo-Production" --urls "http://*:8081" --project Silo
 ```
 
+The project Silo is the startup subproject for this project. Either `--environment` or `--launch-profile` can used to define the environment (i.e., the settings file) to execute the project. The parameter `--urls` is necessary to enable .NET exposing the port for external interaction.
+
 ### <a name="test"></a>Testing
 
-There is a suite of tests available for checking some Online Marketplace benchmark constraints. The tests can be found in the following path: [link](Test/Workflows)
+There is a suite of tests available for checking some Online Marketplace benchmark functionalities and constraints. The tests can be found in [Test](Test).
+
+The tests are passing but due to not optimized configuration, the tests cannot run concurrently. To avoid this problem, one should create different ClusterFixtures, one for transactional tests and another for non-transactional tests.
 
 ### <a name="ucloud"></a>UCloud
 

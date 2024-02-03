@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using Common;
+using Common.Config;
 using Common.Entities;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Interfaces;

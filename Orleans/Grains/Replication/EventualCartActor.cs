@@ -1,5 +1,4 @@
-﻿using Common;
-using Common.Entities;
+﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
 using Orleans.Interfaces.Replication;
 using Orleans.Runtime;
@@ -7,6 +6,7 @@ using OrleansApp.Grains;
 using Orleans.Streams;
 using Common.Requests;
 using OrleansApp.Infra;
+using Common.Config;
 
 namespace Orleans.Grains.Replication;
 

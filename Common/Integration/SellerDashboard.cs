@@ -2,7 +2,7 @@
 
 namespace Common.Integration;
 
-public class SellerDashboard
+public sealed class SellerDashboard
 {
 	public OrderSellerView sellerView { get; set; }
 	public List<OrderEntry> orderEntries { get; set; }
