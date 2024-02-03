@@ -1,5 +1,6 @@
 ﻿using Common;
 using Orleans.Configuration;
+using Orleans.Infra;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 
@@ -16,6 +17,9 @@ var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
+var useRedis = configSection.GetValue<bool>("UseRedis");
+var primaryConStr = configSection.GetValue<string>("PrimaryConStr");
+var backupConStr = configSection.GetValue<string>("BackupConStr");
 
 AppConfig appConfig = new()
 {
@@ -114,6 +118,11 @@ builder.Host.UseOrleans(siloBuilder =>
 
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
+    }
+    
+
+    if (useRedis){
+        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactory(primaryConStr, backupConStr));
     }
 
 

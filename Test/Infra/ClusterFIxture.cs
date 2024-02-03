@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
+using Orleans.Hosting;
+using Orleans.Infra;
 
 namespace Test.Infra;
 
@@ -58,6 +60,13 @@ public class ClusterFixture : IDisposable
                 hostBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
             else
                 hostBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+
+            if (ConfigHelper.DefaultAppConfig.UseRedis)
+            {
+                var primaryConStr = ConfigHelper.DefaultAppConfig.PrimaryConStr;
+                var backupConStr = ConfigHelper.DefaultAppConfig.BackupConStr;
+                hostBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactory(primaryConStr, backupConStr));
+            }            
 
         }
     }
