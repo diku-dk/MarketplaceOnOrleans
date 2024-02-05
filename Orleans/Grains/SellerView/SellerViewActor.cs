@@ -47,7 +47,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             this.dbContext.OrderEntries.AddRange(orderEntries);
             await txCtx.CommitAsync();
         }
-        this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.{nameof(OrderSellerView)};");
+        this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
     }
 
     public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
@@ -128,7 +128,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             // force removal of entries from the view
             if (shipmentNotification.status == ShipmentStatus.concluded)
             {
-                this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.{nameof(OrderSellerView)};");
+                this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
             }
 
         }
@@ -154,6 +154,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
     public override Task<SellerDashboard> QueryDashboard()
     {
         SellerDashboard sellerDashboard;
+        // this should be isolated
         using (var txCtx = dbContext.Database.BeginTransaction())
         {
             sellerDashboard = new SellerDashboard(

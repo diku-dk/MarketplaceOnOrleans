@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.EntityFrameworkCore;
 using SellerMS.Infra;
 using Common.Config;
 
@@ -13,7 +12,6 @@ public class BloggingContextFactory : IDesignTimeDbContextFactory<SellerDbContex
 {
     public SellerDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<SellerDbContext>();
         AppConfig config = new AppConfig();
         // this is not used to create the migration, so any string would work
         config.ConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";

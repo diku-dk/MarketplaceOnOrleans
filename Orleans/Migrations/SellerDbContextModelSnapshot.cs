@@ -119,7 +119,7 @@ namespace Orleans.Migrations
 
                     b.ToTable((string)null);
 
-                    b.ToView("OrderSellerView", "public");
+                    b.ToView("order_seller_view", "public");
                 });
 #pragma warning restore 612, 618
         }

@@ -70,7 +70,7 @@ public class CartActor : Grain, ICartActor
         var orderActor = this.callback(this.customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, this.cart.State.items, customerCheckout.instanceId);
         this.cart.State.status = CartStatus.CHECKOUT_SENT;
-        try{
+        try {
             await orderActor.Checkout(checkout);
             await this.Seal();
         } catch(Exception e)

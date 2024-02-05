@@ -71,7 +71,7 @@ public sealed class EventualCartActor : CartActor, IEventualCartActor
         foreach(var item in this.cart.State.items)
         {
             var ID = (item.SellerId, item.ProductId);
-            if (this.cachedProducts.ContainsKey(ID)) 
+            if (this.cachedProducts.ContainsKey(ID))
             {
                 Product product = this.cachedProducts[ID];
                 if( item.Version.SequenceEqual(product.version) && item.UnitPrice < product.price ){

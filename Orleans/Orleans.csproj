@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	<OutputType>Library</OutputType>
@@ -16,21 +16,23 @@
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Serialization.NewtonsoftJson" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="7.2.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.11" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />
-    <PackageReference Include="Laraue.EfCoreTriggers.PostgreSql" Version="7.1.0" />
-    <!-- <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.11"> -->
-	<PackageReference Include="Microsoft.Orleans.Transactions" Version="7.2.1" />
-	<PackageReference Include="Microsoft.Orleans.Streaming" Version="7.2.1" />
+    <PackageReference Include="Microsoft.Orleans.Transactions" Version="7.2.1" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" Version="7.2.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.11" />
   </ItemGroup>
   
     <ItemGroup>
     <None Remove="Grains\" />
     <None Remove="Infra\" />
     <None Remove="Interfaces\" />
+    <None Remove="Migrations\" />
   </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Migrations\" />
     </ItemGroup>
 </Project>

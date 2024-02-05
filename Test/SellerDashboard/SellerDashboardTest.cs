@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using SellerMS.Infra;
 using Test.Infra.Transactional;
 using Test.Workflows;
-using static OrleansApp.Abstract.AbstractShipmentActor;
 
 namespace Test.SellerDashboard;
 
@@ -21,6 +20,7 @@ public class SellerDashboardTest : BaseTest
         // ensure schema is created
 
         SellerDbContext context = (SellerDbContext) _cluster.Client.ServiceProvider.GetService(typeof(SellerDbContext));
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         context.Database.Migrate();
 
         // ensure views are created
@@ -28,7 +28,7 @@ public class SellerDashboardTest : BaseTest
         context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
 
         // truncate previous records
-        context.Database.ExecuteSqlRaw("TRUNCATE TABLE public.order_entries");
+        context.OrderEntries.ExecuteDelete();
 
         // create entries
         for(int i = 1; i <= 10; i++) { 
@@ -58,14 +58,18 @@ public class SellerDashboardTest : BaseTest
 
         context.SaveChanges();
 
-        context.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.{nameof(OrderSellerView)};");
+        context.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
 
         var res2 = context.OrderEntries.Where(oe => oe.seller_id == 1).ToList();
         Assert.True(res2.Count() == 10);
 
-        List<OrderSellerView> sellerView = context.OrderSellerView.Where(oe => oe.seller_id == 1).ToList();
-        Assert.True(sellerView.Count() == 1);
+        IQueryable<OrderSellerView> queryableSellerView = context.OrderSellerView.Where(oe => oe.seller_id == 1);
+        OrderSellerView sellerView = queryableSellerView.First();
 
+        var test = context.OrderSellerView.ToList();
+
+        Assert.True(sellerView is not null);
+        Assert.True(test.Count == 1);
     }
 
 }
