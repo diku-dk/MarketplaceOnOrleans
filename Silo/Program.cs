@@ -168,7 +168,16 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansTransactions: "+ appConfig.OrleansTransactions + " \n OrleansStorage: " + appConfig.OrleansStorage+" \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage+" \n Log Records: "+appConfig.LogRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+appConfig.UseDashboard+" \n NumShipmentActors: "+appConfig.NumShipmentActors+ " ");
+Console.WriteLine(
+    " OrleansTransactions: "+ appConfig.OrleansTransactions + 
+    " \n Stream Replication: +"+ appConfig.StreamReplication +
+    " \n SellerViewPostgres: +" + appConfig.SellerViewPostgres +
+    " \n OrleansStorage: " + appConfig.OrleansStorage+
+    " \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage+
+    " \n LogRecords: "+appConfig.LogRecords+
+    " \n UseSwagger: "+useSwagger+
+    " \n UseDashboard: "+appConfig.UseDashboard+
+    " \n NumShipmentActors: "+appConfig.NumShipmentActors);
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

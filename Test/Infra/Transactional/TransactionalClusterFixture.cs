@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
+using SellerMS.Infra;
 
 namespace Test.Infra.Transactional;
 
@@ -28,6 +29,11 @@ public sealed class TransactionalClusterFixture : IDisposable
                 logging.AddConsole();
                 logging.SetMinimumLevel(LogLevel.Warning);
             });
+
+            if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)
+            {
+                hostBuilder.Services.AddDbContextFactory<SellerDbContext>();
+            }
 
             if (ConfigHelper.TransactionalDefaultAppConfig.StreamReplication)
             {
@@ -79,6 +85,12 @@ public sealed class TransactionalClusterFixture : IDisposable
                 clientBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
             else
                 clientBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
+
+            // for tests
+            if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)
+            {
+                clientBuilder.Services.AddDbContextFactory<SellerDbContext>();
+            }
         }
     }
 
@@ -87,13 +99,13 @@ public sealed class TransactionalClusterFixture : IDisposable
         var builder = new TestClusterBuilder(1);
         builder.AddSiloBuilderConfigurator<SiloConfigurator>();
         builder.AddClientBuilderConfigurator<ClientConfigurator>();
-        Cluster = builder.Build();
-        Cluster.Deploy();
+        this.Cluster = builder.Build();
+        this.Cluster.Deploy();
     }
 
     public void Dispose()
     {
-        Cluster.StopAllSilos();
+        this.Cluster.StopAllSilos();
     }
 
 }

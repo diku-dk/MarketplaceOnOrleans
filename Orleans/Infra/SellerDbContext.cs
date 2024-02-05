@@ -65,7 +65,7 @@ namespace SellerMS.Infra
                 e.HasNoKey();
                 e.ToView(nameof(OrderSellerView), schema: "public");
             });
-            
+
         }
     }
 }

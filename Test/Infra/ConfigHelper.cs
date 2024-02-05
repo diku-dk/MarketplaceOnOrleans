@@ -6,6 +6,7 @@ public class ConfigHelper
 {
     public static AppConfig TransactionalDefaultAppConfig = new()
     {
+        SellerViewPostgres = true,
         StreamReplication = true,
         OrleansTransactions = true,
         OrleansStorage = true,
@@ -19,7 +20,8 @@ public class ConfigHelper
 
     public static AppConfig NonTransactionalDefaultAppConfig = new()
     {
-        StreamReplication = true,
+        SellerViewPostgres = false,
+        StreamReplication = false,
         OrleansTransactions = false,
         OrleansStorage = true,
         AdoNetGrainStorage = false,
@@ -30,7 +32,8 @@ public class ConfigHelper
         UseSwagger = false,
     };
 
-    public const string PostgresConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000"; 
+    public const string PostgresConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";
+
 }
 
 

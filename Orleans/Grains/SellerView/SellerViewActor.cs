@@ -24,14 +24,14 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
         c. adapt seller controller to pick right seller actor (via delegate) OK
         d. the same in order, payment, shipment OK
         e. trigger view changes OK
-        e. test query in postgresql
+        e. test query in postgresql. execute project
      */
 
     private readonly SellerDbContext dbContext;
 
     public SellerViewActor(
         SellerDbContext dbContext,
-        [PersistentState("seller", "OrleansStorage")] IPersistentState<Seller> seller,
+        [PersistentState("seller", Constants.OrleansStorage)] IPersistentState<Seller> seller,
         IAuditLogger persistence,
         AppConfig options, 
         ILogger<SellerActor> logger) 

@@ -120,7 +120,7 @@ The project Silo is the startup subproject for this project. Either `--environme
 
 There is a suite of tests available for checking some Online Marketplace benchmark functionalities and constraints. The tests can be found in [Test](Test).
 
-The tests are passing but due to not optimized configuration, the tests cannot run concurrently. To avoid this problem, one should create different ClusterFixtures, one for transactional tests and another for non-transactional tests.
+To allow the tests to run concurrently, there are two different ClusterFixtures, one for transactional tests and another for non-transactional tests. This is not ideal and perhaps they could be better modularized or even merged, but maintaining the different properties on test runtime.
 
 ### <a name="ucloud"></a>UCloud
 

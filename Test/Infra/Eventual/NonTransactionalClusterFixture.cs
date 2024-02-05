@@ -30,15 +30,6 @@ public class NonTransactionalClusterFixture : IDisposable
                             .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
             }
 
-            
-            if (ConfigHelper.NonTransactionalDefaultAppConfig.OrleansTransactions)
-            {
-                hostBuilder.UseTransactions();
-            }
-            
-            // must be active to avoid error on starting up test
-            // hostBuilder.UseTransactions();
-
             hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
              .AddSingleton(ConfigHelper.NonTransactionalDefaultAppConfig);
 
