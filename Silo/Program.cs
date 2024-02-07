@@ -157,6 +157,10 @@ if (sellerViewPostgres)
 
         context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
         context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
+
+        // truncate order entries on starting a new experiment
+        context.Database.ExecuteSqlRaw("TRUNCATE TABLE public.order_entries;");
+        context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
     }
 }
 

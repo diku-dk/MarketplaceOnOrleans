@@ -1,7 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Orleans.Concurrency;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.Runtime;
@@ -9,7 +8,6 @@ using Common.Config;
 
 namespace OrleansApp.Grains;
 
-[Reentrant]
 public sealed class CustomerActor : Grain, ICustomerActor
 {
     private readonly AppConfig config;
@@ -39,7 +37,8 @@ public sealed class CustomerActor : Grain, ICustomerActor
     public async Task SetCustomer(Customer customer)
     {
         this.customer.State = customer;
-        await this.customer.WriteStateAsync();
+        if(config.OrleansStorage)
+            await this.customer.WriteStateAsync();
     }
 
     public async Task Clear()

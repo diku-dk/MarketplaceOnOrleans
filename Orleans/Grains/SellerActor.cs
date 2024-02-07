@@ -12,6 +12,10 @@ using Common.Config;
 
 namespace OrleansApp.Grains;
 
+/**
+ * This actor should not be used when Orleans Transactions option is set
+ * due to interleaving problems related to ETag (writes to storage are always async)
+ */
 [Reentrant]
 public sealed class SellerActor : AbstractSellerActor
 {

@@ -47,7 +47,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             this.dbContext.OrderEntries.AddRange(orderEntries);
             await txCtx.CommitAsync();
         }
-        this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
+        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
     }
 
     public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
@@ -122,13 +122,13 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
                 }
                 this.dbContext.OrderEntries.UpdateRange(orderEntries);
             }
-            await this.dbContext.SaveChangesAsync();
-            await txCtx.CommitAsync();
+            this.dbContext.SaveChanges();
+            txCtx.Commit();
 
             // force removal of entries from the view
             if (shipmentNotification.status == ShipmentStatus.concluded)
             {
-                this.dbContext.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
+                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
             }
 
         }
@@ -144,10 +144,10 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
                 entry.package_id = deliveryNotification.packageId;
                 entry.delivery_status = PackageStatus.delivered;
                 entry.delivery_date = deliveryNotification.deliveryDate;
-
+                this.dbContext.Update(entry);
+                await this.dbContext.SaveChangesAsync();
+                await txCtx.CommitAsync();
             }
-            await this.dbContext.SaveChangesAsync();
-            await txCtx.CommitAsync();
         }
     }
 
