@@ -22,6 +22,12 @@ public sealed class AppConfig
 
     public bool UseSwagger { get; set; }
 
+    public bool UseRedis { get; set; }
+
+    public string PrimaryConStr { get; set; }
+
+    public string BackupConStr { get; set; }
+
     public AppConfig() { }
 
     public override string ToString()
@@ -35,6 +41,9 @@ public sealed class AppConfig
             " \nNumShipmentActors: " + NumShipmentActors +
             " \nLogRecords: " + LogRecords +
             " \nUseDashboard: " + UseDashboard +
-            " \nUseSwagger: " + UseSwagger;
+            " \nUseSwagger: " + UseSwagger +
+            " \nUseRedis: " + UseRedis +
+            " \nPrimaryConStr: " + PrimaryConStr +
+            " \nBackupConStr: " + BackupConStr;
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Orleans.Configuration;
 using OrleansApp.Infra;
 using Orleans.Serialization;
+using Orleans.Infra;
 using SellerMS.Infra;
 using Microsoft.EntityFrameworkCore;
 using Common.Config;
@@ -19,6 +20,9 @@ var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
+var useRedis = configSection.GetValue<bool>("UseRedis");
+var primaryConStr = configSection.GetValue<string>("PrimaryConStr");
+var backupConStr = configSection.GetValue<string>("BackupConStr");
 
 AppConfig appConfig = new()
 {
@@ -127,6 +131,11 @@ builder.Host.UseOrleans(siloBuilder =>
       siloBuilder.UseDashboard(x => x.HostSelf = true);
     }
 
+    if (useRedis)
+    {
+        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactory(primaryConStr, backupConStr));
+    }
+
 
 });
 
@@ -177,7 +186,8 @@ Console.WriteLine(
     " \n LogRecords: "+appConfig.LogRecords+
     " \n UseSwagger: "+useSwagger+
     " \n UseDashboard: "+appConfig.UseDashboard+
-    " \n NumShipmentActors: "+appConfig.NumShipmentActors);
+    " \n NumShipmentActors: "+appConfig.NumShipmentActors+
+    " \n UseRedis: "+useRedis);
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

@@ -19,8 +19,11 @@ public sealed class CartController : ControllerBase
 
     public CartController(AppConfig config, ILogger<CartController> logger)
     {
-        this.logger = logger;
-        this.callback = config.StreamReplication ? GetEventualCartActor : GetCartActor;
+        this.logger = logger;        
+        if (config.UseRedis)        
+            this.callback = GetCausalCartActor;        
+        else        
+            this.callback = config.StreamReplication ? GetEventualCartActor : GetCartActor;        
     }
 
     private ICartActor GetCartActor(IGrainFactory grains, long customerId)
@@ -31,6 +34,11 @@ public sealed class CartController : ControllerBase
     private ICartActor GetEventualCartActor(IGrainFactory grains, long customerId)
     {
         return grains.GetGrain<IEventualCartActor>(customerId);
+    }
+
+    private ICartActor GetCausalCartActor(IGrainFactory grains, long customerId)
+    {
+        return grains.GetGrain<ICausalCartActor>(customerId);
     }
 
     [Route("/cart/{customerId}/add")]

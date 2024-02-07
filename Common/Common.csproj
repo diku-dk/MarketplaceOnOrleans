@@ -18,7 +18,6 @@
   <ItemGroup>
     <Folder Include="Entities\" />
     <Folder Include="Events\" />
-    <Folder Include="Integration\" />
     <Folder Include="Requests\" />
     <Folder Include="Driver\" />
   </ItemGroup>

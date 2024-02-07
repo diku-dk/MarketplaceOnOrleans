@@ -39,7 +39,7 @@ public sealed class SellerActor : AbstractSellerActor
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
         var containsKey = this.orderEntries.State.ContainsKey(id);
-        if(containsKey)
+        if (containsKey)
         {
             this.logger.LogError("Seller {0} - Customer ID {1} Order ID {2} already exists. {3},{4}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, invoiceIssued.items[0].order_id, this.orderEntries.State[id][0].order_id);
             return;
@@ -47,7 +47,8 @@ public sealed class SellerActor : AbstractSellerActor
 
         this.orderEntries.State.Add(id, orderEntries);
 
-        if (this.config.OrleansStorage){
+        if (this.config.OrleansStorage)
+        {
             await this.orderEntries.WriteStateAsync();
         }
     }
@@ -55,7 +56,8 @@ public sealed class SellerActor : AbstractSellerActor
     public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
-        if(!this.orderEntries.State.ContainsKey(id)) {
+        if (!this.orderEntries.State.ContainsKey(id))
+        {
             logger.LogDebug("Cannot process payment confirmed event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         }
@@ -63,19 +65,19 @@ public sealed class SellerActor : AbstractSellerActor
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
         }
-        if(this.config.OrleansStorage)
+        if (this.config.OrleansStorage)
             await this.orderEntries.WriteStateAsync();
     }
 
     public override async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
         string id = BuildUniqueOrderIdentifier(paymentFailed);
-        if(!this.orderEntries.State.ContainsKey(id)) return;
+        if (!this.orderEntries.State.ContainsKey(id)) return;
         foreach (var item in this.orderEntries.State[id])
         {
             item.order_status = OrderStatus.PAYMENT_FAILED;
         }
-        if(this.config.OrleansStorage)
+        if (this.config.OrleansStorage)
             await this.orderEntries.WriteStateAsync();
     }
 
@@ -98,15 +100,19 @@ public sealed class SellerActor : AbstractSellerActor
                 await persistence.Log(Name, id, str);
             }
             this.orderEntries.State.Remove(id);
-        } else {
+        }
+        else
+        {
             foreach (var item in this.orderEntries.State[id])
             {
-                if (shipmentNotification.status == ShipmentStatus.approved) {
+                if (shipmentNotification.status == ShipmentStatus.approved)
+                {
                     item.order_status = OrderStatus.READY_FOR_SHIPMENT;
                     item.shipment_date = shipmentNotification.eventDate;
                     item.delivery_status = PackageStatus.ready_to_ship;
                 }
-                if (shipmentNotification.status == ShipmentStatus.delivery_in_progress) {
+                if (shipmentNotification.status == ShipmentStatus.delivery_in_progress)
+                {
                     item.order_status = OrderStatus.IN_TRANSIT;
                     item.delivery_status = PackageStatus.shipped;
                 }
@@ -118,8 +124,8 @@ public sealed class SellerActor : AbstractSellerActor
                 */
             }
         }
-        
-        if(this.config.OrleansStorage)
+
+        if (this.config.OrleansStorage)
             await this.orderEntries.WriteStateAsync();
     }
 
@@ -132,13 +138,13 @@ public sealed class SellerActor : AbstractSellerActor
             this.logger.LogDebug("Cannot process delivery notification event because invoice ID {0} has not been found", id);
             return;
         }
-        var entry = this.orderEntries.State[id].FirstOrDefault(oe=>oe.product_id == deliveryNotification.productId, null);
-        if(entry is not null)
+        var entry = this.orderEntries.State[id].FirstOrDefault(oe => oe.product_id == deliveryNotification.productId, null);
+        if (entry is not null)
         {
             entry.package_id = deliveryNotification.packageId;
             entry.delivery_status = PackageStatus.delivered;
             entry.delivery_date = deliveryNotification.deliveryDate;
-            if(this.config.OrleansStorage)
+            if (this.config.OrleansStorage)
                 await this.orderEntries.WriteStateAsync();
         }
     }
@@ -146,18 +152,18 @@ public sealed class SellerActor : AbstractSellerActor
     public override Task<SellerDashboard> QueryDashboard()
     {
         // Queries not present in Orleans: https://github.com/dotnet/orleans/issues/4232
-        var entries = this.orderEntries.State.SelectMany(x=>x.Value).ToList();
+        var entries = this.orderEntries.State.SelectMany(x => x.Value).ToList();
         OrderSellerView view = new OrderSellerView()
         {
             seller_id = this.sellerId,
-            count_orders = entries.Select(x=>x.order_id).ToHashSet().Count,
+            count_orders = entries.Select(x => x.order_id).ToHashSet().Count,
             count_items = entries.Count(),
-            total_invoice = entries.Sum(x=>x.total_invoice),
-            total_amount = entries.Sum(x=>x.total_amount),
-            total_freight = entries.Sum(x=>x.freight_value),
-            total_incentive = entries.Sum(x=>x.total_incentive),
-            total_items = entries.Sum(x=>x.total_items),
-            
+            total_invoice = entries.Sum(x => x.total_invoice),
+            total_amount = entries.Sum(x => x.total_amount),
+            total_freight = entries.Sum(x => x.freight_value),
+            total_incentive = entries.Sum(x => x.total_incentive),
+            total_items = entries.Sum(x => x.total_items),
+
         };
         return Task.FromResult(new SellerDashboard(view, entries));
     }
