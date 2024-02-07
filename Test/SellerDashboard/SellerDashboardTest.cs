@@ -1,5 +1,4 @@
-﻿
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Integration;
 using Microsoft.EntityFrameworkCore;
 using SellerMS.Infra;

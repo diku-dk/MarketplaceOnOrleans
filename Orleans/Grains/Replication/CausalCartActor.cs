@@ -1,5 +1,4 @@
-﻿using Common;
-using Common.Config;
+﻿using Common.Config;
 using Common.Entities;
 using Common.Integration;
 using Common.Requests;
@@ -7,13 +6,8 @@ using Microsoft.Extensions.Logging;
 using Orleans.Infra;
 using Orleans.Interfaces.Replication;
 using Orleans.Runtime;
-using Orleans.Streams;
 using OrleansApp.Grains;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using OrleansApp.Infra;
 
 namespace Orleans.Grains.Replication
 {
@@ -26,35 +20,31 @@ namespace Orleans.Grains.Replication
         private readonly IRedisConnectionFactory redisFactory;
 
         public CausalCartActor(
-            [PersistentState("cart", "OrleansStorage")] IPersistentState<Cart> state,
+            [PersistentState("cart", Constants.OrleansStorage)] IPersistentState<Cart> state,
             AppConfig options,
             ILogger<CartActor> _logger,
-            IRedisConnectionFactory? factory = null) : base(state, options, _logger)
+            IRedisConnectionFactory factory) : base(state, options, _logger)
         {
             this.redisFactory = factory;
         }
 
         public override async Task NotifyCheckout(CustomerCheckout customerCheckout)
         {
-            if (this.redisFactory != null)
+            // process new prices as discount
+            foreach (var item in this.cart.State.items)
             {
-                // process new prices as discount
-                foreach (var item in this.cart.State.items)
+                // query Redis for product price
+                string key = item.SellerId + "-" + item.ProductId;
+                ProductReplica productReplica = await this.redisFactory.GetProductAsync(key);
+                if (item.Version == productReplica.Version)
                 {
-                    // query Redis for product price
-                    string key = item.SellerId + "-" + item.ProductId;
-                    ProductReplica productReplica = await this.redisFactory.GetProductAsync(key);
-                    if (item.Version == productReplica.Version)
+                    if (item.UnitPrice < productReplica.Price)
                     {
-                        if (item.UnitPrice < productReplica.Price)
-                        {
-                            item.Voucher += productReplica.Price - item.UnitPrice;
-                        }
+                        item.Voucher += productReplica.Price - item.UnitPrice;
                     }
-                    // if product version is different, old price can be used as the product has been deleted                                   
                 }
+                // if product version is different, old price can be used as the product has been deleted                                   
             }
-
 
             await base.NotifyCheckout(customerCheckout);
         }

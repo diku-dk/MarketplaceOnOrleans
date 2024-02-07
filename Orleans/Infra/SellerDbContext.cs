@@ -33,7 +33,7 @@ namespace SellerMS.Infra
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options
-                .UseNpgsql(configuration.ConnectionString)
+                .UseNpgsql(configuration.AdoNetConnectionString)
                 .EnableSensitiveDataLogging()
                 .EnableDetailedErrors()
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);

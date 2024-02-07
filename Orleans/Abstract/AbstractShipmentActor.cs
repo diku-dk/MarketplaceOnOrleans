@@ -21,7 +21,6 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     protected readonly ILogger<IShipmentActor> logger;
     protected readonly IAuditLogger persistence;
 
-
     private delegate ISellerActor GetSellerActorDelegate(int sellerId);
     private readonly GetSellerActorDelegate getSellerDelegate;
 
@@ -30,7 +29,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
     }
 
-    private ISellerActor GetSellerViewActor(int sellerId)
+    private ISellerViewActor GetSellerViewActor(int sellerId)
     {
         return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }

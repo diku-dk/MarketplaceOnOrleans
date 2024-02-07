@@ -6,13 +6,19 @@ public sealed class AppConfig
 
     public bool StreamReplication { get; set; }
 
+    public bool RedisReplication { get; set; }
+
+    public string RedisPrimaryConnectionString { get; set; }
+
+    public string RedisSecondaryConnectionString { get; set; }
+
     public bool OrleansTransactions { get; set; }
 
     public bool OrleansStorage { get; set; }
 
     public bool AdoNetGrainStorage { get; set; }
 
-    public string ConnectionString { get; set; }
+    public string AdoNetConnectionString { get; set; }
 
     public bool LogRecords { get; set; }
 
@@ -21,12 +27,6 @@ public sealed class AppConfig
     public bool UseDashboard { get; set; }
 
     public bool UseSwagger { get; set; }
-
-    public bool UseRedis { get; set; }
-
-    public string PrimaryConStr { get; set; }
-
-    public string BackupConStr { get; set; }
 
     public AppConfig() { }
 
@@ -37,13 +37,13 @@ public sealed class AppConfig
             " \nStreamReplication" + StreamReplication +
             " \nSellerViewPostgres" + SellerViewPostgres +
             " \nAdoNetGrainStorage: " + AdoNetGrainStorage +
-            " \nConnectionString: " + ConnectionString +
+            " \nAdoNetConnectionString: " + AdoNetConnectionString +
             " \nNumShipmentActors: " + NumShipmentActors +
             " \nLogRecords: " + LogRecords +
             " \nUseDashboard: " + UseDashboard +
             " \nUseSwagger: " + UseSwagger +
-            " \nUseRedis: " + UseRedis +
-            " \nPrimaryConStr: " + PrimaryConStr +
-            " \nBackupConStr: " + BackupConStr;
+            " \nRedisReplication: " + RedisReplication +
+            " \nRedisPrimaryConnectionString: " + RedisPrimaryConnectionString +
+            " \nRedisSecondaryConnectionString: " + RedisSecondaryConnectionString;
     }
 }

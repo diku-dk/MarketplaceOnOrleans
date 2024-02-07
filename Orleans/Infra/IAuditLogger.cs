@@ -53,7 +53,7 @@ public sealed class PostgresAuditLogger : IAuditLogger
 
     public PostgresAuditLogger(AppConfig config, ILogger<PostgresAuditLogger> logger)
     {
-        this.dataSource = NpgsqlDataSource.Create(config.ConnectionString);
+        this.dataSource = NpgsqlDataSource.Create(config.AdoNetConnectionString);
         this.logger = logger;
     }
 

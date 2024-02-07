@@ -22,7 +22,7 @@ public sealed class EventualCartActor : CartActor, IEventualCartActor
     private readonly Dictionary<(int SellerId, int ProductId), Product> cachedProducts;
 
     public EventualCartActor(
-        [PersistentState("cart", "OrleansStorage")] IPersistentState<Cart> state, 
+        [PersistentState("cart", Constants.OrleansStorage)] IPersistentState<Cart> state, 
         AppConfig options, 
         ILogger<CartActor> _logger) : base(state, options, _logger)
     {

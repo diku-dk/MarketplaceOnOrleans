@@ -155,7 +155,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
     }
 
-    private ISellerActor GetSellerViewActor(int sellerId)
+    private ISellerViewActor GetSellerViewActor(int sellerId)
     {
         return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }

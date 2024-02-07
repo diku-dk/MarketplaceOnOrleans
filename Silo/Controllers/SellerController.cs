@@ -28,7 +28,7 @@ public sealed class SellerController : ControllerBase
         return grains.GetGrain<ISellerActor>(sellerId);
     }
 
-    private ISellerActor GetSellerViewActor(IGrainFactory grains, int sellerId)
+    private ISellerViewActor GetSellerViewActor(IGrainFactory grains, int sellerId)
     {
         return grains.GetGrain<ISellerViewActor>(sellerId);
     }
