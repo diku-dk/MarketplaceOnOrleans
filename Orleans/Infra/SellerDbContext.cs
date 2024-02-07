@@ -19,6 +19,8 @@ namespace SellerMS.Infra
             this.configuration = configuration;
         }
 
+        public static readonly string RefreshMaterializedView = $"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;";
+
         // the amount being transacted at the moment
         public static readonly string OrderSellerViewSql = $"CREATE MATERIALIZED VIEW IF NOT EXISTS public.order_seller_view " +
                                                             $"AS SELECT seller_id, COUNT(DISTINCT order_id) as count_orders, COUNT(product_id) as count_items, SUM(total_amount) as total_amount, SUM(freight_value) as total_freight, " +
