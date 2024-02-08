@@ -76,7 +76,6 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
                 order_status = OrderStatus.INVOICED,
                 unit_price = item.unit_price,
             };
-
             orderEntries.Add(orderEntry);
         }
         return this.ProcessNewOrderEntries(invoiceIssued, orderEntries);

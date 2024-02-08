@@ -5,7 +5,7 @@ using Common.Config;
 namespace Orleans.Infra;
 
 /**
- * Necessary to create context. Guees because it is not startup project. See more details in:
+ * Necessary to create a migration. Guess because it is not startup project. See more details in:
  * https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation?tabs=dotnet-core-cli#from-a-design-time-factory
  */
 public class BloggingContextFactory : IDesignTimeDbContextFactory<SellerDbContext>

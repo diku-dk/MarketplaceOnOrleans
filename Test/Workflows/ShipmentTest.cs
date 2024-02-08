@@ -1,6 +1,7 @@
 ﻿using Common.Config;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
+using Test.Infra;
 using Test.Infra.Eventual;
 
 namespace Test.Workflows;

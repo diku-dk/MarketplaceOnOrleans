@@ -2,7 +2,6 @@
 
 namespace Common.Events;
 
-
 public class ShipmentNotification
 {
     public int customerId { get; set; }

@@ -17,16 +17,6 @@ namespace Orleans.Grains.SellerView;
 
 public class SellerViewActor : AbstractSellerActor, ISellerViewActor
 {
-    /*
-     *  
-     *  a. finish implementation logic here OK
-     *  b. generate migration  PK
-        c. adapt seller controller to pick right seller actor (via delegate) OK
-        d. the same in order, payment, shipment OK
-        e. trigger view changes OK
-        e. test query in postgresql. execute project
-     */
-
     private readonly SellerDbContext dbContext;
 
     public SellerViewActor(
@@ -40,17 +30,21 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
         this.dbContext = dbContext;
     }
 
-    protected override async Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
+    protected override Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             this.dbContext.OrderEntries.AddRange(orderEntries);
-            await txCtx.CommitAsync();
+            this.dbContext.SaveChanges();
+            txCtx.Commit();
         }
+        // cleaning tracking for new entries in this context
+        this.dbContext.ChangeTracker.Clear();
         this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+        return Task.CompletedTask;
     }
 
-    public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
+    public override Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
@@ -58,13 +52,17 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             foreach (var item in orderEntries)
             {
                 item.order_status = OrderStatus.PAYMENT_PROCESSED;
+                this.dbContext.Entry(item).State = EntityState.Modified;
             }
-            this.dbContext.OrderEntries.UpdateRange(orderEntries);
-            await txCtx.CommitAsync();
+            this.dbContext.SaveChanges();
+            txCtx.Commit();
         }
+        // clean entity tracking
+        this.dbContext.ChangeTracker.Clear();
+        return Task.CompletedTask;
     }
 
-    public override async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
+    public override Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
@@ -72,69 +70,65 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             foreach (var item in orderEntries)
             {
                 item.order_status = OrderStatus.PAYMENT_FAILED;
+                this.dbContext.Entry(item).State = EntityState.Modified;
             }
-            this.dbContext.OrderEntries.UpdateRange(orderEntries);
-            await this.dbContext.SaveChangesAsync();
-            await txCtx.CommitAsync();
+            this.dbContext.SaveChanges();
+            txCtx.Commit();
         }
+        // clean entity tracking
+        this.dbContext.ChangeTracker.Clear();
+        return Task.CompletedTask;
     }
 
-    public override async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
+    public override Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == shipmentNotification.customerId && oe.order_id == shipmentNotification.orderId);
-
-            // log delivered entries and remove them from state
-            if (shipmentNotification.status == ShipmentStatus.concluded)
+            foreach (var item in orderEntries)
             {
-                if (this.config.LogRecords)
+                if (shipmentNotification.status == ShipmentStatus.approved)
                 {
-                    var str = JsonSerializer.Serialize(orderEntries);
-                    var ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
-                    await persistence.Log(Name, ID, str);
+                    item.order_status = OrderStatus.READY_FOR_SHIPMENT;
+                    item.shipment_date = shipmentNotification.eventDate;
+                    item.delivery_status = PackageStatus.ready_to_ship;
+                    this.dbContext.Entry(item).State = EntityState.Modified;
                 }
-                this.dbContext.OrderEntries.RemoveRange(orderEntries);
-            }
-            else
-            {
-                foreach (var item in orderEntries)
+                if (shipmentNotification.status == ShipmentStatus.delivery_in_progress)
                 {
-                    if (shipmentNotification.status == ShipmentStatus.approved)
-                    {
-                        item.order_status = OrderStatus.READY_FOR_SHIPMENT;
-                        item.shipment_date = shipmentNotification.eventDate;
-                        item.delivery_status = PackageStatus.ready_to_ship;
-                    }
-                    if (shipmentNotification.status == ShipmentStatus.delivery_in_progress)
-                    {
-                        item.order_status = OrderStatus.IN_TRANSIT;
-                        item.delivery_status = PackageStatus.shipped;
-                    }
-
-                    /*
-                    if (shipmentNotification.status == ShipmentStatus.concluded)
-                    {
-                        item.order_status = OrderStatus.DELIVERED;
-                    }
-                    */
-
+                    item.order_status = OrderStatus.IN_TRANSIT;
+                    item.delivery_status = PackageStatus.shipped;
+                    this.dbContext.Entry(item).State = EntityState.Modified;
                 }
-                this.dbContext.OrderEntries.UpdateRange(orderEntries);
+                if (shipmentNotification.status == ShipmentStatus.concluded)
+                {
+                    // item.order_status = OrderStatus.DELIVERED;
+                    this.dbContext.Entry(item).State = EntityState.Deleted;
+                }
             }
+
             this.dbContext.SaveChanges();
             txCtx.Commit();
 
-            // force removal of entries from the view
             if (shipmentNotification.status == ShipmentStatus.concluded)
             {
+                // log delivered entries and remove them from view
+                if(this.config.LogRecords){
+                    var str = JsonSerializer.Serialize(orderEntries.ToList());
+                    var ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
+                    this.persistence.Log(Name, ID, str);
+                }
+                // force removal of entries from the view
                 this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
             }
 
         }
+        // clean entity tracking
+        this.dbContext.ChangeTracker.Clear();
+        return Task.CompletedTask;
     }
 
-    public override async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
+    public override Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
@@ -144,21 +138,27 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
                 entry.package_id = deliveryNotification.packageId;
                 entry.delivery_status = PackageStatus.delivered;
                 entry.delivery_date = deliveryNotification.deliveryDate;
-                this.dbContext.Update(entry);
-                await this.dbContext.SaveChangesAsync();
-                await txCtx.CommitAsync();
+
+                this.dbContext.Entry(entry).State = EntityState.Modified;
+
+                this.dbContext.SaveChanges();
+                txCtx.Commit();
             }
         }
+        this.dbContext.ChangeTracker.Clear();
+        return Task.CompletedTask;
     }
+
+    private static readonly OrderSellerView EMPTY_SELLER_VIEW = new();
 
     public override Task<SellerDashboard> QueryDashboard()
     {
         SellerDashboard sellerDashboard;
         // this should be isolated
-        using (var txCtx = dbContext.Database.BeginTransaction())
+        using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             sellerDashboard = new SellerDashboard(
-                this.dbContext.OrderSellerView.Where(v => v.seller_id == sellerId).FirstOrDefault(new OrderSellerView()),
+                this.dbContext.OrderSellerView.Where(v => v.seller_id == sellerId).AsEnumerable().FirstOrDefault(EMPTY_SELLER_VIEW),
                 this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId && (oe.order_status == OrderStatus.INVOICED || oe.order_status == OrderStatus.READY_FOR_SHIPMENT ||  oe.order_status == OrderStatus.IN_TRANSIT || oe.order_status == OrderStatus.PAYMENT_PROCESSED)).ToList()
             );
         }

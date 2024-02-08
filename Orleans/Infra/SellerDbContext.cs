@@ -8,9 +8,9 @@ namespace SellerMS.Infra
     public class SellerDbContext : DbContext
     {
 
-        public DbSet<OrderEntry> OrderEntries { get; set; }
+        public DbSet<OrderEntry> OrderEntries => Set<OrderEntry>();
 
-        public DbSet<OrderSellerView> OrderSellerView { get; set; }
+        public DbSet<OrderSellerView> OrderSellerView => Set<OrderSellerView>();
 
         private readonly AppConfig configuration;
 

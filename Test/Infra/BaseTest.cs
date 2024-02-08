@@ -1,13 +1,11 @@
 ﻿using Common.Entities;
 using Common.Requests;
-using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Orleans.TestingHost;
 using OrleansApp.Transactional;
-using Test.Infra;
 using Common.Config;
 
-namespace Test.Workflows;
+namespace Test.Infra;
 
 public abstract class BaseTest
 {
@@ -20,7 +18,7 @@ public abstract class BaseTest
         this._cluster = cluster;
     }
 
-    protected async Task BuildAndSendCheckout(int customerId = 1)
+    protected CustomerCheckout BuildCustomerCheckout(int customerId)
     {
         CustomerCheckout customerCheckout = new()
         {
@@ -40,6 +38,12 @@ public abstract class BaseTest
             CardBrand = "VISA",
             Installments = 1
         };
+        return customerCheckout;
+    }
+
+    protected async Task BuildAndSendCheckout(int customerId = 1)
+    {
+        CustomerCheckout customerCheckout = BuildCustomerCheckout(customerId);
 
         var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
         await cart.AddItem(GenerateCartItem(1, 1));

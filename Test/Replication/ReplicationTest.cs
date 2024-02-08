@@ -2,8 +2,8 @@
 using Common.Requests;
 using Orleans.Interfaces.Replication;
 using OrleansApp.Transactional;
+using Test.Infra;
 using Test.Infra.Transactional;
-using Test.Workflows;
 
 namespace Test.Replication;
 
@@ -15,7 +15,6 @@ public class ReplicationTest : BaseTest
     [Fact]
     public async Task TestPriceUpdate()
     {
-
         var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1,1.ToString());
 
         await productActor.SetProduct( new Product()
