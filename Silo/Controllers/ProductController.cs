@@ -17,7 +17,7 @@ public sealed class ProductController : ControllerBase
     public ProductController(AppConfig config, ILogger<ProductController> logger)
     {
         this.logger = logger;
-        this.callback = config.OrleansTransactions ? new GetProductActorDelegate(GetTransactionalProductActor) : new GetProductActorDelegate(GetProductActor);
+        this.callback = config.OrleansTransactions ? GetTransactionalProductActor : GetProductActor;
     }
 
     [HttpPost]

@@ -15,16 +15,6 @@ public sealed class ShipmentController : ControllerBase
 
     private delegate IShipmentActor GetShipmentActorDelegate(IGrainFactory grains, int partitionId);
 
-    private IShipmentActor GetShipmentActor(IGrainFactory grains, int partitionId)
-    {
-        return grains.GetGrain<IShipmentActor>(partitionId);
-    }
-
-    private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
-    {
-        return grains.GetGrain<ITransactionalShipmentActor>(partitionId);
-    }
-
     public ShipmentController(AppConfig options, ILogger<ShipmentController> logger)
     {
         this.config = options;
@@ -53,6 +43,16 @@ public sealed class ShipmentController : ControllerBase
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
         
+    }
+
+    private IShipmentActor GetShipmentActor(IGrainFactory grains, int partitionId)
+    {
+        return grains.GetGrain<IShipmentActor>(partitionId);
+    }
+
+    private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
+    {
+        return grains.GetGrain<ITransactionalShipmentActor>(partitionId);
     }
     
 }

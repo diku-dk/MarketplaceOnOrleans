@@ -161,6 +161,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
     }
 
     protected abstract IShipmentActor GetShipmentActor(int id);
+
     protected abstract IOrderActor GetOrderActor(int id);
 
     protected abstract IStockActor GetStockActor(int sellerId, string productId);

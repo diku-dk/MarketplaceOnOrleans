@@ -9,9 +9,9 @@ namespace Silo.Controllers;
 public sealed class CustomerController : ControllerBase
 {
 
-	private readonly ILogger<SellerController> logger;
+	private readonly ILogger<CustomerController> logger;
 
-    public CustomerController(ILogger<SellerController> logger)
+    public CustomerController(ILogger<CustomerController> logger)
     {
         this.logger = logger;
     }

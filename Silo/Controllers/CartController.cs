@@ -28,12 +28,12 @@ public sealed class CartController : ControllerBase
         return grains.GetGrain<ICartActor>(customerId);
     }
 
-    private ICartActor GetEventualCartActor(IGrainFactory grains, long customerId)
+    private IEventualCartActor GetEventualCartActor(IGrainFactory grains, long customerId)
     {
         return grains.GetGrain<IEventualCartActor>(customerId);
     }
 
-    private ICartActor GetCausalCartActor(IGrainFactory grains, long customerId)
+    private ICausalCartActor GetCausalCartActor(IGrainFactory grains, long customerId)
     {
         return grains.GetGrain<ICausalCartActor>(customerId);
     }

@@ -15,17 +15,17 @@ public sealed class TransactionalPaymentActor : AbstractPaymentActor, ITransacti
     {
     }
 
-    protected override IOrderActor GetOrderActor(int id)
+    protected override ITransactionalOrderActor GetOrderActor(int id)
     {
         return GrainFactory.GetGrain<ITransactionalOrderActor>(id);
     }
 
-    protected override IShipmentActor GetShipmentActor(int id)
+    protected override ITransactionalShipmentActor GetShipmentActor(int id)
     {
         return GrainFactory.GetGrain<ITransactionalShipmentActor>(id);
     }
 
-    protected override IStockActor GetStockActor(int sellerId, string productId)
+    protected override ITransactionalStockActor GetStockActor(int sellerId, string productId)
     {
         return GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId);
     }

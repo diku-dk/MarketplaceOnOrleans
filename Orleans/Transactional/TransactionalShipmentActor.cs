@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using OrleansApp.Infra;
-using OrleansApp.Interfaces;
 using Orleans.Transactions.Abstractions;
 using Common.Config;
 using Orleans.Concurrency;
@@ -102,7 +101,7 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
         });
     }
 
-    public override IOrderActor GetOrderActor(int customerId)
+    public override ITransactionalOrderActor GetOrderActor(int customerId)
     {
         return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
     }

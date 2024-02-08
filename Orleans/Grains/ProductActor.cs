@@ -43,7 +43,7 @@ public sealed class ProductActor : Grain, IProductActor
         {
             int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
             string ID = string.Format("{0}|{1}", primaryKey, keyExtension);
-            this.logger.LogInformation("Setting up replication in product actor " + ID);
+            this.logger.LogInformation("Setting up stream replication in product actor " + ID);
             this.streamProvider = this.GetStreamProvider(Constants.DefaultStreamProvider);
             this.stream = streamProvider.GetStream<Product>(Constants.ProductNameSpace, ID);
         }
@@ -80,13 +80,15 @@ public sealed class ProductActor : Grain, IProductActor
         }
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
+
+        var stockTask = stockGrain.ProcessProductUpdate(productUpdated);
         if (this.config.StreamReplication)
         {
-            await Task.WhenAll(this.stream.OnNextAsync(this.product.State), stockGrain.ProcessProductUpdate(productUpdated));
+            await Task.WhenAll(this.stream.OnNextAsync(this.product.State), stockTask);
         }
         else
         {
-            await stockGrain.ProcessProductUpdate(productUpdated);
+            await stockTask;
         }
     }
 

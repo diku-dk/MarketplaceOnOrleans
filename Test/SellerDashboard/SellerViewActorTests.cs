@@ -150,7 +150,7 @@ public class SellerViewActorTests : BaseTest
 
         context.SaveChanges();
 
-        context.Database.ExecuteSqlRaw($"REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_seller_view;");
+        context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
 
         var res2 = context.OrderEntries.Where(oe => oe.seller_id == 1).ToList();
         Assert.True(res2.Count() == 10);
