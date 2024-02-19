@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using OrleansApp.Grains;

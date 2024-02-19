@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;

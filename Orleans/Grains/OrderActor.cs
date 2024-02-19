@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Runtime;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Interfaces;

@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;

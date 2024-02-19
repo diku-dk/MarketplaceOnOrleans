@@ -7,7 +7,7 @@ using System.Text.Json;
 using OrleansApp.Interfaces;
 using Orleans.Runtime;
 using OrleansApp.Infra;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 
 namespace OrleansApp.Grains;

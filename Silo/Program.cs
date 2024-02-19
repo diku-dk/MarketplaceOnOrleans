@@ -1,16 +1,20 @@
-﻿using Common;
-using Orleans.Configuration;
+﻿using Orleans.Configuration;
 using OrleansApp.Infra;
 using Orleans.Serialization;
+using Orleans.Infra;
+using SellerMS.Infra;
+using Microsoft.EntityFrameworkCore;
+using Common.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
+var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
-var connectionString = configSection.GetValue<string>("ConnectionString");
+var adoNetConnectionString = configSection.GetValue<string>("AdoNetConnectionString");
 var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
@@ -18,10 +22,11 @@ var useSwagger = configSection.GetValue<bool>("UseSwagger");
 
 AppConfig appConfig = new()
 {
-     OrleansTransactions = orleansTransactions,
+    SellerViewPostgres = sellerViewPostgres,
+    OrleansTransactions = orleansTransactions,
      OrleansStorage = orleansStorage,
      AdoNetGrainStorage = adoNetGrainStorage,
-     ConnectionString = connectionString,
+     AdoNetConnectionString = adoNetConnectionString,
      LogRecords = logRecords,
      NumShipmentActors = numShipmentActors,
      UseDashboard = useDash,
@@ -61,6 +66,11 @@ builder.Host.UseOrleans(siloBuilder =>
              //logging.SetMinimumLevel(LogLevel.Warning);
          });
 
+    if (sellerViewPostgres)
+    {
+        siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
+    }
+
     if (orleansTransactions)
     {
         siloBuilder.UseTransactions();
@@ -91,7 +101,7 @@ builder.Host.UseOrleans(siloBuilder =>
         siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
          {
              options.Invariant = "Npgsql";
-             options.ConnectionString = connectionString;
+             options.ConnectionString = adoNetConnectionString;
          });
     }
     else
@@ -109,6 +119,24 @@ builder.Host.UseOrleans(siloBuilder =>
 });
 
 var app = builder.Build();
+
+if (sellerViewPostgres)
+{
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<SellerDbContext>();
+        context.Database.Migrate();
+
+        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
+        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
+
+        // truncate order entries on starting a new experiment
+        context.Database.ExecuteSqlRaw("TRUNCATE TABLE public.order_entries;");
+        context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+    }
+}
 
 if (logRecords){
     var persistence = app.Services.GetService<IPersistence>();
@@ -132,7 +160,21 @@ app.MapControllers();
 await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
-Console.WriteLine(" OrleansTransactions: "+ appConfig.OrleansTransactions + " \n OrleansStorage: " + appConfig.OrleansStorage+" \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage+" \n Log Records: "+appConfig.LogRecords+" \n Use Swagger: "+useSwagger+" \n UseDashboard: "+appConfig.UseDashboard+" \n NumShipmentActors: "+appConfig.NumShipmentActors+ " ");
+Console.WriteLine(
+    " OrleansTransactions: " + appConfig.OrleansTransactions +
+    //" \n Stream Replication: " + appConfig.StreamReplication +
+    " \n SellerViewPostgres: " + appConfig.SellerViewPostgres +
+    " \n OrleansStorage: " + appConfig.OrleansStorage +
+    " \n AdoNetGrainStorage: " + appConfig.AdoNetGrainStorage +
+    " \n AdoNetConnectionString: " + appConfig.AdoNetConnectionString +
+    " \n LogRecords: " + appConfig.LogRecords +
+    " \n UseSwagger: " + useSwagger +
+    " \n UseDashboard: " + appConfig.UseDashboard +
+    " \n NumShipmentActors: " + appConfig.NumShipmentActors
+    //" \n RedisReplication: " + appConfig.RedisReplication +
+    //" \n RedisPrimaryConnectionString: " + appConfig.RedisPrimaryConnectionString +
+    //" \n RedisSecondaryConnectionString: " + appConfig.RedisSecondaryConnectionString
+    );
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 

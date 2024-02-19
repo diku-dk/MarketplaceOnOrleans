@@ -6,7 +6,7 @@ using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using System.Text;
 using System.Globalization;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 using System.Diagnostics;
 

@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Net;
-using Common;
+using Common.Config;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;

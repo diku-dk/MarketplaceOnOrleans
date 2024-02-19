@@ -1,6 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Common;
+using Common.Config;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;

@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Common.Events;
 using Common.Requests;

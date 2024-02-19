@@ -3,7 +3,7 @@ using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Runtime;
 using OrleansApp.Infra;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Interfaces;
