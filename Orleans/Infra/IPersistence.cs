@@ -49,7 +49,7 @@ public class PostgreSQLPersistence : IPersistence
 
     public PostgreSQLPersistence(AppConfig config, ILogger<PostgreSQLPersistence> logger)
     {
-        this.dataSource = NpgsqlDataSource.Create(config.ConnectionString);
+        this.dataSource = NpgsqlDataSource.Create(config.AdoNetConnectionString);
         this.logger = logger;
     }
 
