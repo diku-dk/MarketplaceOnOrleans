@@ -93,11 +93,6 @@ public sealed class OrderActor : AbstractOrderActor
         }
     }
 
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
-    }
-
     public override IStockActor GetStockActor(int sellerId, int productId)
     {
         return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "Orleans.Grains.StockActor");

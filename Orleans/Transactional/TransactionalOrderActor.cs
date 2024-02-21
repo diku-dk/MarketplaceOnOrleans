@@ -35,11 +35,6 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
         await InsertOrderIntoState(order.id, orderState);
     }
 
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return GrainFactory.GetGrain<ISellerActor>(sellerId);
-    }
-
     public override IStockActor GetStockActor(int sellerId, int productId)
     {
         return this.GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId.ToString());
