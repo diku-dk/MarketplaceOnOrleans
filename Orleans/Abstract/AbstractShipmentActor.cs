@@ -2,6 +2,7 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
+using Orleans.Interfaces.SellerView;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
@@ -19,6 +20,19 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
 
     protected readonly ILogger<IShipmentActor> logger;
     protected readonly IPersistence persistence;
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    private readonly GetSellerActorDelegate getSellerDelegate;
+
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerViewActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
+    }
 
     public class NextShipmentIdState
     {
@@ -46,6 +60,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         this.persistence = persistence;
         this.config = options;
         this.logger = logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -108,7 +123,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerId in sellers)
         {
-            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerId);
+            var sellerActor = this.getSellerDelegate(sellerId);
             tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
         }
         

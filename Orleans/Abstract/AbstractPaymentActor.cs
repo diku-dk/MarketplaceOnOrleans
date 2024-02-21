@@ -8,6 +8,7 @@ using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
+using Orleans.Interfaces.SellerView;
 
 namespace OrleansApp.Abstract;
 
@@ -18,6 +19,9 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
     private int customerId;
     private readonly ILogger<PaymentActor> logger;
     private readonly IPersistence persistence;
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    private readonly GetSellerActorDelegate getSellerDelegate;
 
     private class PaymentState
     {
@@ -32,6 +36,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         this.persistence = persistence;
         this.config = options;
         this.logger = _logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -133,7 +138,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
         foreach (var sellerID in sellers)
         {
-            var sellerActor = GrainFactory.GetGrain<ISellerActor>(sellerID);
+            var sellerActor = this.getSellerDelegate(sellerID);
             tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmedWithItems));
         }
 
@@ -147,6 +152,16 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId, this.config.NumShipmentActors);
         var shipmentActor = GetShipmentActor(shipmentActorID);
         await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
+    }
+
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerViewActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }
 
     protected abstract IShipmentActor GetShipmentActor(int id);
