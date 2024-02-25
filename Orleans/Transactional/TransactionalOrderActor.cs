@@ -16,7 +16,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
     public TransactionalOrderActor(
         [TransactionalState(stateName: "orders", storageName: Constants.OrleansStorage)] ITransactionalState<Dictionary<int, OrderState>> orders,
         [TransactionalState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] ITransactionalState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig config,
         ILogger<TransactionalOrderActor> _logger) : base(persistence, config, _logger)
     {

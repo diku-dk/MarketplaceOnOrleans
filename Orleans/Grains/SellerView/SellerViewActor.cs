@@ -24,11 +24,10 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
     public SellerViewActor(
         SellerDbContext dbContext,
         [PersistentState("seller", Constants.OrleansStorage)] IPersistentState<Seller> seller,
-        //IAuditLogger persistence,
+        IAuditLogger persistence,
         AppConfig options,
         ILogger<SellerActor> logger)
-        //: base(seller, persistence, options, logger)
-        : base(seller, options, logger)
+        : base(seller, persistence, options, logger)        
     {
         this.dbContext = dbContext;
     }
@@ -144,7 +143,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
     {
         return Task.CompletedTask;
     }
-
+        
     private static readonly OrderSellerView EMPTY_SELLER_VIEW = new();
 
     public override Task<SellerDashboard> QueryDashboard()

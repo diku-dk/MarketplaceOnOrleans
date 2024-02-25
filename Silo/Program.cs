@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
 var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
+var streamReplication = configSection.GetValue<bool>("StreamReplication");
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
@@ -19,21 +20,27 @@ var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
+var redisReplication = configSection.GetValue<bool>("RedisReplication");
+var redisPrimaryConnectionString = configSection.GetValue<string>("RedisPrimaryConnectionString");
+var redisSecondaryConnectionString = configSection.GetValue<string>("RedisSecondaryConnectionString");
 
 AppConfig appConfig = new()
 {
     SellerViewPostgres = sellerViewPostgres,
+    StreamReplication = streamReplication,
+    RedisReplication = redisReplication,
+    RedisPrimaryConnectionString = redisPrimaryConnectionString,
+    RedisSecondaryConnectionString = redisSecondaryConnectionString,
     OrleansTransactions = orleansTransactions,
-     OrleansStorage = orleansStorage,
-     AdoNetGrainStorage = adoNetGrainStorage,
-     AdoNetConnectionString = adoNetConnectionString,
-     LogRecords = logRecords,
-     NumShipmentActors = numShipmentActors,
-     UseDashboard = useDash,
-     UseSwagger = useSwagger
+    OrleansStorage = orleansStorage,
+    AdoNetGrainStorage = adoNetGrainStorage,
+    AdoNetConnectionString = adoNetConnectionString,
+    LogRecords = logRecords,
+    NumShipmentActors = numShipmentActors,
+    UseDashboard = useDash,
+    UseSwagger = useSwagger,
 };
 
-bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
 
 // Orleans testing has no support for IOptions apparently...
 // builder.Services.Configure<AppConfig>(configSection);
@@ -49,9 +56,9 @@ if(useSwagger){
 }
 
 if (logRecords){
-    builder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
+    builder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
 } else {
-    builder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+    builder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
 }
 
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
@@ -70,6 +77,12 @@ builder.Host.UseOrleans(siloBuilder =>
     {
         siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
         siloBuilder.Services.AddHostedService<MaterializedViewRefresherService>();
+    }
+
+    if (streamReplication)
+    {
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider);
+        siloBuilder.AddMemoryGrainStorage("PubSubStore");
     }
 
     if (orleansTransactions)
@@ -97,25 +110,43 @@ builder.Host.UseOrleans(siloBuilder =>
     {
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
     }
-         
-    if (usePostgreSQL){
-        siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-         {
-             options.Invariant = "Npgsql";
-             options.ConnectionString = adoNetConnectionString;
-         });
+
+    if (orleansStorage)
+    {
+        if (adoNetGrainStorage)
+        {
+            siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
+            {
+                options.Invariant = "Npgsql";
+                options.ConnectionString = adoNetConnectionString;
+            });
+        }
+        else
+        {
+            siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+        }
     }
     else
     {
-        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+        siloBuilder.AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
-    if (logRecords){
-        siloBuilder.Services.AddSingleton<IPersistence, PostgreSQLPersistence>();
-    } else {
-        siloBuilder.Services.AddSingleton<IPersistence, EtcNullPersistence>();
+
+    if (logRecords)
+    {
+        siloBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
     }
-    if(useDash){
+    else
+    {
+        siloBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
+    }
+
+    if (useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
+    }
+
+    if (redisReplication)
+    {
+        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactory(redisPrimaryConnectionString, redisSecondaryConnectionString));
     }
 });
 
@@ -140,7 +171,7 @@ if (sellerViewPostgres)
 }
 
 if (logRecords){
-    var persistence = app.Services.GetService<IPersistence>();
+    var persistence = app.Services.GetService<IAuditLogger>();
     // init log table in PostgreSQL
     await persistence.SetUpLog();
     await persistence.CleanLog();
@@ -163,7 +194,7 @@ await app.StartAsync();
 Console.WriteLine("\n *************************************************************************");
 Console.WriteLine(
     " OrleansTransactions: " + appConfig.OrleansTransactions +
-    //" \n Stream Replication: " + appConfig.StreamReplication +
+    " \n Stream Replication: " + appConfig.StreamReplication +
     " \n SellerViewPostgres: " + appConfig.SellerViewPostgres +
     " \n OrleansStorage: " + appConfig.OrleansStorage +
     " \n AdoNetGrainStorage: " + appConfig.AdoNetGrainStorage +
@@ -171,10 +202,10 @@ Console.WriteLine(
     " \n LogRecords: " + appConfig.LogRecords +
     " \n UseSwagger: " + useSwagger +
     " \n UseDashboard: " + appConfig.UseDashboard +
-    " \n NumShipmentActors: " + appConfig.NumShipmentActors
-    //" \n RedisReplication: " + appConfig.RedisReplication +
-    //" \n RedisPrimaryConnectionString: " + appConfig.RedisPrimaryConnectionString +
-    //" \n RedisSecondaryConnectionString: " + appConfig.RedisSecondaryConnectionString
+    " \n NumShipmentActors: " + appConfig.NumShipmentActors + 
+    " \n RedisReplication: " + appConfig.RedisReplication +
+    " \n RedisPrimaryConnectionString: " + appConfig.RedisPrimaryConnectionString +
+    " \n RedisSecondaryConnectionString: " + appConfig.RedisSecondaryConnectionString
     );
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");

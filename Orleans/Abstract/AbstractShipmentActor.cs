@@ -19,7 +19,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     protected static readonly string Name = typeof(ShipmentActor).FullName;
 
     protected readonly ILogger<IShipmentActor> logger;
-    protected readonly IPersistence persistence;
+    protected readonly IAuditLogger persistence;
 
     private delegate ISellerActor GetSellerActorDelegate(int sellerId);
     private readonly GetSellerActorDelegate getSellerDelegate;
@@ -53,7 +53,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         public ShipmentState() { }
     }
 
-    public AbstractShipmentActor(IPersistence persistence,
+    public AbstractShipmentActor(IAuditLogger persistence,
          AppConfig options,
          ILogger<IShipmentActor> logger)
     {

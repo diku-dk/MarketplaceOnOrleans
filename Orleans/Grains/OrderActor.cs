@@ -21,7 +21,7 @@ public sealed class OrderActor : AbstractOrderActor
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig options,
         ILogger<OrderActor> _logger) : base(persistence, options, _logger)
     {

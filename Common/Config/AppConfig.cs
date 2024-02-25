@@ -34,16 +34,16 @@ public sealed class AppConfig
     {
         return "OrleansTransactions" + OrleansTransactions +
             " \nOrleansStorage" + OrleansStorage +
-            //" \nStreamReplication" + StreamReplication +
+            " \nStreamReplication" + StreamReplication +
             " \nSellerViewPostgres" + SellerViewPostgres +
-            //" \nAdoNetGrainStorage: " + AdoNetGrainStorage +
-            //" \nAdoNetConnectionString: " + AdoNetConnectionString +
+            " \nAdoNetGrainStorage: " + AdoNetGrainStorage +
+            " \nAdoNetConnectionString: " + AdoNetConnectionString +
             " \nNumShipmentActors: " + NumShipmentActors +
             " \nLogRecords: " + LogRecords +
             " \nUseDashboard: " + UseDashboard +
-            " \nUseSwagger: " + UseSwagger;
-            //" \nRedisReplication: " + RedisReplication +
-            //" \nRedisPrimaryConnectionString: " + RedisPrimaryConnectionString +
-            //" \nRedisSecondaryConnectionString: " + RedisSecondaryConnectionString;
+            " \nUseSwagger: " + UseSwagger +
+            " \nRedisReplication: " + RedisReplication +
+            " \nRedisPrimaryConnectionString: " + RedisPrimaryConnectionString +
+            " \nRedisSecondaryConnectionString: " + RedisSecondaryConnectionString;
     }
 }

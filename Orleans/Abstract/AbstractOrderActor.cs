@@ -43,8 +43,8 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
     protected readonly AppConfig config;
     protected readonly ILogger<AbstractOrderActor> logger;
-    protected readonly IPersistence persistence;
-
+    protected readonly IAuditLogger persistence;
+    
     protected int customerId;
 
     private static readonly CultureInfo enUS = CultureInfo.CreateSpecificCulture("en-US");
@@ -61,7 +61,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
                               .Append(timestamp.ToString("d", enUS)).Append('-')
                               .Append(orderId).ToString();
 
-    public AbstractOrderActor(IPersistence persistence,
+    public AbstractOrderActor(IAuditLogger persistence,
                                 AppConfig options,
                                 ILogger<AbstractOrderActor> _logger)
     {

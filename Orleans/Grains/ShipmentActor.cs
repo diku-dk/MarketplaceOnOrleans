@@ -24,7 +24,7 @@ public sealed class ShipmentActor : AbstractShipmentActor
          [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,Shipment>> shipments,
          [PersistentState(stateName: "packages", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,List<Package>>> packages,
          [PersistentState(stateName: "nextShipmentId", storageName: Constants.OrleansStorage)] IPersistentState<NextShipmentIdState> nextShipmentId,
-         IPersistence persistence,
+         IAuditLogger persistence,
          AppConfig options,
          ILogger<ShipmentActor> logger) : base(persistence, options, logger)
 	{

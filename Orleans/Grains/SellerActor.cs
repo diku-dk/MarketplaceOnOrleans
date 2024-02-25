@@ -25,10 +25,9 @@ public sealed class SellerActor : AbstractSellerActor
     public SellerActor(
         [PersistentState(stateName: "seller", storageName: Constants.OrleansStorage)] IPersistentState<Seller> seller,
         [PersistentState(stateName: "orderEntries", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<string, List<OrderEntry>>> orderEntries,
-        //IAuditLogger persistence,
+        IAuditLogger persistence,
         AppConfig options,
-        //ILogger<SellerActor> logger) : base(seller, persistence, options, logger)
-        ILogger<SellerActor> logger) : base(seller, options, logger)
+        ILogger<SellerActor> logger) : base(seller, persistence, options, logger)
     {
         this.orderEntries = orderEntries;
     }
@@ -102,7 +101,7 @@ public sealed class SellerActor : AbstractSellerActor
             if (this.config.LogRecords)
             {
                 var str = JsonSerializer.Serialize(entries);
-                //await persistence.Log(Name, id, str);
+                await persistence.Log(Name, id, str);
             }
             this.orderEntries.State.Remove(id);
         }

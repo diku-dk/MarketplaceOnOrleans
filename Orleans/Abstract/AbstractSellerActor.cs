@@ -15,7 +15,7 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
     protected static readonly string Name = typeof(SellerActor).FullName;
 
     protected readonly ILogger<SellerActor> logger;
-    //protected readonly IAuditLogger persistence;
+    protected readonly IAuditLogger persistence;
 
     protected int sellerId;
 
@@ -24,13 +24,13 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
 
     public AbstractSellerActor(
         [PersistentState("seller", Constants.OrleansStorage)] IPersistentState<Seller> seller,
-        //IAuditLogger persistence,
+        IAuditLogger persistence,
         AppConfig options,
         ILogger<SellerActor> logger)
     {
         this.seller = seller;
         this.config = options;
-        //this.persistence = persistence;
+        this.persistence = persistence;
         this.logger = logger;
     }
 

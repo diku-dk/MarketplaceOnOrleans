@@ -9,7 +9,7 @@ namespace OrleansApp.Transactional;
 
 public class TransactionalPaymentActor : AbstractPaymentActor, ITransactionalPaymentActor
 {
-    public TransactionalPaymentActor(IPersistence persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
+    public TransactionalPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
     {
     }
 

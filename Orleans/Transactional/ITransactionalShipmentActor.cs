@@ -3,6 +3,7 @@ using Common.Events;
 using Orleans.Concurrency;
 using OrleansApp.Interfaces;
 
+
 namespace OrleansApp.Transactional;
 
 public interface ITransactionalShipmentActor : IShipmentActor

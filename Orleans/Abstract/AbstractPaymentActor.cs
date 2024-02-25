@@ -18,7 +18,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
     private readonly AppConfig config;
     private int customerId;
     private readonly ILogger<PaymentActor> logger;
-    private readonly IPersistence persistence;
+    private readonly IAuditLogger persistence;
 
     private delegate ISellerActor GetSellerActorDelegate(int sellerId);
     private readonly GetSellerActorDelegate getSellerDelegate;
@@ -31,7 +31,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         public PaymentState() { }
     }
 
-    public AbstractPaymentActor(IPersistence persistence, AppConfig options, ILogger<PaymentActor> _logger)
+    public AbstractPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger)
     {
         this.persistence = persistence;
         this.config = options;
