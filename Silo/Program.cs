@@ -41,6 +41,7 @@ AppConfig appConfig = new()
     UseSwagger = useSwagger,
 };
 
+bool usePostgreSQL = orleansStorage && adoNetGrainStorage;
 
 // Orleans testing has no support for IOptions apparently...
 // builder.Services.Configure<AppConfig>(configSection);
@@ -111,25 +112,18 @@ builder.Host.UseOrleans(siloBuilder =>
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
     }
 
-    if (orleansStorage)
+    if (usePostgreSQL)
     {
-        if (adoNetGrainStorage)
+        siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
         {
-            siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-            {
-                options.Invariant = "Npgsql";
-                options.ConnectionString = adoNetConnectionString;
-            });
-        }
-        else
-        {
-            siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-        }
+            options.Invariant = "Npgsql";
+            options.ConnectionString = adoNetConnectionString;
+        });
     }
     else
     {
-        siloBuilder.AddMemoryGrainStorage(Constants.DefaultStreamStorage);
-    }
+        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+    }   
 
     if (logRecords)
     {
