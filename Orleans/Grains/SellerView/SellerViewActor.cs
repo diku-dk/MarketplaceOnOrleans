@@ -35,142 +35,114 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     protected override async Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
     {
+        var sql = new StringBuilder(@"
+            INSERT INTO public.order_entries (
+            customer_id,
+            order_id,
+            product_id,
+            seller_id,
+            product_name,
+            product_category,
+            unit_price,
+            quantity,
+            total_items,
+            total_amount,
+            total_incentive,
+            total_invoice,
+            freight_value,
+            order_status,
+            delivery_status
+            ) VALUES ");
+
         foreach (var orderEntry in orderEntries)
         {
-            var sql = @"
-                INSERT INTO public.order_entries (
-                    customer_id,
-                    order_id,
-                    product_id,
-                    seller_id,
-                    product_name,
-                    product_category,
-                    unit_price,
-                    quantity,
-                    total_items,
-                    total_amount,
-                    total_incentive,
-                    total_invoice,
-                    freight_value,
-                    order_status,
-                    delivery_status
-                ) VALUES (
-                    {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}
-                )
-                ON CONFLICT (customer_id, order_id, product_id, seller_id) DO NOTHING
-            ";
-
-            var parameters = new object[]
-            {
-                orderEntry.customer_id,
-                orderEntry.order_id,
-                orderEntry.product_id,
-                orderEntry.seller_id,
-                orderEntry.product_name,
-                orderEntry.product_category,
-                orderEntry.unit_price,
-                orderEntry.quantity,
-                orderEntry.total_items,
-                orderEntry.total_amount,
-                orderEntry.total_incentive,
-                orderEntry.total_invoice,
-                orderEntry.freight_value,
-                orderEntry.order_status.ToString(),
-                orderEntry.delivery_status.ToString()
-            };
-
-            await dbContext.Database.ExecuteSqlRawAsync(sql, parameters); // Commit the transaction automatically
+            sql.Append("(");
+            sql.Append(orderEntry.customer_id).Append(",");
+            sql.Append(orderEntry.order_id).Append(",");
+            sql.Append(orderEntry.product_id).Append(",");
+            sql.Append(orderEntry.seller_id).Append(",");
+            sql.Append("'").Append(orderEntry.product_name).Append("',");
+            sql.Append("'").Append(orderEntry.product_category).Append("',");
+            sql.Append(orderEntry.unit_price).Append(",");
+            sql.Append(orderEntry.quantity).Append(",");
+            sql.Append(orderEntry.total_items).Append(",");
+            sql.Append(orderEntry.total_amount).Append(",");
+            sql.Append(orderEntry.total_incentive).Append(",");
+            sql.Append(orderEntry.total_invoice).Append(",");
+            sql.Append(orderEntry.freight_value).Append(",");
+            sql.Append("'").Append(orderEntry.order_status.ToString()).Append("',");
+            sql.Append("'").Append(orderEntry.delivery_status.ToString()).Append("'),");
         }
+        sql.Remove(sql.Length - 1, 1);
+        sql.Append(" ON CONFLICT (customer_id, order_id, product_id, seller_id) DO NOTHING");
+
+        await dbContext.Database.ExecuteSqlRawAsync(sql.ToString());
 
         dbContext.ChangeTracker.Clear();
-        await dbContext.Database.ExecuteSqlRawAsync(SellerDbContext.RefreshMaterializedView);
     }
 
-    public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
+    public override Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
-        var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == paymentConfirmed.customer.CustomerId && oe.order_id == paymentConfirmed.orderId);
-        foreach (var item in orderEntries)
-        {
-            item.order_status = OrderStatus.PAYMENT_PROCESSED;
-            this.dbContext.Entry(item).State = EntityState.Modified;
-        }
-        await this.dbContext.SaveChangesAsync();
-        // clean entity tracking
-        this.dbContext.ChangeTracker.Clear();
+        return Task.CompletedTask;
     }
-
-    public override async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
-    {
-        var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == paymentFailed.customer.CustomerId && oe.order_id == paymentFailed.orderId);
-        foreach (var item in orderEntries)
-        {
-            item.order_status = OrderStatus.PAYMENT_FAILED;
-            this.dbContext.Entry(item).State = EntityState.Modified;
-        }
-        await this.dbContext.SaveChangesAsync();
-        // clean entity tracking
-        this.dbContext.ChangeTracker.Clear();
+   
+    public override Task ProcessPaymentFailed(PaymentFailed paymentFailed)
+    {        
+        return Task.CompletedTask;
     }
 
     public override async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
-        var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == shipmentNotification.customerId && oe.order_id == shipmentNotification.orderId);
-        foreach (var item in orderEntries)
+        var customerId = shipmentNotification.customerId;
+        var orderId = shipmentNotification.orderId;
+        var eventDate = shipmentNotification.eventDate.ToString("yyyy-MM-dd HH:mm:ss");
+        string sql = string.Empty;
+        List<OrderEntry> orderEntriesForLogging = null;
+
+        if (shipmentNotification.status == ShipmentStatus.approved)
         {
-            if (shipmentNotification.status == ShipmentStatus.approved)
-            {
-                item.order_status = OrderStatus.READY_FOR_SHIPMENT;
-                item.shipment_date = shipmentNotification.eventDate;
-                item.delivery_status = PackageStatus.ready_to_ship;
-                this.dbContext.Entry(item).State = EntityState.Modified;
-            }
-            if (shipmentNotification.status == ShipmentStatus.delivery_in_progress)
-            {
-                item.order_status = OrderStatus.IN_TRANSIT;
-                item.delivery_status = PackageStatus.shipped;
-                this.dbContext.Entry(item).State = EntityState.Modified;
-            }
-            if (shipmentNotification.status == ShipmentStatus.concluded)
-            {
-                // item.order_status = OrderStatus.DELIVERED;
-                this.dbContext.Entry(item).State = EntityState.Deleted;
-            }
+            sql = $@"
+            UPDATE public.order_entries        
+            SET order_status = {(int)OrderStatus.READY_FOR_SHIPMENT}, 
+                shipment_date = '{eventDate}', 
+                delivery_status = {(int)PackageStatus.ready_to_ship}
+            WHERE customer_id = {customerId} AND order_id = {orderId};
+            ";
         }
-
-        await this.dbContext.SaveChangesAsync();
-
-        if (shipmentNotification.status == ShipmentStatus.concluded)
+        else if (shipmentNotification.status == ShipmentStatus.delivery_in_progress)
         {
-            // log delivered entries and remove them from view
+            sql = $@"
+            UPDATE public.order_entries
+            SET order_status = {(int)OrderStatus.IN_TRANSIT}, 
+                delivery_status = {(int)PackageStatus.shipped}
+            WHERE customer_id = {customerId} AND order_id = {orderId};
+            ";
+        }
+        else if (shipmentNotification.status == ShipmentStatus.concluded)
+        {
             if (this.config.LogRecords)
             {
-                var str = JsonSerializer.Serialize(orderEntries.ToList());
+                var fetchSql = $@"SELECT * FROM public.order_entries WHERE customer_id = {customerId} AND order_id = {orderId};";
+                orderEntriesForLogging = await dbContext.OrderEntries.FromSqlRaw(fetchSql).ToListAsync();
+                var str = JsonSerializer.Serialize(orderEntriesForLogging);
                 var ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
                 //this.persistence.Log(Name, ID, str);
             }
-            // force removal of entries from the view
-            this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+            sql = $@"
+            DELETE FROM public.order_entries
+            WHERE customer_id = {customerId} AND order_id = {orderId};
+            ";                              
         }
 
-        // clean entity tracking
-        this.dbContext.ChangeTracker.Clear();
+        if (!string.IsNullOrEmpty(sql))
+        {
+            await dbContext.Database.ExecuteSqlRawAsync(sql);
+        }
     }
 
-    public override async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
+    public override Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
-        using (var txCtx = this.dbContext.Database.BeginTransaction())
-        {
-            var entry = this.dbContext.OrderEntries.Where(oe => oe.customer_id == deliveryNotification.customerId && oe.order_id == deliveryNotification.orderId && deliveryNotification.productId == oe.product_id).FirstOrDefault();
-            if (entry is not null)
-            {
-                entry.package_id = deliveryNotification.packageId;
-                entry.delivery_status = PackageStatus.delivered;
-                entry.delivery_date = deliveryNotification.deliveryDate;
-
-            }
-            await this.dbContext.SaveChangesAsync();
-            await txCtx.CommitAsync();
-        }
+        return Task.CompletedTask;
     }
 
     private static readonly OrderSellerView EMPTY_SELLER_VIEW = new();

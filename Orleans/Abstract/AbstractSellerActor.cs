@@ -53,7 +53,7 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
     }
 
     public Task ProcessNewInvoice(InvoiceIssued invoiceIssued)
-    {
+    {        
         var orderEntries = new List<OrderEntry>();
         foreach (var item in invoiceIssued.items)
         {

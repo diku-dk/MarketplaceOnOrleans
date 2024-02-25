@@ -69,6 +69,7 @@ builder.Host.UseOrleans(siloBuilder =>
     if (sellerViewPostgres)
     {
         siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
+        siloBuilder.Services.AddHostedService<MaterializedViewRefresherService>();
     }
 
     if (orleansTransactions)

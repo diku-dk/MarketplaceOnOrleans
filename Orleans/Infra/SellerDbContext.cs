@@ -2,7 +2,6 @@
 using Common.Entities;
 using Common.Integration;
 using Common.Config;
-using Common.Config;
 
 namespace SellerMS.Infra
 {
