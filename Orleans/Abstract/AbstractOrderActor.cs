@@ -6,16 +6,20 @@ using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using System.Text;
 using System.Globalization;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 using System.Diagnostics;
-
 namespace OrleansApp.Abstract;
+using Orleans.Interfaces.SellerView;
 
 [Reentrant]
 public abstract class AbstractOrderActor : Grain, IOrderActor
 {
     private static string Name = typeof(AbstractOrderActor).FullName;
+
+    private delegate ISellerActor GetSellerActorDelegate(int sellerId);
+    
+    private readonly GetSellerActorDelegate getSellerDelegate;
 
     public class NextOrderIdState
     {
@@ -39,8 +43,8 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
 
     protected readonly AppConfig config;
     protected readonly ILogger<AbstractOrderActor> logger;
-    protected readonly IPersistence persistence;
-
+    protected readonly IAuditLogger persistence;
+    
     protected int customerId;
 
     private static readonly CultureInfo enUS = CultureInfo.CreateSpecificCulture("en-US");
@@ -57,13 +61,14 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
                               .Append(timestamp.ToString("d", enUS)).Append('-')
                               .Append(orderId).ToString();
 
-    public AbstractOrderActor(IPersistence persistence,
+    public AbstractOrderActor(IAuditLogger persistence,
                                 AppConfig options,
                                 ILogger<AbstractOrderActor> _logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.logger = _logger;
+        this.getSellerDelegate = config.SellerViewPostgres ? GetSellerViewActor : GetSellerActor;
     }
 
     public override Task OnActivateAsync(CancellationToken token)
@@ -207,7 +212,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         var sellerIds = items.Select(x => x.seller_id).Distinct();
         foreach (var sellerID in sellerIds)
         {
-            var sellerActor = GetSellerActor(sellerID);
+            var sellerActor = this.getSellerDelegate(sellerID);
             var invoiceCustom = new InvoiceIssued
             (
                 reserveStock.customerCheckout,
@@ -314,7 +319,15 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
     }
 
-    public abstract ISellerActor GetSellerActor(int sellerId);
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerViewActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
+    }
 
     public abstract IStockActor GetStockActor(int sellerId, int productId);
 

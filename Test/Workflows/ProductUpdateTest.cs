@@ -14,7 +14,7 @@ public class ProductUpdateTest : BaseTest
     [Fact]
     public async Task ProductUpdate()
     {
-        IPersistence persistence = (IPersistence)_cluster.ServiceProvider.GetService(typeof(IPersistence));
+        IAuditLogger persistence = (IAuditLogger)_cluster.ServiceProvider.GetService(typeof(IAuditLogger));
         await persistence.TruncateStorage();
 
         // set product first

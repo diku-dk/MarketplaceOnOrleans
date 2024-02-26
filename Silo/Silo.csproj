@@ -1,34 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-	<ServerGarbageCollection>true</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ServerGarbageCollection>true</ServerGarbageCollection>
+		<ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+	</PropertyGroup>
 
-  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Production' " />
-  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Dev' " />
-  <ItemGroup>
-	<PackageReference Include="Microsoft.Orleans.Server" Version="7.2.1" />
-	<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.12" />
-    <PackageReference Include="OrleansDashboard" Version="7.2.2" />
-  </ItemGroup>
+	<PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Production' " />
+	<PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Dev' " />
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Orleans.Server" Version="7.2.1" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.12" />
+		<PackageReference Include="OrleansDashboard" Version="7.2.2" />
+		<PackageReference Include="StackExchange.Redis" Version="2.7.17" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
-    <ProjectReference Include="..\Orleans\Orleans.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Common\Common.csproj" />
+		<ProjectReference Include="..\Orleans\Orleans.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Scripts\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Scripts\" />
-  </ItemGroup>
- <!-- <ItemGroup>
+	<ItemGroup>
+		<None Remove="Scripts\" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Scripts\" />
+	</ItemGroup>
+	<!-- <ItemGroup>
     <Content Remove="runtimeconfig.json" />
   </ItemGroup>-->
 </Project>

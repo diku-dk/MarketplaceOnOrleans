@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Net;
-using Common;
+using Common.Config;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
@@ -11,11 +11,11 @@ namespace Silo.Controllers;
 [ApiController]
 public class DefaultController : ControllerBase
 {
-    private readonly IPersistence persistence;
+    private readonly IAuditLogger persistence;
     private readonly AppConfig config;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IPersistence persistence, AppConfig options, ILogger<DefaultController> logger)
+    public DefaultController(IAuditLogger persistence, AppConfig options, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
         this.config = options;

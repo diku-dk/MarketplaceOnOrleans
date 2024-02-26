@@ -1,20 +1,24 @@
-﻿using Common;
+using Common.Config;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace OrleansApp.Infra;
 
-public interface IPersistence
+/*
+ * TODO Management of Orleans Storage should not be here
+ * Sould be moved to another interface to avoid mixing concerns
+ */
+public interface IAuditLogger
 {
     Task Log(string type, string key, string value, string tableName = "log");
     Task SetUpLog();
     Task CleanLog();
     Task TruncateStorage();
     Task ResetActorStates();
+
 }
 
-public class EtcNullPersistence : IPersistence
+public sealed class EtcNullPersistence : IAuditLogger
 {
     public Task CleanLog()
     {
@@ -42,14 +46,14 @@ public class EtcNullPersistence : IPersistence
     }
 }
 
-public class PostgreSQLPersistence : IPersistence
+public sealed class PostgresAuditLogger : IAuditLogger
 {
     private readonly NpgsqlDataSource dataSource;
-    private readonly ILogger<PostgreSQLPersistence> logger;
+    private readonly ILogger<PostgresAuditLogger> logger;
 
-    public PostgreSQLPersistence(AppConfig config, ILogger<PostgreSQLPersistence> logger)
+    public PostgresAuditLogger(AppConfig config, ILogger<PostgresAuditLogger> logger)
     {
-        this.dataSource = NpgsqlDataSource.Create(config.ConnectionString);
+        this.dataSource = NpgsqlDataSource.Create(config.AdoNetConnectionString);
         this.logger = logger;
     }
 
@@ -61,7 +65,7 @@ public class PostgreSQLPersistence : IPersistence
 
     public async Task CleanLog()
     {
-         var cmd = dataSource.CreateCommand("TRUNCATE TABLE public.log;");
+        var cmd = dataSource.CreateCommand("TRUNCATE TABLE public.log;");
         await cmd.ExecuteNonQueryAsync();
     }
 

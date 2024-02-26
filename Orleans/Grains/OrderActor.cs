@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Runtime;
-using Common;
+using Common.Config;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Interfaces;
@@ -21,7 +21,7 @@ public sealed class OrderActor : AbstractOrderActor
     public OrderActor(
         [PersistentState(stateName: "orders", storageName: Constants.OrleansStorage)] IPersistentState<Dictionary<int,OrderState>> orders,
         [PersistentState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig options,
         ILogger<OrderActor> _logger) : base(persistence, options, _logger)
     {
@@ -91,11 +91,6 @@ public sealed class OrderActor : AbstractOrderActor
             // await nextOrderId.ReadStateAsync().ContinueWith(x=>nextOrderId.WriteStateAsync());
             await orders.WriteStateAsync();
         }
-    }
-
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerActor>(sellerId, "Orleans.Grains.SellerActor");
     }
 
     public override IStockActor GetStockActor(int sellerId, int productId)

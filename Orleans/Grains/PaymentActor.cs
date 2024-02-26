@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using Orleans.Concurrency;
@@ -10,7 +10,7 @@ namespace OrleansApp.Grains;
 [Reentrant]
 public sealed class PaymentActor : AbstractPaymentActor
 {
-    public PaymentActor(IPersistence persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
+    public PaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
     {
     }
 

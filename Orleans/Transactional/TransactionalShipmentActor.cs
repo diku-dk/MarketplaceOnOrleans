@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
@@ -20,7 +20,7 @@ public class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalS
          [TransactionalState(stateName: "shipments", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int, Shipment>> shipments,
          [TransactionalState(stateName: "packages", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int, List<Package>>> packages,
          [TransactionalState(stateName: "nextShipmentId", storageName: Constants.OrleansStorage)] ITransactionalState<NextShipmentIdState> nextShipmentId,
-         IPersistence persistence, 
+         IAuditLogger persistence, 
          AppConfig options, 
          ILogger<TransactionalShipmentActor> logger) : base(persistence, options, logger)
     {

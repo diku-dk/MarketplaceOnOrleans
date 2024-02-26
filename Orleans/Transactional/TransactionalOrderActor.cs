@@ -1,4 +1,4 @@
-﻿using Common;
+﻿using Common.Config;
 using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
@@ -16,7 +16,7 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
     public TransactionalOrderActor(
         [TransactionalState(stateName: "orders", storageName: Constants.OrleansStorage)] ITransactionalState<Dictionary<int, OrderState>> orders,
         [TransactionalState(stateName: "nextOrderId", storageName: Constants.OrleansStorage)] ITransactionalState<NextOrderIdState> nextOrderId,
-        IPersistence persistence,
+        IAuditLogger persistence,
         AppConfig config,
         ILogger<TransactionalOrderActor> _logger) : base(persistence, config, _logger)
     {
@@ -33,11 +33,6 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
             orderHistory = new()
         };
         await InsertOrderIntoState(order.id, orderState);
-    }
-
-    public override ISellerActor GetSellerActor(int sellerId)
-    {
-        return GrainFactory.GetGrain<ISellerActor>(sellerId);
     }
 
     public override IStockActor GetStockActor(int sellerId, int productId)

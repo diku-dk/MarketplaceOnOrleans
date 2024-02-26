@@ -144,7 +144,7 @@ public class CheckoutTest : BaseTest
 
     async Task InitStorage()
     {
-        IPersistence persistence = (IPersistence)_cluster.Client.ServiceProvider.GetService(typeof(IPersistence));
+        IAuditLogger persistence = (IAuditLogger)_cluster.Client.ServiceProvider.GetService(typeof(IPersistence));
         if (ConfigHelper.DefaultAppConfig.LogRecords)
         {
             await persistence.SetUpLog();
