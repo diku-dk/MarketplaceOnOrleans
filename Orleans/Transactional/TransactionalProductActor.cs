@@ -7,6 +7,8 @@ using Orleans.Transactions.Abstractions;
 using Orleans.Streams;
 using Common.Config;
 using Orleans.Concurrency;
+using Common.Integration;
+using Orleans.Infra;
 
 namespace OrleansApp.Transactional;
 
@@ -18,16 +20,19 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
 
     private readonly ITransactionalState<Product> product;
     private readonly AppConfig config;
+    private readonly IRedisConnectionFactory redisFactory;
     private readonly ILogger<TransactionalProductActor> logger;
 
     public TransactionalProductActor([TransactionalState(
         stateName: "product",
         storageName: Constants.OrleansStorage)] ITransactionalState<Product> state,
         AppConfig config,
+        IRedisConnectionFactory redisFactory,
         ILogger<TransactionalProductActor> _logger)
     {
         this.product = state;
         this.config = config;
+        this.redisFactory = redisFactory;
         this.logger = _logger;
     }
 
@@ -37,16 +42,16 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
         {
             int primaryKey = (int)this.GetPrimaryKeyLong(out string keyExtension);
             string ID = string.Format("{0}|{1}", primaryKey, keyExtension);
-            this.logger.LogInformation("Setting up replication in transactional product actor " + ID);
+            this.logger.LogInformation($"Setting up replication in transactional product actor {ID}");
             this.streamProvider = this.GetStreamProvider(Constants.DefaultStreamProvider);
             this.stream = streamProvider.GetStream<Product>(Constants.ProductNameSpace, ID);
         }
         return Task.CompletedTask;
     }
 
-    public Task SetProduct(Product product)
+    public async Task SetProduct(Product product)
     {
-        return this.product.PerformUpdate(p => {
+        await this.product.PerformUpdate(p => {
             p.price = product.price;
             p.sku = product.sku;
             p.version = product.version;
@@ -61,6 +66,14 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
             p.name = product.name;
             p.status = product.status;
         });
+
+        // After updating the state in Orleans, update the data in Redis.
+        if (this.config.RedisReplication)
+        {
+            string key = product.seller_id + "-" + product.product_id;
+            ProductReplica productReplica = new ProductReplica(key, product.version, product.price);
+            await this.redisFactory.SaveProductAsync(key, productReplica);
+        }
     }
 
     public Task<Product> GetProduct()
@@ -77,6 +90,13 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
         if (this.config.StreamReplication)
         {
             await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
+        } 
+        else if (this.config.RedisReplication)
+        {
+            var updatedProduct = await this.product.PerformRead(p => p);
+            string key = updatedProduct.seller_id + "-" + updatedProduct.product_id;
+            ProductReplica productReplica = new ProductReplica(key, updatedProduct.version, priceUpdate.price);
+            await this.redisFactory.UpdateProductAsync(key, productReplica);
         }
     }
 
@@ -102,16 +122,18 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
         });
         
         Task task2 = stockGrain.ProcessProductUpdate(productUpdated);
+        await Task.WhenAll(task1, task2);
         if (this.config.StreamReplication)
         {
-            // transactional guarantee
-            await Task.WhenAll(task1, task2);
             // wait for transaction success to replicate
             await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
         }
-        else
+        else if (this.config.RedisReplication)
         {
-            await Task.WhenAll(task1, task2);
+            var updatedProduct = await this.product.PerformRead(p => p);
+            string key = updatedProduct.seller_id + "-" + updatedProduct.product_id;
+            ProductReplica productReplica = new ProductReplica(key, updatedProduct.version, updatedProduct.price);
+            await this.redisFactory.UpdateProductAsync(key, productReplica);
         }
     }
 

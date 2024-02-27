@@ -16,11 +16,34 @@ namespace Orleans.Infra
         Task<ProductReplica> GetProductAsync(string key);
     }
 
-    public class RedisConnectionFactory : IRedisConnectionFactory
+    public sealed class EtcNullConnectionFactoryImpl : IRedisConnectionFactory
+    {
+        public IConnectionMultiplexer GetConnection(string name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ProductReplica> GetProductAsync(string key)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> SaveProductAsync(string key, ProductReplica productCache)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> UpdateProductAsync(string key, ProductReplica productCache)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class RedisConnectionFactoryImpl : IRedisConnectionFactory
     {
         private readonly Dictionary<string, IConnectionMultiplexer> _connections = new();
 
-        public RedisConnectionFactory(string primaryConStr, string backupConStr)
+        public RedisConnectionFactoryImpl(string primaryConStr, string backupConStr)
         {
             // stackexchange.github.io/StackExchange.Redis/Configuration.html
 

@@ -27,20 +27,28 @@ public class TransactionsTest : BaseTest
         var shipments = await shipmentActor.GetShipments(customerId);
 
         Assert.Single(shipments);
+
+        // reset to avoid impacting other tests
+        await shipmentActor.Reset();
     }
 
     [Fact]
     public async Task TestDelivery()
     {
+        int customerId = 1;
         await this.InitData(1, 2);
-        await this.BuildAndSendCheckout(1);
+        await this.BuildAndSendCheckout(customerId);
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(1);
+        var shipmentActorId = 0;
+        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(shipmentActorId);
+
+        var shipments = await shipmentActor.GetShipments(customerId);
+        Assert.True(shipments.Count == 1);
 
         await shipmentActor.UpdateShipment(0.ToString());
-        var shipments = await shipmentActor.GetShipments(0);
+        shipments = await shipmentActor.GetShipments(customerId);
 
-        Assert.True(shipments.Count == 0);
+        Assert.Empty(shipments);
     }
 
     [Fact]

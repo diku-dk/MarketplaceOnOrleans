@@ -69,6 +69,7 @@ builder.Host.UseOrleans(siloBuilder =>
          {
              logging.ClearProviders();
              logging.AddConsole();
+             // to change minimum log level, use the following option:
              //logging.SetMinimumLevel(LogLevel.Warning);
          });
 
@@ -121,16 +122,13 @@ builder.Host.UseOrleans(siloBuilder =>
         {
             siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
         }
-    } else
+    } 
+    /* do we need any storage?
+    else
     {
         siloBuilder.AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
-
-    if (logRecords){
-        siloBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
-    } else {
-        siloBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
-    }
+    */
 
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);
@@ -138,9 +136,12 @@ builder.Host.UseOrleans(siloBuilder =>
 
     if (redisReplication)
     {
-        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactory(redisPrimaryConnectionString, redisSecondaryConnectionString));
+        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactoryImpl(redisPrimaryConnectionString, redisSecondaryConnectionString));
+    } else
+    {
+        // just to avoid errors on new instances of TransactionalProductActor
+        siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new EtcNullConnectionFactoryImpl());
     }
-
 
 });
 
@@ -155,12 +156,12 @@ if (sellerViewPostgres)
         var context = services.GetRequiredService<SellerDbContext>();
         context.Database.Migrate();
 
-        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
-        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
+        // context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
+        // context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
 
         // truncate order entries on starting a new experiment
         context.Database.ExecuteSqlRaw("TRUNCATE TABLE public.order_entries;");
-        context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+        // context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
     }
 }
 

@@ -1,7 +1,9 @@
 ﻿namespace Common.Entities;
 
-public class OrderEntry
+public sealed class OrderEntry
 {
+    public int id { get; set; }
+
     public int customer_id { get; set; }
 
     public int order_id { get; set; }

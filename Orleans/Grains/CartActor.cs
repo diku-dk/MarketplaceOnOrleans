@@ -26,7 +26,7 @@ public class CartActor : Grain, ICartActor
     {
         this.cart = state;
         this.config = options;
-        this.callback = config.OrleansTransactions ? new GetOrderActorDelegate(GetTransactionalOrderActor) : new GetOrderActorDelegate(GetOrderActor);
+        this.callback = config.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
         this.logger = _logger;
     }
 
@@ -73,9 +73,8 @@ public class CartActor : Grain, ICartActor
         try {
             await orderActor.Checkout(checkout);
             await this.Seal();
-        } catch(Exception e)
-        {
-            this.logger.LogError("Checkout exception catched in cart {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
+        } catch(Exception e) {
+            this.logger.LogError("Checkout exception caught in cart ID {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
             throw;
         }
     }

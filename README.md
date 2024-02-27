@@ -122,6 +122,26 @@ There is a suite of tests available for checking some Online Marketplace benchma
 
 To allow the tests to run concurrently, there are two different ClusterFixtures, one for transactional tests and another for non-transactional tests. This is not ideal and perhaps they could be better modularized or even merged, but maintaining the different properties on test runtime.
 
+### <a name="test"></a>Notes about Seller Dashboard View Maintenance
+
+In preliminary commits, we designed the seller dashboard as a materialized view on PostgreSQL.
+The idea is to benefit of the query processingand transactional capabilities to obtain a consistent seller dashboard.
+
+However, caution is necessary on refreshing PostgreSQL [Materialized Views](https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html):
+"Even with this option [(CONCURRENTLY)] only one REFRESH at a time may run against any one materialized view." 
+
+In other words, seller actors cannot trigger the refresh concurrently. They have to eiher coordinate or let a background worker responsible for periodically refreshing the view.
+
+However, another problem is that, if we have eventual update of the materialized view, the order entries queried as part of the seller dashboard may not be consistent with the view, thus violating the correctness criterion.
+
+To accomodate the above constraints, each seller is responsible for its own materialized view. In this case, the actor single-thread model guarantees there is only one refresh at a time and consequently, the order entries are always in sync with the seller view.
+
+If you desire to modify the data model of seller view, although you can create a new migration, it is simpler to delete the existing one and run the following command in the project's root folder:
+
+```
+dotnet ef migrations add InitialMigration --project Orleans
+```
+
 ### <a name="ucloud"></a>UCloud
 
 The experiment deployment steps below only aply if you have access to [UCloud](https://docs.cloud.sdu.dk/index.html).

@@ -15,9 +15,16 @@ using System.Text.Json;
 
 namespace Orleans.Grains.SellerView;
 
-public class SellerViewActor : AbstractSellerActor, ISellerViewActor
+/**
+ * Actor resposible for maintaining the seller view dashboard consistent
+ */
+public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 {
     private readonly SellerDbContext dbContext;
+
+    private readonly Dictionary<(int customerId, int orderId), List<int>> cache;
+
+    private OrderSellerView EMPTY_SELLER_VIEW;
 
     public SellerViewActor(
         SellerDbContext dbContext,
@@ -28,24 +35,47 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
         : base(seller, persistence, options, logger)
     {
         this.dbContext = dbContext;
+        this.cache = new();
+    }
+
+    public override async Task OnActivateAsync(CancellationToken token)
+    {
+        await base.OnActivateAsync(token);
+
+        // create or refresh materialized view
+        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.CreateCustomOrderSellerViewSql(this.sellerId));
+        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
+        this.EMPTY_SELLER_VIEW = new(this.sellerId);
     }
 
     protected override Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
     {
+        // if duplicate, discard event to avoid computing wrong view
+        var ID = (invoiceIssued.customer.CustomerId, invoiceIssued.orderId);
+        if(cache.ContainsKey(ID)) { return Task.CompletedTask; }
+
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             this.dbContext.OrderEntries.AddRange(orderEntries);
             this.dbContext.SaveChanges();
             txCtx.Commit();
         }
+
+        cache.Add(ID, orderEntries.Select(o => o.id).ToList());
+
         // cleaning tracking for new entries in this context
         this.dbContext.ChangeTracker.Clear();
-        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+
+        // refresh its own view
+        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
         return Task.CompletedTask;
     }
 
     public override Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
+        /*
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == paymentConfirmed.customer.CustomerId && oe.order_id == paymentConfirmed.orderId);
@@ -59,11 +89,13 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
         }
         // clean entity tracking
         this.dbContext.ChangeTracker.Clear();
+        */
         return Task.CompletedTask;
     }
 
     public override Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
+        /*
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == paymentFailed.customer.CustomerId && oe.order_id == paymentFailed.orderId);
@@ -77,6 +109,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
         }
         // clean entity tracking
         this.dbContext.ChangeTracker.Clear();
+        */
         return Task.CompletedTask;
     }
 
@@ -84,7 +117,10 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
     {
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
-            var orderEntries = this.dbContext.OrderEntries.Where(oe => oe.customer_id == shipmentNotification.customerId && oe.order_id == shipmentNotification.orderId);
+            var ID = (shipmentNotification.customerId, shipmentNotification.orderId);
+            var ids = this.cache[ID];
+            var orderEntries = this.dbContext.OrderEntries.Where(oe => ids.Contains(oe.id));
+
             foreach (var item in orderEntries)
             {
                 if (shipmentNotification.status == ShipmentStatus.approved)
@@ -102,6 +138,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
                 }
                 if (shipmentNotification.status == ShipmentStatus.concluded)
                 {
+                    // no need to update status, the entry must be deleted from actor state
                     // item.order_status = OrderStatus.DELIVERED;
                     this.dbContext.Entry(item).State = EntityState.Deleted;
                 }
@@ -115,11 +152,13 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
                 // log delivered entries and remove them from view
                 if(this.config.LogRecords){
                     var str = JsonSerializer.Serialize(orderEntries.ToList());
-                    var ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
-                    this.persistence.Log(Name, ID, str);
+                    var LOG_ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
+                    this.persistence.Log(Name, LOG_ID, str);
                 }
                 // force removal of entries from the view
-                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
+                this.cache.Remove(ID);
             }
 
         }
@@ -130,6 +169,7 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     public override Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
+        /*
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             var entry = this.dbContext.OrderEntries.Where(oe => oe.customer_id == deliveryNotification.customerId && oe.order_id == deliveryNotification.orderId && deliveryNotification.productId == oe.product_id).First();
@@ -146,20 +186,19 @@ public class SellerViewActor : AbstractSellerActor, ISellerViewActor
             }
         }
         this.dbContext.ChangeTracker.Clear();
+        */
         return Task.CompletedTask;
     }
-
-    private static readonly OrderSellerView EMPTY_SELLER_VIEW = new();
 
     public override Task<SellerDashboard> QueryDashboard()
     {
         SellerDashboard sellerDashboard;
-        // this should be isolated
+        // this should have transaction isolation
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             sellerDashboard = new SellerDashboard(
-                this.dbContext.OrderSellerView.Where(v => v.seller_id == sellerId).AsEnumerable().FirstOrDefault(EMPTY_SELLER_VIEW),
-                this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId && (oe.order_status == OrderStatus.INVOICED || oe.order_status == OrderStatus.READY_FOR_SHIPMENT ||  oe.order_status == OrderStatus.IN_TRANSIT || oe.order_status == OrderStatus.PAYMENT_PROCESSED)).ToList()
+                this.dbContext.OrderSellerView.FromSqlRaw($"SELECT * FROM public.order_seller_view_{this.sellerId}").AsEnumerable().FirstOrDefault(this.EMPTY_SELLER_VIEW),
+                this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId).ToList()
             );
         }
         return Task.FromResult(sellerDashboard);

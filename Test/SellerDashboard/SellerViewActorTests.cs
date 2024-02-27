@@ -22,10 +22,6 @@ public class SellerViewActorTests : BaseTest
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         context.Database.Migrate();
 
-        // ensure views are created
-        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
-        context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
-
         // truncate previous records
         context.OrderEntries.ExecuteDelete();
 
@@ -33,7 +29,7 @@ public class SellerViewActorTests : BaseTest
     }
 
     [Fact]
-    public async void TestInsertionsToOrderEntries()
+    public async void TestDashboard()
     {
         Init();
 
@@ -96,6 +92,10 @@ public class SellerViewActorTests : BaseTest
         dashboard = await sellerViewActor.QueryDashboard();
 
         Assert.True(dashboard.orderEntries.Count == 0);
+
+        // check if result is none
+        Assert.True(dashboard.sellerView.seller_id == 1);
+        Assert.True(dashboard.sellerView.count_orders == 0);
     }
 
     protected OrderItem GenerateOrderItem(int sellerId, int productId)
@@ -115,53 +115,6 @@ public class SellerViewActorTests : BaseTest
             order_id = 1,
             order_item_id = 1,
         };
-    }
-
-    [Fact]
-    public void TestDashboard()
-    {
-        var context = Init();
-
-        // create entries
-        for(int i = 1; i <= 10; i++) { 
-            OrderEntry oe = new OrderEntry()
-            {
-                customer_id = 1,
-                order_id = 1,
-                product_id = i,
-                seller_id = 1,
-                package_id = i,
-                product_name = "test",
-                product_category = "test",
-                unit_price = 1,
-                quantity = 1,
-                total_items = 1,
-                total_amount = 1,
-                total_incentive = 1,
-                total_invoice = 1,
-                freight_value = 1,
-                shipment_date = new DateTime(),
-                delivery_date = new DateTime(),
-                order_status = OrderStatus.IN_TRANSIT,
-                delivery_status = PackageStatus.shipped
-            };
-            context.OrderEntries.Add(oe);
-        }
-
-        context.SaveChanges();
-
-        context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
-
-        var res2 = context.OrderEntries.Where(oe => oe.seller_id == 1).ToList();
-        Assert.True(res2.Count() == 10);
-
-        IQueryable<OrderSellerView> queryableSellerView = context.OrderSellerView.Where(oe => oe.seller_id == 1);
-        OrderSellerView sellerView = queryableSellerView.First();
-
-        var test = context.OrderSellerView.ToList();
-
-        Assert.True(sellerView is not null);
-        Assert.True(test.Count == 1);
     }
 
 }

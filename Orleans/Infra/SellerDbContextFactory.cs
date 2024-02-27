@@ -13,7 +13,7 @@ public class BloggingContextFactory : IDesignTimeDbContextFactory<SellerDbContex
     public SellerDbContext CreateDbContext(string[] args)
     {
         AppConfig config = new AppConfig();
-        // this is not used to create the migration, so any string would work
+        // the connection string is not used on runtime. it is here just to create the migration, so any string would work
         config.AdoNetConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";
 
         return new SellerDbContext(config);

@@ -29,7 +29,7 @@ public sealed class ProductActor : Grain, IProductActor
         storageName: Constants.OrleansStorage)] IPersistentState<Product> state,
         AppConfig options,
         ILogger<ProductActor> _logger,
-        IRedisConnectionFactory? factory = null)
+        IRedisConnectionFactory factory = null)
     {
         this.product = state;
         this.config = options;
@@ -72,23 +72,19 @@ public sealed class ProductActor : Grain, IProductActor
         this.product.State = product;
         if(this.config.OrleansStorage)
             await this.product.WriteStateAsync();
-        if (this.config.RedisReplication)
+      
+        ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
+        var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
+
+        await stockGrain.ProcessProductUpdate(productUpdated);
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(this.product.State);
+        } else if (this.config.RedisReplication)
         {
             string key = product.seller_id + "-" + product.product_id;
             ProductReplica productReplica = new ProductReplica(key, product.version, product.price);
             await this.redisFactory.UpdateProductAsync(key, productReplica);
-        }
-        ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
-        var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
-
-        var stockTask = stockGrain.ProcessProductUpdate(productUpdated);
-        if (this.config.StreamReplication)
-        {
-            await Task.WhenAll(this.stream.OnNextAsync(this.product.State), stockTask);
-        }
-        else
-        {
-            await stockTask;
         }
     }
 
@@ -103,15 +99,15 @@ public sealed class ProductActor : Grain, IProductActor
         this.product.State.updated_at = DateTime.UtcNow;
         if(this.config.OrleansStorage)
             await this.product.WriteStateAsync();
-        if (this.config.RedisReplication)
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(this.product.State);
+        }
+        else if (this.config.RedisReplication)
         {
             string key = this.product.State.seller_id + "-" + this.product.State.product_id;
             ProductReplica productReplica = new ProductReplica(key, this.product.State.version, priceUpdate.price);
             await this.redisFactory.UpdateProductAsync(key, productReplica);
-        }
-        if (this.config.StreamReplication)
-        {
-            await this.stream.OnNextAsync(this.product.State);
         }
     }
 

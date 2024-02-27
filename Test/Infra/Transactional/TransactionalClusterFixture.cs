@@ -6,6 +6,8 @@ using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
 using SellerMS.Infra;
+using Orleans.Hosting;
+using Orleans.Infra;
 
 namespace Test.Infra.Transactional;
 
@@ -40,6 +42,14 @@ public sealed class TransactionalClusterFixture : IDisposable
                 hostBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
                             .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
             }
+            
+            if (ConfigHelper.TransactionalDefaultAppConfig.RedisReplication)
+            {
+                hostBuilder.Services.AddSingleton<IRedisConnectionFactory>(new RedisConnectionFactoryImpl(ConfigHelper.TransactionalDefaultAppConfig.RedisPrimaryConnectionString, ConfigHelper.TransactionalDefaultAppConfig.RedisSecondaryConnectionString));
+            } else
+            {
+                hostBuilder.Services.AddSingleton<IRedisConnectionFactory>(new EtcNullConnectionFactoryImpl());
+            }
 
             if (ConfigHelper.TransactionalDefaultAppConfig.OrleansTransactions)
             {
@@ -49,24 +59,29 @@ public sealed class TransactionalClusterFixture : IDisposable
             hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
              .AddSingleton(ConfigHelper.TransactionalDefaultAppConfig);
 
-            if (ConfigHelper.TransactionalDefaultAppConfig.AdoNetGrainStorage)
-            {
-                hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-                 {
-                     options.Invariant = "Npgsql";
-                     options.ConnectionString = ConfigHelper.PostgresConnectionString;
-                 });
-            }
-            else
-            {
-                hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+            if (ConfigHelper.TransactionalDefaultAppConfig.OrleansStorage) {
+                if (ConfigHelper.TransactionalDefaultAppConfig.AdoNetGrainStorage) { 
 
+                    hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
+                    {
+                        options.Invariant = "Npgsql";
+                        options.ConnectionString = ConfigHelper.PostgresConnectionString;
+                    });
+                }
+                else
+                {
+                    hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+                } 
             }
+
             if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords)
+            {
                 hostBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
+            }
             else
+            {
                 hostBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
-
+            }
         }
     }
 
