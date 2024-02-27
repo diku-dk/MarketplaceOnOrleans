@@ -13,8 +13,7 @@ using Common.Config;
 namespace OrleansApp.Grains;
 
 /**
- * This actor should not be used when Orleans Transactions option is set
- * due to interleaving problems related to ETag (writes to storage are always async)
+ * WARNING: The reentrancy option, due to problems related to concurrent ETag writes caused by interleaving, leads to several errors
  */
 [Reentrant]
 public sealed class SellerActor : AbstractSellerActor
@@ -42,8 +41,7 @@ public sealed class SellerActor : AbstractSellerActor
     protected override async Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
-        var containsKey = this.orderEntries.State.ContainsKey(id);
-        if (containsKey)
+        if (this.orderEntries.State.ContainsKey(id))
         {
             this.logger.LogError("Seller {0} - Customer ID {1} Order ID {2} already exists. {3},{4}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, invoiceIssued.items[0].order_id, this.orderEntries.State[id][0].order_id);
             return;

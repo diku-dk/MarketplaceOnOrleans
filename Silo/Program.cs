@@ -80,7 +80,8 @@ builder.Host.UseOrleans(siloBuilder =>
 
     if (streamReplication)
     {
-        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider);
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
+                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
 
     if (orleansTransactions)
@@ -103,13 +104,7 @@ builder.Host.UseOrleans(siloBuilder =>
             //options.MaxLockGroupSize = 100;
         });
         siloBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp")); });
-    } else
-    {
-        siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
-    }
-         
-    if (orleansStorage)
-    {
+    
         if (adoNetGrainStorage)
         {
             siloBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
@@ -122,13 +117,11 @@ builder.Host.UseOrleans(siloBuilder =>
         {
             siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
         }
-    } 
-    /* do we need any storage?
-    else
+    
+    } else
     {
-        siloBuilder.AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+        siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
     }
-    */
 
     if(useDash){
       siloBuilder.UseDashboard(x => x.HostSelf = true);

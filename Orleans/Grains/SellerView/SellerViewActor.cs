@@ -12,12 +12,14 @@ using OrleansApp.Infra;
 using SellerMS.Infra;
 using System.Text;
 using System.Text.Json;
+using Orleans.Concurrency;
 
 namespace Orleans.Grains.SellerView;
 
 /**
- * Actor resposible for maintaining the seller view dashboard consistent
+ * Actor resposible for maintaining the correcteness of the seller view dashboard 
  */
+[Reentrant]
 public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 {
     private readonly SellerDbContext dbContext;
@@ -53,7 +55,10 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
     {
         // if duplicate, discard event to avoid computing wrong view
         var ID = (invoiceIssued.customer.CustomerId, invoiceIssued.orderId);
-        if(cache.ContainsKey(ID)) { return Task.CompletedTask; }
+        if(this.cache.ContainsKey(ID)) {
+            this.logger.LogWarning("Seller {0} - Customer ID {1} Order ID {2} already exists.", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId);
+            return Task.CompletedTask; 
+        }
 
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
@@ -115,9 +120,18 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     public override Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
+        // although it saves some remote calls, do not lead to significant improvement
+        if (shipmentNotification.status != ShipmentStatus.concluded){
+            return Task.CompletedTask;
+        }
+
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             var ID = (shipmentNotification.customerId, shipmentNotification.orderId);
+            if(!this.cache.ContainsKey(ID)){
+                this.logger.LogWarning("Seller {0} - Order ID {1} have not arrived yet! Skipping event...", this.sellerId, ID);
+                return Task.CompletedTask; 
+            }
             var ids = this.cache[ID];
             var orderEntries = this.dbContext.OrderEntries.Where(oe => ids.Contains(oe.id));
 
@@ -155,10 +169,11 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
                     var LOG_ID = new StringBuilder(shipmentNotification.customerId).Append('-').Append(shipmentNotification.orderId).ToString();
                     this.persistence.Log(Name, LOG_ID, str);
                 }
-                // force removal of entries from the view
-                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
 
                 this.cache.Remove(ID);
+
+                // force removal of entries from the view
+                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
             }
 
         }

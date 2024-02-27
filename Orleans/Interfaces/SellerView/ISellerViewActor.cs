@@ -5,13 +5,14 @@ using Orleans.Concurrency;
 namespace Orleans.Interfaces.SellerView;
 
 /**
- * To have consistent seller dashboard, methods that alter the view state must not be one way
+ * To have strong consistent seller dashboard, methods that alter the view state should not be one way
+ * However, there is a severe performance penalty compared to baseline (in-memory view maintenance)
  */
 public interface ISellerViewActor : ISellerActor
 {
 
-    new Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
+    // new Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
 
-    new Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
+    // new Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
 
 }

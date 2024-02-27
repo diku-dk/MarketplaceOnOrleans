@@ -9,7 +9,6 @@ using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
-[Reentrant]
 public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 {
 

@@ -8,7 +8,9 @@ using OrleansApp.Interfaces;
 
 namespace OrleansApp.Transactional;
 
-[Reentrant]
+/**
+* For some unknown reason, having reentrancy here leads to non-deterministic degradation of performance.
+*/
 public sealed class TransactionalPaymentActor : AbstractPaymentActor, ITransactionalPaymentActor
 {
     public TransactionalPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
