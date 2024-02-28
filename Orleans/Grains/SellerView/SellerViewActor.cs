@@ -31,7 +31,7 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     private OrderSellerView EMPTY_SELLER_VIEW;
 
-    private bool cachedViewIsDirty = false;
+    private volatile bool cachedViewIsDirty = false;
 
     private SellerDashboard sellerDashboardCached;
 
@@ -83,9 +83,7 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
         // cleaning tracking for new entries in this context
         this.dbContext.ChangeTracker.Clear();
 
-        // refresh its own view
-        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
-
+        // dont need to refresh view now. only when the query comes
         // mark cached view as dirty to force retrieval from DB
         this.cachedViewIsDirty = true;
 
@@ -186,9 +184,6 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
                 this.cache.Remove(ID);
 
-                // force removal of entries from the view
-                this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
-
                 this.cachedViewIsDirty = true;
             }
 
@@ -225,10 +220,12 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
     {
         if(!cachedViewIsDirty) return Task.FromResult(sellerDashboardCached);
 
+        this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
         // this should have transaction isolation
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
-            sellerDashboardCached = new SellerDashboard(
+            this.sellerDashboardCached = new SellerDashboard(
                 this.dbContext.OrderSellerView.FromSqlRaw($"SELECT * FROM public.order_seller_view_{this.sellerId}").AsEnumerable().FirstOrDefault(this.EMPTY_SELLER_VIEW),
                 this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId).ToList()
             );
