@@ -28,6 +28,8 @@
     <None Remove="Infra\" />
     <None Remove="Interfaces\" />
     <None Remove="Migrations\" />
+    <None Remove="Infra\Redis\" />
+    <None Remove="Infra\SellerDb\" />
   </ItemGroup>
 
     <ItemGroup>
@@ -35,5 +37,7 @@
     </ItemGroup>
     <ItemGroup>
       <Folder Include="Migrations\" />
+      <Folder Include="Infra\Redis\" />
+      <Folder Include="Infra\SellerDb\" />
     </ItemGroup>
 </Project>

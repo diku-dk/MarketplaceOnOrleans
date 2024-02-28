@@ -1,10 +1,8 @@
 ﻿using Common.Config;
 using Microsoft.Extensions.Logging;
-using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
-using OrleansApp.Interfaces;
 
 namespace OrleansApp.Transactional;
 

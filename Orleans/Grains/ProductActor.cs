@@ -8,8 +8,8 @@ using OrleansApp.Interfaces;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Common.Config;
-using Orleans.Infra;
 using Common.Integration;
+using Orleans.Infra.Redis;
 
 namespace OrleansApp.Grains;
 

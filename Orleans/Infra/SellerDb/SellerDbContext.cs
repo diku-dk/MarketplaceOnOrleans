@@ -3,7 +3,7 @@ using Common.Entities;
 using Common.Integration;
 using Common.Config;
 
-namespace SellerMS.Infra
+namespace Orleans.Infra.SellerDb
 {
     public sealed class SellerDbContext : DbContext
     {
@@ -12,11 +12,11 @@ namespace SellerMS.Infra
 
         public DbSet<OrderSellerView> OrderSellerView => Set<OrderSellerView>();
 
-        private readonly AppConfig configuration;
+        private readonly AppConfig appConfig;
 
-        public SellerDbContext(AppConfig configuration)
+        public SellerDbContext(AppConfig appConfig)
         {
-            this.configuration = configuration;
+            this.appConfig = appConfig;
         }
 
         public static string CreateCustomOrderSellerViewSql(int sellerId)
@@ -31,14 +31,14 @@ namespace SellerMS.Infra
             return $"REFRESH MATERIALIZED VIEW public.order_seller_view_{sellerId};";
         }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-            options
-                .UseNpgsql(configuration.AdoNetConnectionString)
-                .EnableSensitiveDataLogging()
-                .EnableDetailedErrors()
-                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
-        }
+         protected override void OnConfiguring(DbContextOptionsBuilder options)
+         {
+             options
+                 .UseNpgsql(appConfig.AdoNetConnectionString)
+                 .EnableSensitiveDataLogging()
+                 .EnableDetailedErrors()
+                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+         }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

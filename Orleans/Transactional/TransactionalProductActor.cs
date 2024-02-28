@@ -8,7 +8,7 @@ using Orleans.Streams;
 using Common.Config;
 using Orleans.Concurrency;
 using Common.Integration;
-using Orleans.Infra;
+using Orleans.Infra.Redis;
 
 namespace OrleansApp.Transactional;
 

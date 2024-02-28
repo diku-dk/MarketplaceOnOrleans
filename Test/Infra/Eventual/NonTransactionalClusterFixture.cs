@@ -16,7 +16,6 @@ public class NonTransactionalClusterFixture : IDisposable
     {
         public void Configure(ISiloBuilder hostBuilder)
         {
-
             hostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -33,22 +32,8 @@ public class NonTransactionalClusterFixture : IDisposable
             hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
              .AddSingleton(ConfigHelper.NonTransactionalDefaultAppConfig);
 
-            if (ConfigHelper.NonTransactionalDefaultAppConfig.OrleansTransactions)
-            {
-                if (ConfigHelper.NonTransactionalDefaultAppConfig.AdoNetGrainStorage)
-                {
-
-                    hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
-                    {
-                        options.Invariant = "Npgsql";
-                        options.ConnectionString = ConfigHelper.PostgresConnectionString;
-                    });
-                }
-                else
-                {
-                    hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-                }
-            }
+            // the non transactional grains need grain storage for persistent state on constructor
+            hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
 
             if (ConfigHelper.NonTransactionalDefaultAppConfig.LogRecords)
                 hostBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();

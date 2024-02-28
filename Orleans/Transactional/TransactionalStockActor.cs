@@ -5,7 +5,6 @@ using OrleansApp.Grains;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 using Common.Config;
-using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 

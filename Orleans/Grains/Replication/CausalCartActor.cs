@@ -3,7 +3,7 @@ using Common.Entities;
 using Common.Integration;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra;
+using Orleans.Infra.Redis;
 using Orleans.Interfaces.Replication;
 using Orleans.Runtime;
 using OrleansApp.Grains;

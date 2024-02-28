@@ -5,9 +5,11 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
-using SellerMS.Infra;
 using Orleans.Hosting;
 using Orleans.Infra;
+using Orleans.Infra.Redis;
+using Orleans.Infra.SellerDb;
+using Microsoft.EntityFrameworkCore;
 
 namespace Test.Infra.Transactional;
 
@@ -34,7 +36,7 @@ public sealed class TransactionalClusterFixture : IDisposable
 
             if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)
             {
-                hostBuilder.Services.AddDbContextFactory<SellerDbContext>();
+                 hostBuilder.Services.AddDbContextFactory<SellerDbContext>();
             }
 
             if (ConfigHelper.TransactionalDefaultAppConfig.StreamReplication)

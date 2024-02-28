@@ -1,8 +1,8 @@
 ﻿using Orleans.Configuration;
 using OrleansApp.Infra;
 using Orleans.Serialization;
-using Orleans.Infra;
-using SellerMS.Infra;
+using Orleans.Infra.SellerDb;
+using Orleans.Infra.Redis;
 using Microsoft.EntityFrameworkCore;
 using Common.Config;
 
@@ -121,6 +121,10 @@ builder.Host.UseOrleans(siloBuilder =>
     } else
     {
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
+
+        // required to make persistentState being injected on non-transactional grains
+        // TODO separate OrleansStorage option from Persistence grain state new option
+        siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
     }
 
     if(useDash){

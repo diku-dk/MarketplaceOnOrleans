@@ -1,9 +1,9 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Common.Integration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
+using Orleans.Infra.SellerDb;
 using Orleans.Interfaces.SellerView;
-using SellerMS.Infra;
 using Test.Infra;
 using Test.Infra.Transactional;
 
@@ -19,6 +19,7 @@ public class SellerViewActorTests : BaseTest
     {
         // ensure schema is created
         SellerDbContext context = (SellerDbContext) _cluster.Client.ServiceProvider.GetService(typeof(SellerDbContext));
+
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         context.Database.Migrate();
 
@@ -88,6 +89,9 @@ public class SellerViewActorTests : BaseTest
             instanceId = "1",
             status = ShipmentStatus.concluded
         });
+
+        // as on way request, must wait a little bit more
+        await Task.Delay(1000);
 
         dashboard = await sellerViewActor.QueryDashboard();
 
