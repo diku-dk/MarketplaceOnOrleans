@@ -14,7 +14,7 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
 {
     protected static readonly string Name = typeof(SellerActor).FullName;
 
-    protected readonly ILogger<SellerActor> logger;
+    protected readonly ILogger<AbstractSellerActor> logger;
     protected readonly IAuditLogger persistence;
 
     protected int sellerId;
@@ -26,7 +26,7 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
         [PersistentState("seller", Constants.OrleansStorage)] IPersistentState<Seller> seller,
         IAuditLogger persistence,
         AppConfig options,
-        ILogger<SellerActor> logger)
+        ILogger<AbstractSellerActor> logger)
     {
         this.seller = seller;
         this.config = options;
@@ -61,6 +61,7 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
             {
                 customer_id = invoiceIssued.customer.CustomerId,
                 order_id = item.order_id,
+                natural_key = string.Format("{0}|{1}",invoiceIssued.customer.CustomerId,item.order_id),
                 seller_id = item.seller_id,
                 // package_id = not known yet
                 product_id = item.product_id,

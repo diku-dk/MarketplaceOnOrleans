@@ -31,6 +31,9 @@ namespace Orleans.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("id"));
 
+                    b.Property<int>("natural_key")
+                        .HasColumnType("text");
+
                     b.Property<int>("customer_id")
                         .HasColumnType("integer");
 

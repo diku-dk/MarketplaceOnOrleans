@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Orleans.Abstract;
 using Orleans.Interfaces.SellerView;
 using Orleans.Runtime;
-using OrleansApp.Grains;
 using OrleansApp.Infra;
 using SellerMS.Infra;
 using System.Text;
@@ -17,7 +16,11 @@ using Orleans.Concurrency;
 namespace Orleans.Grains.SellerView;
 
 /**
- * Actor resposible for maintaining the correcteness of the seller view dashboard 
+ * Actor resposible for maintaining the correcteness of the seller view dashboard
+ * TODO improvement: Initialize a new DbContext for each request to avoid the "connection is busy"
+ * exception on concurrent async calls. A DbContextFactory may help. Related links:
+ * https://learn.microsoft.com/en-us/ef/ef6/fundamentals/working-with-dbcontext#lifetime
+ * https://github.com/npgsql/efcore.pg/issues/1901#issuecomment-1016282126
  */
 [Reentrant]
 public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
@@ -28,16 +31,24 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     private OrderSellerView EMPTY_SELLER_VIEW;
 
+    private bool cachedViewIsDirty = false;
+
+    private SellerDashboard sellerDashboardCached;
+
     public SellerViewActor(
         SellerDbContext dbContext,
         [PersistentState("seller", Constants.OrleansStorage)] IPersistentState<Seller> seller,
         IAuditLogger persistence,
         AppConfig options, 
-        ILogger<SellerActor> logger) 
+        ILogger<SellerViewActor> logger) 
         : base(seller, persistence, options, logger)
     {
         this.dbContext = dbContext;
         this.cache = new();
+        this.sellerDashboardCached = sellerDashboardCached = new SellerDashboard(
+                EMPTY_SELLER_VIEW,
+                new List<OrderEntry>()
+            );
     }
 
     public override async Task OnActivateAsync(CancellationToken token)
@@ -74,6 +85,9 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
         // refresh its own view
         this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
+        // mark cached view as dirty to force retrieval from DB
+        this.cachedViewIsDirty = true;
 
         return Task.CompletedTask;
     }
@@ -174,6 +188,8 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
                 // force removal of entries from the view
                 this.dbContext.Database.ExecuteSqlRaw(SellerDbContext.GetRefreshCustomOrderSellerViewSql(this.sellerId));
+
+                this.cachedViewIsDirty = true;
             }
 
         }
@@ -207,16 +223,20 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
 
     public override Task<SellerDashboard> QueryDashboard()
     {
-        SellerDashboard sellerDashboard;
+        if(!cachedViewIsDirty) return Task.FromResult(sellerDashboardCached);
+
         // this should have transaction isolation
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
-            sellerDashboard = new SellerDashboard(
+            sellerDashboardCached = new SellerDashboard(
                 this.dbContext.OrderSellerView.FromSqlRaw($"SELECT * FROM public.order_seller_view_{this.sellerId}").AsEnumerable().FirstOrDefault(this.EMPTY_SELLER_VIEW),
                 this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId).ToList()
             );
         }
-        return Task.FromResult(sellerDashboard);
+        // mark cached view as not dirty anymore
+        this.cachedViewIsDirty = false;
+
+        return Task.FromResult(sellerDashboardCached);
     }
 
 }

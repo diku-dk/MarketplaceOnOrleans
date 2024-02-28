@@ -134,7 +134,7 @@ In other words, seller actors cannot trigger the refresh concurrently. They have
 
 However, another problem is that, if we have eventual update of the materialized view, the order entries queried as part of the seller dashboard may not be consistent with the view, thus violating the correctness criterion.
 
-To accomodate the above constraints, each seller is responsible for its own materialized view. In this case, the actor single-thread model guarantees there is only one refresh at a time and consequently, the order entries are always in sync with the seller view.
+To accomodate the above constraints, we defined the following: each seller is responsible for its own materialized view. In this case, the actor single-thread model guarantees there is only one refresh at a time and consequently, the order entries are always in sync with the seller view.
 
 If you desire to modify the data model of seller view, although you can create a new migration, it is simpler to delete the existing one and run the following command in the project's root folder:
 

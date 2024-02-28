@@ -4,6 +4,10 @@ public sealed class OrderEntry
 {
     public int id { get; set; }
 
+    // concat(customer_id,' ',order_id)
+    // to get correct count_orders on seller view
+    public string natural_key { get; set; }
+
     public int customer_id { get; set; }
 
     public int order_id { get; set; }

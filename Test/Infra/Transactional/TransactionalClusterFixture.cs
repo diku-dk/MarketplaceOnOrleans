@@ -54,12 +54,6 @@ public sealed class TransactionalClusterFixture : IDisposable
             if (ConfigHelper.TransactionalDefaultAppConfig.OrleansTransactions)
             {
                 hostBuilder.UseTransactions();
-            }
-
-            hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
-             .AddSingleton(ConfigHelper.TransactionalDefaultAppConfig);
-
-            if (ConfigHelper.TransactionalDefaultAppConfig.OrleansStorage) {
                 if (ConfigHelper.TransactionalDefaultAppConfig.AdoNetGrainStorage) { 
 
                     hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
@@ -71,8 +65,11 @@ public sealed class TransactionalClusterFixture : IDisposable
                 else
                 {
                     hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
-                } 
+                }
             }
+
+            hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
+             .AddSingleton(ConfigHelper.TransactionalDefaultAppConfig);
 
             if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords)
             {

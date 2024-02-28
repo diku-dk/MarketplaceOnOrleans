@@ -1,6 +1,4 @@
 ﻿using OrleansApp.Interfaces;
-using Common.Events;
-using Orleans.Concurrency;
 
 namespace Orleans.Interfaces.SellerView;
 
@@ -10,9 +8,5 @@ namespace Orleans.Interfaces.SellerView;
  */
 public interface ISellerViewActor : ISellerActor
 {
-
-    // new Task ProcessNewInvoice(InvoiceIssued invoiceIssued);
-
-    // new Task ProcessShipmentNotification(ShipmentNotification shipmentNotification);
 
 }

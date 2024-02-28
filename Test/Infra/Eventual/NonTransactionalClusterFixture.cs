@@ -33,7 +33,7 @@ public class NonTransactionalClusterFixture : IDisposable
             hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })
              .AddSingleton(ConfigHelper.NonTransactionalDefaultAppConfig);
 
-            if (ConfigHelper.NonTransactionalDefaultAppConfig.OrleansStorage)
+            if (ConfigHelper.NonTransactionalDefaultAppConfig.OrleansTransactions)
             {
                 if (ConfigHelper.NonTransactionalDefaultAppConfig.AdoNetGrainStorage)
                 {
