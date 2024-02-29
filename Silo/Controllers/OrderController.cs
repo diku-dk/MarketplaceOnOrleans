@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
 
-namespace Order.Controllers;
+namespace Silo.Controllers;
 
 [ApiController]
 public sealed class OrderController : ControllerBase

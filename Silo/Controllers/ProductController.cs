@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
 
-namespace OrleansApp.Controllers;
+namespace Silo.Controllers;
 
 [ApiController]
 public sealed class ProductController : ControllerBase

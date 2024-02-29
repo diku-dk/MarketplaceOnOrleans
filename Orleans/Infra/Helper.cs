@@ -1,6 +1,4 @@
-﻿using Common;
-
-namespace OrleansApp.Infra;
+﻿namespace OrleansApp.Infra;
 
 public static class Helper
 {

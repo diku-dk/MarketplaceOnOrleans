@@ -13,5 +13,7 @@ public interface IShipmentActor : IGrainWithIntegerKey
 
 	Task UpdateShipment(string tid);
 
+    Task UpdateShipment(string tid, ISet<(int customerId, int orderId, int sellerId)> entries);
+
     Task Reset();
 }

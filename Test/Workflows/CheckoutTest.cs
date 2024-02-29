@@ -38,15 +38,12 @@ public class CheckoutTest : BaseTest
 
         await shipmentActor.Reset();
         await orderActor.Reset();
-
-        //config.OrleansTransactions = true;
     }
 
     [Fact]
     public async Task CheckoutTwoOrdersSameCustomer()
     {
         var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        //config.OrleansTransactions = false;
 
         int customerId = 1;
 
@@ -97,15 +94,12 @@ public class CheckoutTest : BaseTest
         Assert.True(count == 2);
 
         await shipmentActor.Reset();
-
-       // config.OrleansTransactions = true;
     }
 
     [Fact]
     public async Task CheckoutTwoOrdersDifferentCustomers()
     {
         var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        //config.OrleansTransactions = false;
 
         var numCustomers = 2;
         await InitStorage();
@@ -155,8 +149,6 @@ public class CheckoutTest : BaseTest
         }
         // clean so other tests do not fail
         await shipmentActor.Reset();
-
-        //config.OrleansTransactions = false;
     }
 
     async Task InitStorage()

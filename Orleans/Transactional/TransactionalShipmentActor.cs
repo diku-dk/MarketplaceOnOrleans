@@ -105,5 +105,24 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
     {
         return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
     }
+
+    private readonly KeyValuePair<int, Shipment> EMPTY = new KeyValuePair<int, Shipment>(-1,null);
+
+    public override async Task UpdateShipment(string tid, ISet<(int customerId, int orderId, int sellerId)> entries)
+    {
+        Dictionary<int, int> oldestShipmentPerSeller = new Dictionary<int, int>();
+        foreach (var entry in entries) {
+            var shipmentID = await this.shipments
+             .PerformRead(dic => 
+                 dic.Where( e=> e.Value.customer_id == entry.customerId && e.Value.order_id == entry.orderId )
+                 .SingleOrDefault(EMPTY).Key
+             );
+            if(shipmentID != -1)
+                oldestShipmentPerSeller.Add(entry.sellerId, shipmentID);
+        }
+
+        await DoUpdateShipments(tid, oldestShipmentPerSeller);
+    }
+
 }
 

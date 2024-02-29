@@ -54,8 +54,8 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     }
 
     public AbstractShipmentActor(IAuditLogger persistence,
-         AppConfig options,
-         ILogger<IShipmentActor> logger)
+                                 AppConfig options,
+                                 ILogger<IShipmentActor> logger)
     {
         this.persistence = persistence;
         this.config = options;
@@ -132,62 +132,70 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         await Task.WhenAll(tasks);
     }
 
+    /**
+     *  Impossibility of ensuring one order per seller in this transaction
+     *  (without coordination among all shipments!)
+     *  since sellers' packages are distributed across many shipment actors
+     */
     public async Task UpdateShipment(string tid)
     {
-        List<Task> tasks = new();
-        // impossibility of ensuring one order per seller in this transaction
-        // (without coordination among all shipments!)
-        // since sellers' packages are distributed across many shipment actors
-
-        var now = DateTime.UtcNow;
         // https://stackoverflow.com/questions/5231845/c-sharp-linq-group-by-on-multiple-columns
 
         // get oldest 10 orders by seller
         var oldestShipments = config.OrleansTransactions ? await GetOldestOpenShipmentPerSellerAsync() : GetOldestOpenShipmentPerSeller();
 
+        await DoUpdateShipments(tid, oldestShipments);
+    }
+
+    protected async Task DoUpdateShipments(string tid, Dictionary<int, int> oldestShipments)
+    {
+        var now = DateTime.UtcNow;
+        List<Task> tasks = new();
         foreach (var info in oldestShipments)
         {
-            var res = await GetShipmentById(info.Value);
+            var res = await this.GetShipmentById(info.Value);
             List<Package> packages = res.Item2;
             Shipment shipment = res.Item1;
-            
-            var sellerPackages = packages.Where(p=> p.seller_id == info.Key).ToList();
+
+            var sellerPackages = packages.Where(p => p.seller_id == info.Key).ToList();
             int countDelivered = packages.Where(p => p.status == PackageStatus.delivered).Count();
 
             foreach (var package in sellerPackages)
             {
-                SetPackageToDelivered(info.Value, package, now);
+                this.SetPackageToDelivered(info.Value, package, now);
 
                 var deliveryNotification = new DeliveryNotification(
                     shipment.customer_id, package.order_id, package.package_id, package.seller_id,
                     package.product_id, package.product_name, PackageStatus.delivered, now, tid);
 
                 tasks.Add(GrainFactory.GetGrain<ICustomerActor>(package.customer_id)
-                    .NotifyDelivery(deliveryNotification));
-                tasks.Add(this.getSellerDelegate(package.seller_id)
-                    .ProcessDeliveryNotification(deliveryNotification));
+                     .NotifyDelivery(deliveryNotification));
+                tasks.Add(this.getSellerDelegate(package.seller_id).ProcessDeliveryNotification(deliveryNotification));
             }
 
             if (shipment.status == ShipmentStatus.approved)
             {
-                UpdateShipmentStatus(info.Value, ShipmentStatus.delivery_in_progress);
+                this.UpdateShipmentStatus(info.Value, ShipmentStatus.delivery_in_progress);
 
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                         shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.delivery_in_progress);
-                tasks.Add(GetOrderActor(shipment.customer_id)
-                    .ProcessShipmentNotification(shipmentNotification));
+                tasks.Add(this.GetOrderActor(shipment.customer_id).ProcessShipmentNotification(shipmentNotification));
             }
 
             if (shipment.package_count == countDelivered + sellerPackages.Count)
             {
-                UpdateShipmentStatus(info.Value, ShipmentStatus.concluded);
+                this.UpdateShipmentStatus(info.Value, ShipmentStatus.concluded);
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
-                shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
-                // FIXME should notify all sellers included in the shipment
-                tasks.Add(this.getSellerDelegate(sellerPackages[0].seller_id)
-                    .ProcessShipmentNotification(shipmentNotification));
-                tasks.Add(GetOrderActor(shipment.customer_id)
-                    .ProcessShipmentNotification(shipmentNotification));
+                    shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.concluded);
+
+                // should notify all sellers included in the shipment
+                var sellerIDs = sellerPackages.Select(p => p.seller_id).Distinct();
+                foreach(var sellerID in sellerIDs)
+                {
+                    tasks.Add(this.getSellerDelegate(sellerID).ProcessShipmentNotification(shipmentNotification));
+                }
+
+                tasks.Add(GetOrderActor(shipment.customer_id).ProcessShipmentNotification(shipmentNotification));
 
                 // log shipment and packages
                 if (this.config.LogRecords)
@@ -197,7 +205,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
                     tasks.Add(persistence.Log(Name, sb.ToString(), str));
                 }
 
-                tasks.Add(DeleteShipmentById(info.Value));
+                tasks.Add(this.DeleteShipmentById(info.Value));
 
             }
 
@@ -233,4 +241,10 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     protected abstract Task DeleteShipmentById(int id);
 
     public abstract Task<List<Shipment>> GetShipments(int customerId);
+
+    public virtual Task UpdateShipment(string tid, ISet<(int customerId, int orderId, int sellerId)> entries)
+    {
+        throw new NotImplementedException();
+    }
+
 }

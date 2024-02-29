@@ -1,7 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Orleans.Infra.SellerDb;
 using Orleans.Interfaces.SellerView;
 using Test.Infra;
@@ -90,7 +89,7 @@ public class SellerViewActorTests : BaseTest
             status = ShipmentStatus.concluded
         });
 
-        // as on way request, must wait a little bit more
+        // as it is a one-way request, the test must wait a little bit more
         await Task.Delay(1000);
 
         dashboard = await sellerViewActor.QueryDashboard();

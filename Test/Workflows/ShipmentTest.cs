@@ -18,7 +18,6 @@ public class ShipmentTest : BaseTest
     public async Task SimpleDeliveryTest()
     {
         var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        //config.OrleansTransactions = false;
 
         int customerId = 1;
         await InitData(1,2);
@@ -40,17 +39,13 @@ public class ShipmentTest : BaseTest
 
         await shipmentActor.Reset();
         await orderActor.Reset();
-
-       // config.OrleansTransactions = true;
     }
 
     
     [Fact]
     public async Task ManyCheckoutsDeliveryTest()
     {
-
         var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-       // config.OrleansTransactions = false;
 
         int customerId = 1;
         await InitData(customerId, 2);
@@ -77,8 +72,6 @@ public class ShipmentTest : BaseTest
 
         await shipmentActor.Reset();
         await orderActor.Reset();
-
-       // config.OrleansTransactions = true;
     }
 
 }  

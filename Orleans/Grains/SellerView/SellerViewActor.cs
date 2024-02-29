@@ -12,6 +12,8 @@ using System.Text;
 using System.Text.Json;
 using Orleans.Concurrency;
 using Orleans.Infra.SellerDb;
+using System.Collections.Specialized;
+using System.Collections.Concurrent;
 
 namespace Orleans.Grains.SellerView;
 
@@ -78,6 +80,15 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
         // dont need to refresh view now. only when the query comes
         // mark cached view as dirty to force retrieval from DB
         this.cachedViewIsDirty = true;
+
+        /* this code could help on baseline
+        return Task.Run(() => {
+            // This code runs on the thread pool scheduler, not on Orleans task scheduler
+            ConcurrentQueue<(int customerId, )> queue = new System.Collections.Concurrent.ConcurrentQueue(1);
+            foreach (var orderEntry in orderEntries) { od.Add(orderEntry.id, orderEntry); }
+
+        });
+        */
        
         return Task.CompletedTask;
     }
