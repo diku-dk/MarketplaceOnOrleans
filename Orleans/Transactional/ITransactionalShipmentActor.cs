@@ -18,6 +18,9 @@ public interface ITransactionalShipmentActor : IShipmentActor
     new Task UpdateShipment(string tid);
 
     [Transaction(TransactionOption.Create)]
+    new Task UpdateShipment(string tid, ISet<(int customerId, int orderId, int sellerId)> entries);
+
+    [Transaction(TransactionOption.Create)]
     new Task Reset();
 
 }

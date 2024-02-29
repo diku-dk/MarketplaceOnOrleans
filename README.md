@@ -122,7 +122,7 @@ There is a suite of tests available for checking some Online Marketplace benchma
 
 To allow the tests to run concurrently, there are two different ClusterFixtures, one for transactional tests and another for non-transactional tests. This is not ideal and perhaps they could be better modularized or even merged, but maintaining the different properties on test runtime.
 
-### <a name="test"></a>Notes about Seller Dashboard View Maintenance
+### <a name="seller_view"></a>Notes about Seller Dashboard View Maintenance
 
 In preliminary commits, we designed the seller dashboard as a materialized view on PostgreSQL.
 The idea is to benefit of the query processingand transactional capabilities to obtain a consistent seller dashboard.
@@ -141,6 +141,14 @@ If you desire to modify the data model of seller view, although you can create a
 ```
 dotnet ef migrations add InitialMigration --project Orleans
 ```
+
+### <a name="transactions"></a>Notes about Orleans Transactions
+
+In our experiments, we experienced a substantial number of aborts when all transactional actors are marked as reentrant. After many combinations attempted, we found that, in order to have a minimal reasonable performance, the only transactional actor carrying the [Reentrant] (thus allowing interleaving of requests within the same actor) should be the TransactionalOrderActor.
+
+Interleaving enabled in TransactionalOrderActor is necessary in order to allow for "feedback" messages (PaymentConfirmed|PaymentRejected|ShipmentNotification) to be processed in the context of the same transaction.
+
+On the other hand, one may claim that it is reasonable to omit such "feedback" events from the Checkout transactions in order to allow all transactional actors to become reentrant. However, when introducing reentrancy in all actors, we also experience other sources of aborts that impact performance significantly. In other words, the "feedback" events are not the core performance blocker. As a result, having the TransactionalOrderActor as the only reentrant actor is a way to avoid the "bad" interleavings, the ones not caused by the application code but the transaction scheduler itself, thus leading to aborts.
 
 ### <a name="ucloud"></a>UCloud
 

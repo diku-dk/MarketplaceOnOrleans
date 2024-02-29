@@ -30,6 +30,7 @@
     <None Remove="Migrations\" />
     <None Remove="Infra\Redis\" />
     <None Remove="Infra\SellerDb\" />
+    <None Remove="Service\" />
   </ItemGroup>
 
     <ItemGroup>
@@ -39,5 +40,6 @@
       <Folder Include="Migrations\" />
       <Folder Include="Infra\Redis\" />
       <Folder Include="Infra\SellerDb\" />
+      <Folder Include="Service\" />
     </ItemGroup>
 </Project>

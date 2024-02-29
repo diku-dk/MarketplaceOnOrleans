@@ -5,11 +5,10 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
-using Orleans.Hosting;
-using Orleans.Infra;
 using Orleans.Infra.Redis;
 using Orleans.Infra.SellerDb;
-using Microsoft.EntityFrameworkCore;
+using OrleansApp.Service;
+using Orleans.Hosting;
 
 namespace Test.Infra.Transactional;
 
@@ -26,7 +25,6 @@ public sealed class TransactionalClusterFixture : IDisposable
         // https://stackoverflow.com/questions/55497800/populate-iconfiguration-for-unit-tests
         public void Configure(ISiloBuilder hostBuilder)
         {
-
             hostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -36,7 +34,11 @@ public sealed class TransactionalClusterFixture : IDisposable
 
             if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)
             {
-                 hostBuilder.Services.AddDbContextFactory<SellerDbContext>();
+                hostBuilder.Services.AddDbContextFactory<SellerDbContext>();
+                hostBuilder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+            } else
+            {
+                hostBuilder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
             }
 
             if (ConfigHelper.TransactionalDefaultAppConfig.StreamReplication)
@@ -104,6 +106,10 @@ public sealed class TransactionalClusterFixture : IDisposable
             if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)
             {
                 clientBuilder.Services.AddDbContextFactory<SellerDbContext>();
+                clientBuilder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+            } else
+            {
+                 clientBuilder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
             }
         }
     }

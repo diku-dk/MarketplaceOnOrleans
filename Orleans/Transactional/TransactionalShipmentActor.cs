@@ -4,11 +4,9 @@ using OrleansApp.Abstract;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 using Common.Config;
-using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
-[Reentrant]
 public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalShipmentActor
 {
 
@@ -116,12 +114,13 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
              .PerformRead(dic => 
                  dic.Where( e=> e.Value.customer_id == entry.customerId && e.Value.order_id == entry.orderId )
                  .SingleOrDefault(EMPTY).Key
-             );
-            if(shipmentID != -1)
+            );
+            if(shipmentID != -1 && !oldestShipmentPerSeller.ContainsKey(entry.sellerId)){
                 oldestShipmentPerSeller.Add(entry.sellerId, shipmentID);
+            }
         }
 
-        await DoUpdateShipments(tid, oldestShipmentPerSeller);
+        await this.DoUpdateShipments(tid, oldestShipmentPerSeller);
     }
 
 }

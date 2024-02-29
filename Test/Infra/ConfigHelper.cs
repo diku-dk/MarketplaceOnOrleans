@@ -9,7 +9,7 @@ public class ConfigHelper
         SellerViewPostgres = true,
         StreamReplication = true,
         OrleansTransactions = true,
-        OrleansStorage = true,
+        OrleansStorage = false,
         AdoNetGrainStorage = false,
         LogRecords = false,
         AdoNetConnectionString = PostgresConnectionString,
@@ -32,7 +32,7 @@ public class ConfigHelper
         UseSwagger = false,
     };
 
-    public const string PostgresConnectionString = "Host=ep-ancient-wildflower-518871-pooler.eu-central-1.aws.neon.tech;Port=5432;Database=neondb;Username=rodrigolaigner;Password=QtoLT2sbOwP7";
+    public const string PostgresConnectionString = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=password;Pooling=true;Minimum Pool Size=0;Maximum Pool Size=10000";
 
 }
 

@@ -1,5 +1,10 @@
-﻿using Common.Entities;
+﻿using Common.Config;
+using Common.Entities;
 using Common.Requests;
+using Microsoft.EntityFrameworkCore;
+using Orleans.Infra.SellerDb;
+using OrleansApp.Grains;
+using OrleansApp.Service;
 using OrleansApp.Transactional;
 using Test.Infra;
 using Test.Infra.Transactional;
@@ -30,6 +35,34 @@ public class TransactionsTest : BaseTest
 
         // reset to avoid impacting other tests
         await shipmentActor.Reset();
+    }
+
+    [Fact]
+    public async Task TestUpdateShipment()
+    {
+        SellerDbContext dbContext = InitSellerDbContext();
+
+        int numCustomers = 10;
+        for(int i = 1; i <= numCustomers; i++){
+            await this.InitData(i, 1);
+        }
+
+        for(int i = 1; i <= numCustomers; i++){
+            await this.BuildAndSendCheckout(i, 1);
+        }
+
+        await Task.Delay(5000);
+
+        var shipmentService = (IShipmentService)_cluster.Client.ServiceProvider.GetService(typeof(IShipmentService));
+
+        await shipmentService.UpdateShipment("1");
+
+        // delay fro seller view actor to process shipment update
+        await Task.Delay(5000);
+
+        // check if there is only 9 entries in order_entries table
+        Assert.True(dbContext.OrderEntries.Count() == 9);
+        dbContext.OrderEntries.ExecuteDelete();
     }
 
     [Fact]

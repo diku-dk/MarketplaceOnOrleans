@@ -1,58 +1,35 @@
 ﻿using System.Net;
-using Common.Config;
 using Microsoft.AspNetCore.Mvc;
-using OrleansApp.Interfaces;
-using OrleansApp.Transactional;
+using OrleansApp.Service;
 
 namespace Silo.Controllers;
 
 [ApiController]
 public sealed class ShipmentController : ControllerBase
 {
-    private readonly AppConfig config;
+    private readonly IShipmentService shipmentService;
     private readonly ILogger<ShipmentController> logger;
-    private readonly GetShipmentActorDelegate callback;
 
-    private delegate IShipmentActor GetShipmentActorDelegate(IGrainFactory grains, int partitionId);
-
-    public ShipmentController(AppConfig options, ILogger<ShipmentController> logger)
+    public ShipmentController(IShipmentService shipmentService, ILogger<ShipmentController> logger)
     {
-        this.config = options;
+        this.shipmentService = shipmentService;
         this.logger = logger;
-        this.callback = config.OrleansTransactions ? GetTransactionalShipmentActor : GetShipmentActor;
     }
 
     [HttpPatch]
     [Route("/shipment/{instanceId}")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
-    public async Task<ActionResult> UpdateShipment([FromServices] IGrainFactory grains, string instanceId)
+    public async Task<ActionResult> UpdateShipment(string instanceId)
     {
-        List<Task> tasks = new List<Task>(config.NumShipmentActors);
         try{
-            for(int i = 0; i < config.NumShipmentActors; i++)
-            {
-                var grain = this.callback(grains, i);
-                tasks.Add(grain.UpdateShipment(instanceId));
-            }
-
-            await Task.WhenAll(tasks);
+            await this.shipmentService.UpdateShipment(instanceId);
             return Accepted();
         } catch(Exception e)
         {
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
         
-    }
-
-    private IShipmentActor GetShipmentActor(IGrainFactory grains, int partitionId)
-    {
-        return grains.GetGrain<IShipmentActor>(partitionId);
-    }
-
-    private ITransactionalShipmentActor GetTransactionalShipmentActor(IGrainFactory grains, int partitionId)
-    {
-        return grains.GetGrain<ITransactionalShipmentActor>(partitionId);
     }
     
 }

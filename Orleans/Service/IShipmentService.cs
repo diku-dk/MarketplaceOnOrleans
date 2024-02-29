@@ -1,4 +1,4 @@
-namespace Silo.Service;
+namespace OrleansApp.Service;
 
 public interface IShipmentService
 {

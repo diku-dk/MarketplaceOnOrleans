@@ -12,8 +12,6 @@ using System.Text;
 using System.Text.Json;
 using Orleans.Concurrency;
 using Orleans.Infra.SellerDb;
-using System.Collections.Specialized;
-using System.Collections.Concurrent;
 
 namespace Orleans.Grains.SellerView;
 

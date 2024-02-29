@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace Common.Events;
 
-public class PaymentConfirmed
+public sealed class PaymentConfirmed
 {
     [JsonProperty("customer")]
     public CustomerCheckout customer { get; set; }

@@ -4,26 +4,21 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
-using Common.Config;
 
 namespace OrleansApp.Transactional;
 
 public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 {
-
     private readonly ITransactionalState<StockItem> item;
-    private readonly AppConfig config;
     private readonly ILogger<StockActor> _logger;
 
     public TransactionalStockActor(
         [TransactionalState(
         stateName: "stock",
         storageName: Constants.OrleansStorage)] ITransactionalState<StockItem> state,
-        AppConfig options,
         ILogger<StockActor> _logger)
     {
-        this.item = state ?? throw new ArgumentNullException(nameof(state)); ;
-        this.config = options;
+        this.item = state ?? throw new ArgumentNullException(nameof(state));
         this._logger = _logger;
     }
 
@@ -49,6 +44,14 @@ public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
     public async Task<ItemStatus> AttemptReservation(CartItem cartItem)
     {
         var status = await this.item.PerformUpdate(i => {
+
+            if(i.version is null)
+            {
+                int primaryKey = (int) this.GetPrimaryKeyLong(out string keyExtension);
+                string ID = string.Format("{0}|{1}", primaryKey, keyExtension);
+                throw new InvalidOperationException(
+                    $" Item ({ID}) has no version. Has it been initialized properly?");
+            }
 
             if (i.version.CompareTo(cartItem.Version) != 0)
             {

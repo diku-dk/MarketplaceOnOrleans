@@ -5,6 +5,7 @@ using Orleans.Infra.SellerDb;
 using Orleans.Infra.Redis;
 using Microsoft.EntityFrameworkCore;
 using Common.Config;
+using OrleansApp.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,6 +77,10 @@ builder.Host.UseOrleans(siloBuilder =>
     if (sellerViewPostgres)
     {
         siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
+        builder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+    } else
+    {
+        builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
     }
 
     if (streamReplication)
@@ -123,7 +128,7 @@ builder.Host.UseOrleans(siloBuilder =>
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
 
         // required to make persistentState being injected on non-transactional grains
-        // TODO separate OrleansStorage option from Persistence grain state new option
+        // TODO separate OrleansStorage option from actual writes to storage grain state (WriteAsync)
         siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
     }
 
@@ -153,12 +158,8 @@ if (sellerViewPostgres)
         var context = services.GetRequiredService<SellerDbContext>();
         context.Database.Migrate();
 
-        // context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSql);
-        // context.Database.ExecuteSqlRaw(SellerDbContext.OrderSellerViewSqlIndex);
-
         // truncate order entries on starting a new experiment
-        context.Database.ExecuteSqlRaw("TRUNCATE TABLE public.order_entries;");
-        // context.Database.ExecuteSqlRaw(SellerDbContext.RefreshMaterializedView);
+        context.OrderEntries.ExecuteDelete();
     }
 }
 

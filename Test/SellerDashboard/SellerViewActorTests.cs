@@ -1,7 +1,5 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Microsoft.EntityFrameworkCore;
-using Orleans.Infra.SellerDb;
 using Orleans.Interfaces.SellerView;
 using Test.Infra;
 using Test.Infra.Transactional;
@@ -14,24 +12,10 @@ public class SellerViewActorTests : BaseTest
 
     public SellerViewActorTests(TransactionalClusterFixture fixture) : base(fixture.Cluster) { }
 
-    private SellerDbContext Init()
-    {
-        // ensure schema is created
-        SellerDbContext context = (SellerDbContext) _cluster.Client.ServiceProvider.GetService(typeof(SellerDbContext));
-
-        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-        context.Database.Migrate();
-
-        // truncate previous records
-        context.OrderEntries.ExecuteDelete();
-
-        return context;
-    }
-
     [Fact]
     public async void TestDashboard()
     {
-        Init();
+        InitSellerDbContext();
 
         var orderList = new List<OrderItem>
         {

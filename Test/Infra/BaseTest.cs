@@ -4,6 +4,8 @@ using OrleansApp.Interfaces;
 using Orleans.TestingHost;
 using OrleansApp.Transactional;
 using Common.Config;
+using Orleans.Infra.SellerDb;
+using Microsoft.EntityFrameworkCore;
 
 namespace Test.Infra;
 
@@ -16,6 +18,20 @@ public abstract class BaseTest
     public BaseTest(TestCluster cluster)
     {
         this._cluster = cluster;
+    }
+
+    protected SellerDbContext InitSellerDbContext()
+    {
+        // ensure schema is created
+        SellerDbContext context = (SellerDbContext) _cluster.Client.ServiceProvider.GetService(typeof(SellerDbContext));
+
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+        context.Database.Migrate();
+
+        // truncate previous records
+        context.OrderEntries.ExecuteDelete();
+
+        return context;
     }
 
     protected CustomerCheckout BuildCustomerCheckout(int customerId)
@@ -41,13 +57,14 @@ public abstract class BaseTest
         return customerCheckout;
     }
 
-    protected async Task BuildAndSendCheckout(int customerId = 1)
+    protected async Task BuildAndSendCheckout(int customerId = 1, int numItems = 2)
     {
         CustomerCheckout customerCheckout = BuildCustomerCheckout(customerId);
 
         var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
-        await cart.AddItem(GenerateCartItem(1, 1));
-        await cart.AddItem(GenerateCartItem(1, 2));
+        for(int i = 1; i <= numItems; i++){
+            await cart.AddItem(GenerateCartItem(1, i));
+        }
 
         await cart.NotifyCheckout(customerCheckout);
     }

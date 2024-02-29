@@ -6,13 +6,11 @@ using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 using Orleans.Streams;
 using Common.Config;
-using Orleans.Concurrency;
 using Common.Integration;
 using Orleans.Infra.Redis;
 
 namespace OrleansApp.Transactional;
 
-[Reentrant]
 public sealed class TransactionalProductActor : Grain, ITransactionalProductActor
 {
     private IStreamProvider streamProvider;
