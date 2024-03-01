@@ -4,6 +4,8 @@ public sealed class AppConfig
 {
     public bool SellerViewPostgres { get; set; }
 
+    public bool ShipmentUpdatePostgres { get; set; }
+
     public bool StreamReplication { get; set; }
 
     public bool RedisReplication { get; set; }
@@ -36,6 +38,7 @@ public sealed class AppConfig
             " \nOrleansStorage" + OrleansStorage +
             " \nStreamReplication" + StreamReplication +
             " \nSellerViewPostgres" + SellerViewPostgres +
+            " \nShipmentUpdatePostgres" + ShipmentUpdatePostgres +
             " \nAdoNetGrainStorage: " + AdoNetGrainStorage +
             " \nAdoNetConnectionString: " + AdoNetConnectionString +
             " \nNumShipmentActors: " + NumShipmentActors +

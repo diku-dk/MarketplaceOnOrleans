@@ -38,7 +38,7 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
         using (var tx = dbContext.Database.BeginTransaction())
         {
             var orderEntries = dbContext.OrderEntries.FromSqlRaw(sqlGetItemsForUpdate);
-            foreach ( var oe in orderEntries)
+            foreach (var oe in orderEntries)
             {
                 int id = Helper.GetShipmentActorID(oe.customer_id, config.NumShipmentActors);
                 if(!dict.ContainsKey(id))
@@ -52,9 +52,11 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
 
         if(dict.Count == 0)
         {
-            throw new ApplicationException("No order entries were retrieved from the database.");
+            this.logger.LogWarning("No order entries were retrieved from the database!");
+            throw new ApplicationException("No order entries were retrieved from the database!");
         }
 
+        this.logger.LogInformation(dict.Count+ " order entries retrieved from the database.");
         // FIXME some requests can obtain the same entries though... the abstractshipmentactor must avoid the cases where the shipment is not found
         List<Task> tasks = new List<Task>(dict.Count);
         foreach (var entry in dict)

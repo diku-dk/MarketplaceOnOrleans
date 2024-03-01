@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
 var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
+var shipmentUpdatePostgres = configSection.GetValue<bool>("ShipmentUpdatePostgres");
 var streamReplication = configSection.GetValue<bool>("StreamReplication");
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
@@ -28,6 +29,7 @@ var redisSecondaryConnectionString = configSection.GetValue<string>("RedisSecond
 AppConfig appConfig = new()
 {
     SellerViewPostgres = sellerViewPostgres,
+    ShipmentUpdatePostgres = shipmentUpdatePostgres,
     StreamReplication = streamReplication,
     RedisReplication = redisReplication,
     RedisPrimaryConnectionString = redisPrimaryConnectionString,
@@ -77,7 +79,10 @@ builder.Host.UseOrleans(siloBuilder =>
     if (sellerViewPostgres)
     {
         siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
-        builder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+        if(shipmentUpdatePostgres)
+            builder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+        else
+            builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
     } else
     {
         builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
