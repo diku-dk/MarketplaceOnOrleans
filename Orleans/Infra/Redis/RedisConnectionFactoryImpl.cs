@@ -12,32 +12,32 @@ namespace Orleans.Infra.Redis
         {
             // stackexchange.github.io/StackExchange.Redis/Configuration.html
 
-            _connections["Primary"] = ConnectionMultiplexer.Connect(primaryConStr);
-            _connections["ReadOnlyBackup"] = ConnectionMultiplexer.Connect(backupConStr);
+            this._connections["Primary"] = ConnectionMultiplexer.Connect(primaryConStr);
+            this._connections["ReadOnlyBackup"] = ConnectionMultiplexer.Connect(backupConStr);
         }
 
         public IConnectionMultiplexer GetConnection(string name)
         {
-            return _connections.TryGetValue(name, out var connection) ? connection : null;
+            return this._connections.TryGetValue(name, out var connection) ? connection : null;
         }
 
         public async Task<bool> SaveProductAsync(string key, ProductReplica productCaches)
         {
-            var db = _connections["Primary"].GetDatabase();
+            var db = this._connections["Primary"].GetDatabase();
             var value = JsonConvert.SerializeObject(productCaches);
             return await db.StringSetAsync(key, value);
         }
 
         public async Task<bool> UpdateProductAsync(string key, ProductReplica productCaches)
         {
-            var db = _connections["Primary"].GetDatabase();
+            var db = this._connections["Primary"].GetDatabase();
             var value = JsonConvert.SerializeObject(productCaches);
             return await db.StringSetAsync(key, value);
         }
 
         public async Task<ProductReplica> GetProductAsync(string key)
         {
-            var db = _connections["ReadOnlyBackup"].GetDatabase();
+            var db = this._connections["ReadOnlyBackup"].GetDatabase();
             var value = await db.StringGetAsync(key);
             return value.HasValue ? JsonConvert.DeserializeObject<ProductReplica>(value) : null;
         }

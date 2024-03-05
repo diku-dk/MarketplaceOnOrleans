@@ -11,10 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
+var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
 var shipmentUpdatePostgres = configSection.GetValue<bool>("ShipmentUpdatePostgres");
-var streamReplication = configSection.GetValue<bool>("StreamReplication");
-var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
+
 var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
 var adoNetConnectionString = configSection.GetValue<string>("AdoNetConnectionString");
@@ -22,19 +22,21 @@ var logRecords = configSection.GetValue<bool>("LogRecords");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
+
+var streamReplication = configSection.GetValue<bool>("StreamReplication");
 var redisReplication = configSection.GetValue<bool>("RedisReplication");
 var redisPrimaryConnectionString = configSection.GetValue<string>("RedisPrimaryConnectionString");
 var redisSecondaryConnectionString = configSection.GetValue<string>("RedisSecondaryConnectionString");
 
 AppConfig appConfig = new()
 {
+    OrleansTransactions = orleansTransactions,
     SellerViewPostgres = sellerViewPostgres,
     ShipmentUpdatePostgres = shipmentUpdatePostgres,
     StreamReplication = streamReplication,
     RedisReplication = redisReplication,
     RedisPrimaryConnectionString = redisPrimaryConnectionString,
     RedisSecondaryConnectionString = redisSecondaryConnectionString,
-    OrleansTransactions = orleansTransactions,
     OrleansStorage = orleansStorage,
     AdoNetGrainStorage = adoNetGrainStorage,
     AdoNetConnectionString = adoNetConnectionString,
@@ -191,9 +193,9 @@ await app.StartAsync();
 
 Console.WriteLine("\n *************************************************************************");
 Console.WriteLine(
-    " OrleansTransactions: "+ appConfig.OrleansTransactions + 
-    " \n Stream Replication: "+ appConfig.StreamReplication +
+    " OrleansTransactions: "+ appConfig.OrleansTransactions +  
     " \n SellerViewPostgres: " + appConfig.SellerViewPostgres +
+    " \n ShipmentUpdatePostgres: " + appConfig.ShipmentUpdatePostgres +
     " \n OrleansStorage: " + appConfig.OrleansStorage +
     " \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage +
     " \n AdoNetConnectionString: "+appConfig.AdoNetConnectionString +
@@ -201,7 +203,8 @@ Console.WriteLine(
     " \n UseSwagger: "+useSwagger +
     " \n UseDashboard: "+appConfig.UseDashboard +
     " \n NumShipmentActors: "+appConfig.NumShipmentActors +
-    " \n RedisReplication: "+ appConfig.RedisReplication +
+    " \n Stream Replication: " + appConfig.StreamReplication +
+    " \n RedisReplication: " + appConfig.RedisReplication +
     " \n RedisPrimaryConnectionString: "+ appConfig.RedisPrimaryConnectionString +
     " \n RedisSecondaryConnectionString: "+ appConfig.RedisSecondaryConnectionString
     );

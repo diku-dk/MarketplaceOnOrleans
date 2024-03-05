@@ -8,11 +8,15 @@ Further details about the benchmark can be found in the benchmark driver [reposi
 - [Getting Started](#getting-started)
     * [Prerequisites](#prerequisites)
     * [New Orleans Users](#orleans)
-- [Online Marketplace](#running-benchmark)
+- [Online Marketplace](#marketplace)
     * [Configuration](#config)
     * [Deployment](#deploy)
     * [Testing](#test)
+- [Supplemental Material](#supplemental)
+    * [Technical Notes](#notes)
+    * [Redis Replication](#replication)
     * [UCloud](#ucloud)
+    * [Troubleshooting](#troubleshooting)
    
 
 ### <a name="prerequisites"></a>Prerequisites
@@ -27,7 +31,7 @@ Further details about the benchmark can be found in the benchmark driver [reposi
 
 [Orleans](https://learn.microsoft.com/en-us/dotnet/orleans/) framework provide facilities to program distributed stateful applications at scale using the virtual actor model. We highly recommend starting from the [Orleans Documentation](https://learn.microsoft.com/en-us/dotnet/orleans/overview) to further understand the model.
 
-## <a name="running-benchmark"></a>Online Marketplace on Orleans
+## <a name="marketplace"></a>Online Marketplace on Orleans
 
 ### <a name="modeling"></a>Actor Modeling
 
@@ -48,7 +52,6 @@ Order, Payment, Shipment, and Seller (because of the seller dashboard)
 Actors that require resetting state after each run (otherwise they accumulate records from past experiments):
 Seller, Order, and Shipment.
 
-
 ### <a name="config"></a>Configuration
 
 Applicatins settings ca be defined per environment using two files: Development (`appsettings.Development.json`) and Production (`appsettings.Production.json`). We suggest using development file while evolving the application or debugging; while the production file should be used when running experiments.
@@ -58,7 +61,7 @@ The `settings.[Development|Production].json` file defines entries that refer to 
 Parameter     | Description                                                                         | Value                                             |
 ------------- |-------------------------------------------------------------------------------------|---------------------------------------------------|
 OrleansStorage | Defines whether Orleans storage is enabled (default to in-memory). Works independently of Orleans Transactions.  | `true/false` |
-OrleansTransactions | Defines whether Orleans transactions is enabled. Only works if Orleans Storage is set to true.  | `true/false`    |
+OrleansTransactions | Defines whether Orleans transactions is enabled.  | `true/false`    |
 AdoNetGrainStorage | Defines whether PostgreSQL is used for Orleans storage (otherwise in-mmeory is used). Only applies if OrleansStorage is set to true. | `true/false`  |
 SellerViewPostgres  | Defines whether PostgreSQL is used to provide the Seller Dashboard            | `true/false`                          |
 StreamReplication   | Defines whether Orleans Streams is used to stream product updates to Cart actors |  `true/false`                      |
@@ -102,7 +105,7 @@ LogRecords          | true  |
 As can be seen above, the parameters are used to drive a myriad of guarantees and functionalities in OnlineMarketplace.
 
 
-### <a name="deploy"></a>Deploy
+### <a name="deploy"></a>Deployment
 
 You can initialize Orleans silo in two ways:
 
@@ -122,10 +125,22 @@ There is a suite of tests available for checking some Online Marketplace benchma
 
 To allow the tests to run concurrently, there are two different ClusterFixtures, one for transactional tests and another for non-transactional tests. This is not ideal and perhaps they could be better modularized or even merged, but maintaining the different properties on test runtime.
 
-### <a name="seller_view"></a>Notes about Seller Dashboard View Maintenance
+## <a name="supplemental"></a>Supplemental Material
 
-In preliminary commits, we designed the seller dashboard as a materialized view on PostgreSQL.
-The idea is to benefit of the query processingand transactional capabilities to obtain a consistent seller dashboard.
+### <a name="notes"></a>Technical Notes
+
+#### <a name="transactions"></a>Orleans Transactions
+
+In our experiments, we experienced a substantial number of aborts when all transactional actors are marked as reentrant. After many combinations attempted, we found that, in order to have a minimal reasonable performance, the only transactional actor carrying the [Reentrant] (thus allowing interleaving of requests within the same actor) should be the TransactionalOrderActor.
+
+Interleaving enabled in TransactionalOrderActor is necessary in order to allow for "feedback" messages (PaymentConfirmed|PaymentRejected|ShipmentNotification) to be processed in the context of the same transaction and avoid a deadlock (order waiting for checkout completion and shipment waiting for order processing of shipment notification). Although this feature supposedly prevents such deadlocks, we still capture errors related to not finding a given order ID (that has been just inserted in order actor state) non deterministically. In sum, having the TransactionalOrderActor as the only reentrant actor is a way to avoid "bad" interleavings, the ones not caused by the application code but the transaction scheduler itself, thus leading to aborts.
+
+On the other hand, one may claim that it is reasonable to omit such "feedback" events from the Checkout transactions in order to allow all transactional actors to become reentrant. However, when introducing reentrancy in all actors, we also experience other sources of aborts that impact performance significantly. In other words, the "feedback" events are not the core performance blocker. 
+
+#### <a name="seller_view"></a>Seller Dashboard View Maintenance
+
+Apart of the actor-based seller view, we also designed the seller dashboard as a materialized view on PostgreSQL.
+The idea is to benefit of the query processing and transactional capabilities offered by PostgreSQL to obtain a consistent seller dashboard result.
 
 However, caution is necessary on refreshing PostgreSQL [Materialized Views](https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html):
 "Even with this option [(CONCURRENTLY)] only one REFRESH at a time may run against any one materialized view." 
@@ -142,17 +157,38 @@ If you desire to modify the data model of seller view, although you can create a
 dotnet ef migrations add InitialMigration --project Orleans
 ```
 
-### <a name="transactions"></a>Notes about Orleans Transactions
 
-In our experiments, we experienced a substantial number of aborts when all transactional actors are marked as reentrant. After many combinations attempted, we found that, in order to have a minimal reasonable performance, the only transactional actor carrying the [Reentrant] (thus allowing interleaving of requests within the same actor) should be the TransactionalOrderActor.
+### <a name="replication"></a>Setting Up Redis Replication
 
-Interleaving enabled in TransactionalOrderActor is necessary in order to allow for "feedback" messages (PaymentConfirmed|PaymentRejected|ShipmentNotification) to be processed in the context of the same transaction.
+Apparently there are different ways to setup replication in Redis. See [here](https://developer.redis.com/operate/redis-at-scale/high-availability/exercise-1) and [here](https://redis.io/commands/replicaof/).
 
-On the other hand, one may claim that it is reasonable to omit such "feedback" events from the Checkout transactions in order to allow all transactional actors to become reentrant. However, when introducing reentrancy in all actors, we also experience other sources of aborts that impact performance significantly. In other words, the "feedback" events are not the core performance blocker. As a result, having the TransactionalOrderActor as the only reentrant actor is a way to avoid the "bad" interleavings, the ones not caused by the application code but the transaction scheduler itself, thus leading to aborts.
+You can follow the following steps to setup a replication from a primary to a secondary node on the fly:
+1. Make sure two Redis instances are up (let's call them redis0 and redis1) and able to receive connections
+2. Configure redis1 to receive updates.
+    * On redis1, type in the command line: 
+    ```
+    redis-cli
+    ```
+    * If everything is fine, you may see the following prompt:
+    ```
+    127.0.0.1:6379>
+    ```
+    * Then type:
+    ```
+    replicaof redis0 6379
+    ```
+    * If the command succeeds, you should see an "OK" message as a response
+3. On redis0, enter on redis-cli and type "set mykey 1"
+4. On redis1, enter on redis-cli and type "get mykey". If the response is "1", then replication is set
+
+The above instructions show how to setup a simple primary-backup Redis deployment.
 
 ### <a name="ucloud"></a>UCloud
 
 The experiment deployment steps below only aply if you have access to [UCloud](https://docs.cloud.sdu.dk/index.html).
+
+<details>
+  <summary>Click to see</summary>
 
 how to run experiments:
 1. start silo:  dotnet run --project Silo
@@ -174,8 +210,9 @@ need to upload both server code and driver
 (1) run "unzip MarketplaceOrleans.zip"
 (2) run "unzip EventBenchmark.zip"
 
+</details>
 
-### <a name="troubleshooting"></a>Supplemental Links for Troubleshooting
+### <a name="troubleshooting"></a>Troubleshooting
 * There is no default implementation for environment statistics: [link](https://github.com/dotnet/orleans/issues/8270)
 * Some comments about Orleans performance: [link](https://stackoverflow.com/questions/74310628/orleans-slow-with-minimalistic-use-case)
 * OneWay messages can lead to deadlock: [link](https://github.com/dotnet/orleans/issues/4808)

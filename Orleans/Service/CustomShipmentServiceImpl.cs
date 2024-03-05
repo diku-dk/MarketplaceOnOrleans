@@ -8,6 +8,11 @@ using OrleansApp.Transactional;
 
 namespace OrleansApp.Service;
 
+/**
+ * This class represents anattempt to avoid the substantial coordination required when updating
+ * shipment/packages. However the latency incurred on querying postgres removes the envisioned
+ * benefits.
+ */
 public sealed class CustomShipmentServiceImpl : IShipmentService
 {
     private delegate IShipmentActor GetShipmentActorDelegate(int partitionId);

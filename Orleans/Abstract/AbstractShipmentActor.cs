@@ -144,7 +144,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         // get oldest 10 orders by seller
         var oldestShipments = config.OrleansTransactions ? await GetOldestOpenShipmentPerSellerAsync() : GetOldestOpenShipmentPerSeller();
 
-        await DoUpdateShipments(tid, oldestShipments);
+        await this.DoUpdateShipments(tid, oldestShipments);
     }
 
     protected async Task DoUpdateShipments(string tid, Dictionary<int, int> oldestShipments)

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
@@ -48,7 +47,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<IOrderActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} order states resetted", num);
+                logger.LogWarning("{0} order states reset", num);
                 continue;
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.SellerActor,Orleans"))
@@ -60,7 +59,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<ISellerActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} seller states resetted", num);
+                logger.LogWarning("{0} seller states reset", num);
                 continue;
             }
             // seal carts that have not checked out in past run
@@ -73,7 +72,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<ICartActor>(i).Seal() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} cart states resetted", num);
+                logger.LogWarning("{0} cart states reset", num);
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,Orleans"))
             {
@@ -85,7 +84,7 @@ public sealed class DefaultController : ControllerBase
                         tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} stock states resetted", num);
+                logger.LogWarning("{0} stock states reset", num);
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,Orleans"))
             {
@@ -97,7 +96,7 @@ public sealed class DefaultController : ControllerBase
                         tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} product states resetted", num);
+                logger.LogWarning("{0} product states reset", num);
             }
         }
 
@@ -116,18 +115,31 @@ public sealed class DefaultController : ControllerBase
             tasks.Add(grain.Reset());
         }
         await Task.WhenAll(tasks);
-        logger.LogWarning("{0} shipment states resetted", config.NumShipmentActors);
+        logger.LogWarning("{0} shipment states reset", config.NumShipmentActors);
     }
 
-    // should be called before shutting off the app server
+    /*
+     * Should be called before shutting off the app server, right after an experiment run
+     */
     [Route("/cleanup")]
     [HttpPatch]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> Cleanup()
     {
         this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        await persistence.TruncateStorage();
-        await persistence.CleanLog();
+
+        if (config.LogRecords)
+        {
+            await persistence.CleanLog();
+        }
+        if (config.AdoNetGrainStorage)
+        {
+            await persistence.TruncateStorage();
+        }
+        if (config.SellerViewPostgres)
+        {
+            await persistence.ExecuteSqlCommand("TRUNCATE TABLE public.order_entries;");
+        }
         return Ok();
     }
 

@@ -16,6 +16,8 @@ public interface IAuditLogger
     Task TruncateStorage();
     Task ResetActorStates();
 
+    Task ExecuteSqlCommand(string sql);
+
 }
 
 public sealed class EtcNullPersistence : IAuditLogger
@@ -44,6 +46,11 @@ public sealed class EtcNullPersistence : IAuditLogger
     {
         return Task.CompletedTask;
     }
+
+    public Task ExecuteSqlCommand(string sql)
+    {
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class PostgresAuditLogger : IAuditLogger
@@ -66,6 +73,12 @@ public sealed class PostgresAuditLogger : IAuditLogger
     public async Task CleanLog()
     {
          var cmd = dataSource.CreateCommand("TRUNCATE TABLE public.log;");
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task ExecuteSqlCommand(string sql)
+    {
+        var cmd = dataSource.CreateCommand(sql);
         await cmd.ExecuteNonQueryAsync();
     }
 

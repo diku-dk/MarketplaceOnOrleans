@@ -74,8 +74,9 @@ public class CartActor : Grain, ICartActor
             await orderActor.Checkout(checkout);
             await this.Seal();
         } catch(Exception e) {
-            this.logger.LogError("Checkout exception caught in cart ID {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
-            throw;
+            var str = string.Format("Checkout exception caught in cart ID {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
+            this.logger.LogError(str);
+            throw new ApplicationException(str);
         }
     }
 

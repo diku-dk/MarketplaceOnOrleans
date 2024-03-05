@@ -57,7 +57,11 @@ public sealed class ProductActor : Grain, IProductActor
         this.product.State.created_at = DateTime.UtcNow;
         if(this.config.OrleansStorage)
             await this.product.WriteStateAsync();
-        if (this.config.RedisReplication)
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(this.product.State);
+        }
+        else if (this.config.RedisReplication)
         {
             string key = product.seller_id + "-" + product.product_id;
             ProductReplica productReplica = new ProductReplica(key, product.version, product.price);
@@ -75,12 +79,13 @@ public sealed class ProductActor : Grain, IProductActor
       
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<IStockActor>(product.seller_id, product.product_id.ToString());
-
         await stockGrain.ProcessProductUpdate(productUpdated);
+
         if (this.config.StreamReplication)
         {
             await this.stream.OnNextAsync(this.product.State);
-        } else if (this.config.RedisReplication)
+        } 
+        else if (this.config.RedisReplication)
         {
             string key = product.seller_id + "-" + product.product_id;
             ProductReplica productReplica = new ProductReplica(key, product.version, product.price);

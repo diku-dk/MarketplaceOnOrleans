@@ -63,10 +63,15 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
             p.freight_value = product.freight_value;
             p.name = product.name;
             p.status = product.status;
+            return p;
         });
 
+        if (this.config.StreamReplication)
+        {
+            await this.stream.OnNextAsync(product);
+        }
         // After updating the state in Orleans, update the data in Redis.
-        if (this.config.RedisReplication)
+        else if (this.config.RedisReplication)
         {
             string key = product.seller_id + "-" + product.product_id;
             ProductReplica productReplica = new ProductReplica(key, product.version, product.price);
@@ -81,13 +86,14 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
 
     public async Task ProcessPriceUpdate(PriceUpdate priceUpdate)
     {
-        await this.product.PerformUpdate(p => { 
+        var product = await this.product.PerformUpdate(p => { 
             p.price = priceUpdate.price; 
             p.updated_at = DateTime.UtcNow;
+            return p;
         });
         if (this.config.StreamReplication)
         {
-            await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
+            await this.stream.OnNextAsync(product);
         } 
         else if (this.config.RedisReplication)
         {
@@ -102,7 +108,8 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
     {
         ProductUpdated productUpdated = new ProductUpdated(product.seller_id, product.product_id, product.version);
         var stockGrain = this.GrainFactory.GetGrain<ITransactionalStockActor>(product.seller_id, product.product_id.ToString());
-        Task task1 = this.product.PerformUpdate(p => {
+        
+        Task<Product> updateTask = this.product.PerformUpdate(p => {
             p.price = product.price;
             p.sku = product.sku;
             p.version = product.version;
@@ -117,14 +124,15 @@ public sealed class TransactionalProductActor : Grain, ITransactionalProductActo
             p.freight_value = product.freight_value;
             p.name = product.name;
             p.status = product.status;
+            return p;
         });
         
         Task task2 = stockGrain.ProcessProductUpdate(productUpdated);
-        await Task.WhenAll(task1, task2);
+        await Task.WhenAll(updateTask, task2);
         if (this.config.StreamReplication)
         {
             // wait for transaction success to replicate
-            await this.stream.OnNextAsync(await this.product.PerformRead(p => p));
+            await this.stream.OnNextAsync(updateTask.Result);
         }
         else if (this.config.RedisReplication)
         {
