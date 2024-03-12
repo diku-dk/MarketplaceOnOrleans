@@ -6,18 +6,17 @@ namespace Common.Entities
     public sealed class Cart
     {
         // no inter identified within an actor. so it requires an id
-        public int customerId { get; set; } = 0;
+        public int customerId;
 
         public CartStatus status { get; set; } = CartStatus.OPEN;
 
         public List<CartItem> items { get; set; } = new List<CartItem>();
 
-        public int instanceId { get; set; }
-
-        // to return
-        public List<ProductStatus> divergencies { get; set; }
-
         public Cart() {}
+
+        public Cart(int customerId) {
+            this.customerId = customerId;
+        }
 
         public override string ToString()
         {

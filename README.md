@@ -37,13 +37,13 @@ Further details about the benchmark can be found in the benchmark driver [reposi
 
 The Orleans virtual actor programming model prescribes a single thread per actor. Since we have one event per function call, to minimize latency, we map each entity to a logical actor, e.g., order, payment, and shipment.
 
-* A cart actor per customer. ID is customer_id
-* A customer actor per customer. ID is customer_id
+* A cart actor per customer. ID is `customer_id`
+* A customer actor per customer. ID is `customer_id`
 * A product actor per product. ID is composite `[seller_id,product_id]`
-* A seller actor per seller. ID is seller_id
+* A seller actor per seller. ID is `seller_id`
 * A stock actor per stock item. ID is composite `[seller_id,product_id]`
-* An order actor per customer. ID is customer_id
-* A payment actor per customer. ID is customer_id
+* An order actor per customer. ID is `customer_id`
+* A payment actor per customer. ID is `customer_id`
 * A shipment actor per partition of customers. Hash to define which shipment actor an order is forwarded to is defined by the hash of `[customer_id]`. Number of partitions is predefined (see [Configuration](#config)).
 
 Actors that log historical records:

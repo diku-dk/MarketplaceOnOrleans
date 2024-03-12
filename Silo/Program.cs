@@ -28,6 +28,8 @@ var redisReplication = configSection.GetValue<bool>("RedisReplication");
 var redisPrimaryConnectionString = configSection.GetValue<string>("RedisPrimaryConnectionString");
 var redisSecondaryConnectionString = configSection.GetValue<string>("RedisSecondaryConnectionString");
 
+var trackCartHistory = configSection.GetValue<bool>("TrackCartHistory");
+
 AppConfig appConfig = new()
 {
     OrleansTransactions = orleansTransactions,
@@ -44,6 +46,7 @@ AppConfig appConfig = new()
     NumShipmentActors = numShipmentActors,
     UseDashboard = useDash,
     UseSwagger = useSwagger,
+    TrackCartHistory = trackCartHistory
 };
 
 // Orleans testing has no support for IOptions apparently...
@@ -206,7 +209,8 @@ Console.WriteLine(
     " \n Stream Replication: " + appConfig.StreamReplication +
     " \n RedisReplication: " + appConfig.RedisReplication +
     " \n RedisPrimaryConnectionString: "+ appConfig.RedisPrimaryConnectionString +
-    " \n RedisSecondaryConnectionString: "+ appConfig.RedisSecondaryConnectionString
+    " \n RedisSecondaryConnectionString: "+ appConfig.RedisSecondaryConnectionString +
+    " \n TrackCartHistory: "+appConfig.TrackCartHistory
     );
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");

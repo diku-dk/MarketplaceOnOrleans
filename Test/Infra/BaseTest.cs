@@ -52,7 +52,8 @@ public abstract class BaseTest
             CardExpiration = "1224",
             CardSecurityNumber = "001",
             CardBrand = "VISA",
-            Installments = 1
+            Installments = 1,
+            instanceId = customerId.ToString()
         };
         return customerCheckout;
     }

@@ -59,7 +59,8 @@ public sealed class CartController : ControllerBase
         {
             await cartGrain.NotifyCheckout(customerCheckout);
             return Ok();
-        } catch(Exception e)
+        }
+        catch(Exception e)
         {
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
@@ -82,5 +83,23 @@ public sealed class CartController : ControllerBase
             return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
         }
     }
+
+    [Route("/cart/{customerId}/history/{tid}")]
+    [HttpGet]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
+    public async Task<ActionResult<Dictionary<string,List<CartItem>>>> GetHistory([FromServices] IGrainFactory grains, int customerId, string tid)
+    {
+        var cartGrain = this.callback(grains, customerId);
+        try 
+        {
+            return Ok(await cartGrain.GetHistory(tid));
+        }
+        catch (Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        }
+    }
+
 }
 

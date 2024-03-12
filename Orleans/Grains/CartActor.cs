@@ -12,11 +12,15 @@ namespace OrleansApp.Grains;
 
 public class CartActor : Grain, ICartActor
 {
+    private delegate IOrderActor GetOrderActorDelegate(int customerId);
     protected readonly IPersistentState<Cart> cart;
-    protected readonly AppConfig config;
+    protected readonly bool orleansStorage;
+    private readonly bool trackHistory;
     protected int customerId;
-    protected readonly ILogger<CartActor> logger;
     private readonly GetOrderActorDelegate callback;
+    protected readonly ILogger<CartActor> logger;
+
+    private readonly Dictionary<string,List<CartItem>> history;
 
     public CartActor([PersistentState(
         stateName: "cart",
@@ -25,8 +29,10 @@ public class CartActor : Grain, ICartActor
         ILogger<CartActor> _logger)
     {
         this.cart = state;
-        this.config = options;
-        this.callback = config.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
+        this.callback = options.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
+        this.orleansStorage = options.OrleansStorage;
+        this.trackHistory = options.TrackCartHistory;
+        if(this.trackHistory) history = new Dictionary<string, List<CartItem>>();
         this.logger = _logger;
     }
 
@@ -34,8 +40,7 @@ public class CartActor : Grain, ICartActor
     {
         this.customerId = (int) this.GetPrimaryKeyLong();
         if(this.cart.State is null) {
-            this.cart.State = new Cart();
-            this.cart.State.customerId = this.customerId;
+            this.cart.State = new Cart(this.customerId);
         }
         return Task.CompletedTask;
     }
@@ -59,8 +64,9 @@ public class CartActor : Grain, ICartActor
 
         this.cart.State.items.Add(item);
 
-        if(config.OrleansStorage)
+        if(this.orleansStorage){
             await this.cart.WriteStateAsync();
+        }
     }
 
     // customer decided to checkout
@@ -71,6 +77,11 @@ public class CartActor : Grain, ICartActor
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, this.cart.State.items, customerCheckout.instanceId);
         this.cart.State.status = CartStatus.CHECKOUT_SENT;
         try {
+            if (this.trackHistory)
+            {
+                // store cart items internally
+                this.history.Add(customerCheckout.instanceId, new(this.cart.State.items));
+            }
             await orderActor.Checkout(checkout);
             await this.Seal();
         } catch(Exception e) {
@@ -80,7 +91,20 @@ public class CartActor : Grain, ICartActor
         }
     }
 
-    private delegate IOrderActor GetOrderActorDelegate(int customerId);
+    public async Task Seal()
+    {
+        this.cart.State.status = CartStatus.OPEN;
+        this.cart.State.items.Clear();
+        if(this.orleansStorage)
+            await this.cart.WriteStateAsync();
+    }
+
+    public Task<List<CartItem>> GetHistory(string tid)
+    {
+        if(this.history.ContainsKey(tid))
+            return Task.FromResult(this.history[tid]);
+        return Task.FromResult(new List<CartItem>());
+    }
 
     private IOrderActor GetOrderActor(int customerId)
     {
@@ -90,14 +114,6 @@ public class CartActor : Grain, ICartActor
     private ITransactionalOrderActor GetTransactionalOrderActor(int customerId)
     {
         return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
-    }
-
-    public async Task Seal()
-    {
-        this.cart.State.status = CartStatus.OPEN;
-        this.cart.State.items.Clear();
-        if(this.config.OrleansStorage)
-            await this.cart.WriteStateAsync();
     }
 
 }

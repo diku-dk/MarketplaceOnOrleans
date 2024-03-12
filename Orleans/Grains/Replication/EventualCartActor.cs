@@ -55,7 +55,13 @@ public sealed class EventualCartActor : CartActor, IEventualCartActor
 
     private Task UpdateProductAsync(Product product, StreamSequenceToken token)
     {
-        this.cachedProducts.Add((product.seller_id, product.product_id), product);
+        if(this.cachedProducts.ContainsKey((product.seller_id, product.product_id))){
+            this.cachedProducts[(product.seller_id, product.product_id)] = product;
+        } else
+        {
+            this.cachedProducts.Add((product.seller_id, product.product_id), product);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -75,6 +81,7 @@ public sealed class EventualCartActor : CartActor, IEventualCartActor
             {
                 Product product = this.cachedProducts[ID];
                 if( item.Version.SequenceEqual(product.version) && item.UnitPrice < product.price ){
+                    item.UnitPrice = product.price;
                     item.Voucher += product.price - item.UnitPrice;
                 }
             }

@@ -48,6 +48,7 @@ namespace Orleans.Grains.Replication
                     // process new prices as discount
                     if (item.UnitPrice < productReplica.Price)
                     {
+                        item.UnitPrice = productReplica.Price;
                         item.Voucher += productReplica.Price - item.UnitPrice;
                     }
                 }

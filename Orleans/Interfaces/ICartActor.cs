@@ -2,18 +2,18 @@
 using Common.Requests;
 using Orleans.Concurrency;
 
-namespace OrleansApp.Interfaces
+namespace OrleansApp.Interfaces;
+
+public interface ICartActor : IGrainWithIntegerKey
 {
+    public Task AddItem(CartItem item);
 
-    public interface ICartActor : IGrainWithIntegerKey
-    {
-        public Task AddItem(CartItem item);
+    public Task NotifyCheckout(CustomerCheckout basketCheckout);
 
-        public Task NotifyCheckout(CustomerCheckout basketCheckout);
+    [ReadOnly]
+    public Task<Cart> GetCart();
 
-        [ReadOnly]
-        public Task<Cart> GetCart();
+    public Task Seal();
 
-        public Task Seal();
-    }
+    public Task<List<CartItem>> GetHistory(string tid);
 }

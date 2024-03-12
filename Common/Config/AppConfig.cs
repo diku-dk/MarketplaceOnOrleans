@@ -2,6 +2,8 @@
 
 public sealed class AppConfig
 {
+    public bool OrleansTransactions { get; set; }
+
     public bool SellerViewPostgres { get; set; }
 
     public bool ShipmentUpdatePostgres { get; set; }
@@ -14,7 +16,7 @@ public sealed class AppConfig
 
     public string RedisSecondaryConnectionString { get; set; }
 
-    public bool OrleansTransactions { get; set; }
+    public bool TrackCartHistory { get; set; }
 
     public bool OrleansStorage { get; set; }
 
@@ -47,6 +49,7 @@ public sealed class AppConfig
             " \nUseSwagger: " + UseSwagger +
             " \nRedisReplication: " + RedisReplication +
             " \nRedisPrimaryConnectionString: " + RedisPrimaryConnectionString +
-            " \nRedisSecondaryConnectionString: " + RedisSecondaryConnectionString;
+            " \nRedisSecondaryConnectionString: " + RedisSecondaryConnectionString +
+            " \nTrackCartHistory: " + TrackCartHistory;
     }
 }
