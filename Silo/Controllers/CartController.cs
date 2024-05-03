@@ -101,5 +101,22 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    [Route("/cart/{customerId}")]
+    [HttpGet]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
+    public async Task<ActionResult<List<CartItem>>> GetCart([FromServices] IGrainFactory grains, int customerId)
+    {
+        ICartActor cartGrain = this.callback(grains, customerId);
+        try 
+        {
+            return Ok(await cartGrain.GetItems());
+        }
+        catch (Exception e)
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        }
+    }
+
 }
 

@@ -32,7 +32,7 @@ public class CartActor : Grain, ICartActor
         this.callback = options.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
         this.orleansStorage = options.OrleansStorage;
         this.trackHistory = options.TrackCartHistory;
-        if(this.trackHistory) history = new Dictionary<string, List<CartItem>>();
+        if(this.trackHistory) this.history = new Dictionary<string, List<CartItem>>();
         this.logger = _logger;
     }
 
@@ -48,6 +48,11 @@ public class CartActor : Grain, ICartActor
     public Task<Cart> GetCart()
     {
         return Task.FromResult(this.cart.State);
+    }
+
+    public Task<List<CartItem>> GetItems()
+    {
+        return Task.FromResult(this.cart.State.items);
     }
 
     public virtual async Task AddItem(CartItem item)
@@ -80,7 +85,7 @@ public class CartActor : Grain, ICartActor
             if (this.trackHistory)
             {
                 // store cart items internally
-                this.history.Add(customerCheckout.instanceId, new(this.cart.State.items));
+                this.history.TryAdd(customerCheckout.instanceId, new(this.cart.State.items));
             }
             await orderActor.Checkout(checkout);
             await this.Seal();
