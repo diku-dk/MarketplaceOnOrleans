@@ -2,6 +2,8 @@
 
 public sealed class AppConfig
 {
+    public Cluster Cluster { get; set; }
+
     public bool OrleansTransactions { get; set; }
 
     public bool SellerViewPostgres { get; set; }

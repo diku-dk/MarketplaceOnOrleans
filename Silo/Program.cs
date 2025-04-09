@@ -6,10 +6,18 @@ using Orleans.Infra.Redis;
 using Microsoft.EntityFrameworkCore;
 using Common.Config;
 using OrleansApp.Service;
+using System.Net;
+using Orleans.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
+
+// cluster config
+var clusterId = configSection.GetValue<string>("Cluster:ClusterId");
+var serviceId = configSection.GetValue<string>("Cluster:ServiceId");
+var primary = configSection.GetValue<bool>("Cluster:Primary");
+var primarySiloIpAddress = configSection.GetValue<string>("Cluster:PrimarySiloIpAddress");
 
 var orleansTransactions = configSection.GetValue<bool>("OrleansTransactions");
 var sellerViewPostgres = configSection.GetValue<bool>("SellerViewPostgres");
@@ -32,6 +40,13 @@ var trackCartHistory = configSection.GetValue<bool>("TrackCartHistory");
 
 AppConfig appConfig = new()
 {
+    Cluster = new Cluster
+    {
+        ClusterId = clusterId,
+        ServiceId = serviceId,
+        Primary = primary,
+        PrimarySiloIpAddress = primarySiloIpAddress
+    },
     OrleansTransactions = orleansTransactions,
     SellerViewPostgres = sellerViewPostgres,
     ShipmentUpdatePostgres = shipmentUpdatePostgres,
@@ -71,15 +86,48 @@ if (logRecords){
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
 builder.Host.UseOrleans(siloBuilder =>
 {
-    siloBuilder
-         .UseLocalhostClustering()
-         .ConfigureLogging(logging =>
-         {
-             logging.ClearProviders();
-             logging.AddConsole();
-             // to change minimum log level, use the following option:
-             //logging.SetMinimumLevel(LogLevel.Warning);
-         });
+    if(appConfig.Cluster.ClusterId is null){
+        siloBuilder
+             .UseLocalhostClustering()
+             .ConfigureLogging(logging =>
+             {
+                 logging.ClearProviders();
+                 logging.AddConsole();
+                 // to change minimum log level, use the following option:
+                 //logging.SetMinimumLevel(LogLevel.Warning);
+             });
+    } else {
+        var ipAddress = IPAddress.Parse(appConfig.Cluster.PrimarySiloIpAddress);
+        var primarySiloEndpoint = new IPEndPoint(
+            ipAddress,
+            // IPAddress.Loopback,
+            11_111);
+        if (appConfig.Cluster.Primary)
+        {
+            siloBuilder.UseDevelopmentClustering(options =>
+                {
+                    options.PrimarySiloEndpoint = primarySiloEndpoint;
+                })
+                .Configure<ClusterOptions>(options => {
+                    options.ClusterId = appConfig.Cluster.ClusterId;
+                    options.ServiceId = appConfig.Cluster.ServiceId;
+                })
+                .Configure<EndpointOptions>(options => options.AdvertisedIPAddress = ipAddress)
+                .ConfigureLogging(logging => logging.AddConsole());
+        } else
+        {
+            siloBuilder.UseDevelopmentClustering(options =>
+                {
+                    options.PrimarySiloEndpoint = primarySiloEndpoint;
+                })
+                .Configure<ClusterOptions>(options => {
+                    options.ClusterId = appConfig.Cluster.ClusterId;
+                    options.ServiceId = appConfig.Cluster.ServiceId;
+                })
+                .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000)
+                .ConfigureLogging(logging => logging.AddConsole());
+        }
+    }
 
     if (sellerViewPostgres)
     {
@@ -95,8 +143,7 @@ builder.Host.UseOrleans(siloBuilder =>
 
     if (streamReplication)
     {
-        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
-                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider).AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
 
     if (orleansTransactions)
@@ -132,7 +179,6 @@ builder.Host.UseOrleans(siloBuilder =>
         {
             siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
         }
-    
     } else
     {
         siloBuilder.Services.AddSerializer(ser => ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common")));
@@ -155,6 +201,10 @@ builder.Host.UseOrleans(siloBuilder =>
         siloBuilder.Services.AddSingleton<IRedisConnectionFactory>(new EtcNullConnectionFactoryImpl());
     }
 
+    siloBuilder.Services.Configure<ClusterMembershipOptions>(options =>
+    {
+        options.DefunctSiloCleanupPeriod = TimeSpan.MaxValue;
+    });
 });
 
 var app = builder.Build();
@@ -194,9 +244,13 @@ app.MapControllers();
 
 await app.StartAsync();
 
-Console.WriteLine("\n *************************************************************************");
+Console.WriteLine("\n *************************    Configuration    ***************************");
 Console.WriteLine(
-    " OrleansTransactions: "+ appConfig.OrleansTransactions +  
+    " \n ClusterId: "+ appConfig.Cluster.ClusterId +
+    " \n ServiceId: "+ appConfig.Cluster.ServiceId +
+    " \n Primary: "+ appConfig.Cluster.Primary +
+    " \n PrimarySiloIpAddress: "+ appConfig.Cluster.PrimarySiloIpAddress +
+    " \n OrleansTransactions: "+ appConfig.OrleansTransactions +  
     " \n SellerViewPostgres: " + appConfig.SellerViewPostgres +
     " \n ShipmentUpdatePostgres: " + appConfig.ShipmentUpdatePostgres +
     " \n OrleansStorage: " + appConfig.OrleansStorage +
@@ -212,6 +266,8 @@ Console.WriteLine(
     " \n RedisSecondaryConnectionString: "+ appConfig.RedisSecondaryConnectionString +
     " \n TrackCartHistory: "+appConfig.TrackCartHistory
     );
+
+Console.WriteLine("\n *************************************************************************");
 Console.WriteLine("            The Orleans server started. Press any key to terminate...         ");
 Console.WriteLine("\n *************************************************************************");
 
