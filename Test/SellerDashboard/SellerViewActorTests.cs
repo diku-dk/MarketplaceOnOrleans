@@ -13,7 +13,7 @@ public class SellerViewActorTests : BaseTest
     public SellerViewActorTests(TransactionalClusterFixture fixture) : base(fixture.Cluster) { }
 
     [Fact]
-    public async void TestDashboard()
+    public async Task TestDashboard()
     {
         InitSellerDbContext();
 

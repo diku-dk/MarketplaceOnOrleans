@@ -12,7 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 IConfigurationSection configSection = builder.Configuration.GetSection("AppConfig");
 
-// cluster config
 var clusterId = configSection.GetValue<string>("Cluster:ClusterId");
 var serviceId = configSection.GetValue<string>("Cluster:ServiceId");
 var primary = configSection.GetValue<bool>("Cluster:Primary");

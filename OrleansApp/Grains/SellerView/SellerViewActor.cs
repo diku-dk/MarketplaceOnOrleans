@@ -225,7 +225,7 @@ public sealed class SellerViewActor : AbstractSellerActor, ISellerViewActor
         using (var txCtx = this.dbContext.Database.BeginTransaction())
         {
             this.sellerDashboardCached = new SellerDashboard(
-                this.dbContext.OrderSellerView.FromSqlRaw($"SELECT * FROM public.order_seller_view_{this.sellerId}").AsEnumerable().FirstOrDefault(this.EMPTY_SELLER_VIEW),
+                this.dbContext.OrderSellerView.FromSql($"SELECT * FROM public.order_seller_view_{this.sellerId}").AsEnumerable().FirstOrDefault(this.EMPTY_SELLER_VIEW),
                 this.dbContext.OrderEntries.Where(oe => oe.seller_id == sellerId).ToList()
             );
         }

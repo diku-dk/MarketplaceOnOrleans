@@ -10,12 +10,11 @@
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Production' " />
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'Silo-Dev' " />
   <ItemGroup>
-	<PackageReference Include="Microsoft.Orleans.Server" Version="7.2.1" />
-	<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.12" />
-    <PackageReference Include="OrleansDashboard" Version="7.2.2" />
-	<PackageReference Include="StackExchange.Redis" Version="2.7.17" />
+	<PackageReference Include="Microsoft.Orleans.Server" Version="8.2.0" />
+	<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.15" />
+    <PackageReference Include="OrleansDashboard" Version="8.2.0" />
   </ItemGroup>
 
   <ItemGroup>
