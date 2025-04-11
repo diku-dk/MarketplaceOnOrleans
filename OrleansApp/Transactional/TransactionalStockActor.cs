@@ -4,9 +4,11 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
+[Reentrant]
 public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
 {
     private readonly ITransactionalState<StockItem> item;
@@ -33,7 +35,7 @@ public sealed class TransactionalStockActor : Grain, ITransactionalStockActor
             i.qty_available = item.qty_available;
             i.qty_reserved = item.qty_reserved;
             i.ytd = item.ytd;
-            });
+        });
     }
 
     public Task<StockItem> GetItem()

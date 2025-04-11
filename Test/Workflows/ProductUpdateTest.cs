@@ -15,11 +15,11 @@ public class ProductUpdateTest : BaseTest
     [Fact]
     public async Task ProductUpdate()
     {
-        IAuditLogger persistence = (IAuditLogger)_cluster.ServiceProvider.GetService(typeof(IAuditLogger));
+        IAuditLogger persistence = (IAuditLogger)this._cluster.ServiceProvider.GetService(typeof(IAuditLogger));
         await persistence.TruncateStorage();
 
         // set product first
-        var productActor = _cluster.GrainFactory.GetGrain<IProductActor>(1, 1.ToString());
+        var productActor = this._cluster.GrainFactory.GetGrain<IProductActor>(1, 1.ToString());
         var product = new Product()
         {
             seller_id = 1,
@@ -44,7 +44,7 @@ public class ProductUpdateTest : BaseTest
             version = 1.ToString()
         };
 
-        var stock1 = _cluster.GrainFactory.GetGrain<IStockActor>(1, 1.ToString());
+        var stock1 = this._cluster.GrainFactory.GetGrain<IStockActor>(1, 1.ToString());
         await stock1.SetItem(item);
 
         // submit product update

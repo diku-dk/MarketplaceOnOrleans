@@ -1,9 +1,7 @@
-﻿using Common.Config;
-using Common.Entities;
+﻿using Common.Entities;
 using Common.Requests;
 using Microsoft.EntityFrameworkCore;
 using OrleansApp.Infra.SellerDb;
-using OrleansApp.Grains;
 using OrleansApp.Service;
 using OrleansApp.Transactional;
 using Test.Infra;
@@ -20,15 +18,15 @@ public class TransactionsTest : BaseTest
     public async Task TestCheckout()
     {
         int customerId = 1;
-        await InitData(1, 2);
-        await BuildAndSendCheckout(1);
+        await this.InitData(1, 2);
+        await this.BuildAndSendCheckout(1);
 
-        var orderActor = _cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
+        var orderActor = this._cluster.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
         List<Order> orders = await orderActor.GetOrders();
 
         Assert.Single(orders);
 
-        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
+        var shipmentActor = this._cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(0);
         var shipments = await shipmentActor.GetShipments(customerId);
 
         Assert.Single(shipments);
@@ -40,7 +38,10 @@ public class TransactionsTest : BaseTest
     [Fact]
     public async Task TestUpdateShipment()
     {
-        SellerDbContext dbContext = InitSellerDbContext();
+        SellerDbContext dbContext = null;
+        if(this.config.SellerViewPostgres){
+            dbContext = InitSellerDbContext();
+        }
 
         int numCustomers = 10;
         for(int i = 1; i <= numCustomers; i++){
@@ -53,30 +54,33 @@ public class TransactionsTest : BaseTest
 
         await Task.Delay(5000);
 
-        var shipmentService = (IShipmentService)_cluster.Client.ServiceProvider.GetService(typeof(IShipmentService));
+        var shipmentService = (IShipmentService)this._cluster.Client.ServiceProvider.GetService(typeof(IShipmentService));
 
         await shipmentService.UpdateShipment("1");
 
         // delay fro seller view actor to process shipment update
         await Task.Delay(5000);
 
-        // check if there is only 9 entries in order_entries table
-        Assert.True(dbContext.OrderEntries.Count() == 9);
-        dbContext.OrderEntries.ExecuteDelete();
+        if(this.config.SellerViewPostgres){
+            // check if there is only 9 entries in order_entries table
+            Assert.Equal(9, dbContext.OrderEntries.Count());
+            dbContext.OrderEntries.ExecuteDelete();
+        }
     }
 
     [Fact]
     public async Task TestDelivery()
     {
+        var shipmentActorId = 0;
+        var shipmentActor = this._cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(shipmentActorId);
+        await shipmentActor.Reset();
+
         int customerId = 1;
         await this.InitData(1, 2);
         await this.BuildAndSendCheckout(customerId);
 
-        var shipmentActorId = 0;
-        var shipmentActor = _cluster.GrainFactory.GetGrain<ITransactionalShipmentActor>(shipmentActorId);
-
         var shipments = await shipmentActor.GetShipments(customerId);
-        Assert.True(shipments.Count == 1);
+        Assert.Single(shipments);
 
         await shipmentActor.UpdateShipment(0.ToString());
         shipments = await shipmentActor.GetShipments(customerId);
@@ -87,7 +91,7 @@ public class TransactionsTest : BaseTest
     [Fact]
     public async Task TestPriceUpdate()
     {
-        var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1,1.ToString());
+        var productActor = this._cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1,1.ToString());
 
         await productActor.SetProduct( new Product()
         {
@@ -111,7 +115,7 @@ public class TransactionsTest : BaseTest
     [Fact]
     public async Task TestProductUpdate()
     {
-        var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1, 1.ToString());
+        var productActor = this._cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1, 1.ToString());
 
         await productActor.SetProduct(new Product()
         {
@@ -133,7 +137,7 @@ public class TransactionsTest : BaseTest
             version = 2.ToString(),
         });
 
-        var stockActor = _cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, 1.ToString());
+        var stockActor = this._cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, 1.ToString());
 
         var version = (await stockActor.GetItem()).version;
 

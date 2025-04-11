@@ -12,29 +12,54 @@ namespace Silo.Controllers;
 public sealed class ProductController : ControllerBase
 {
     private readonly ILogger<ProductController> logger;
-    private readonly GetProductActorDelegate callback;
+    private readonly bool OrleansTransactions;
+    private readonly ITransactionClient transactionClient;
 
-    public ProductController(AppConfig config, ILogger<ProductController> logger)
+    public ProductController(AppConfig config, ITransactionClient transactionClient, ILogger<ProductController> logger)
     {
         this.logger = logger;
-        this.callback = config.OrleansTransactions ? GetTransactionalProductActor : GetProductActor;
+        this.transactionClient = transactionClient;
+        this.OrleansTransactions = config.OrleansTransactions;
     }
 
     [HttpPost]
     [Route("/product")]
-    public async Task<ActionResult> AddProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
+    public async Task<ActionResult> AddProduct([FromServices] IGrainFactory grainFactory,
+        [FromBody] Product product)
     {
-        this.logger.LogDebug("[AddProduct] received for id {0} {1}", product.seller_id, product.product_id);
-        await this.callback(grains,product.seller_id, product.product_id).SetProduct(product);
+        this.logger.LogDebug("[AddProduct] for ID {0}|{1}", product.seller_id, product.product_id);
+        if(this.OrleansTransactions){
+            var grain = this.GetTxProductActor(grainFactory, product.seller_id, product.product_id);
+            await this.transactionClient.RunTransaction(
+                TransactionOption.Create, 
+                async () =>
+                {
+                    await grain.SetProduct(product);
+                });
+        }
+        else
+        {
+            var grain = GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
+            await grain.SetProduct(product);
+        }
         return Ok();
     }
 
     [HttpGet("/product/{sellerId:long}/{productId:long}")]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [ProducesResponseType(typeof(Product), (int)HttpStatusCode.OK)]
-    public async Task<ActionResult<Product>> GetBySellerIdAndProductId([FromServices] IGrainFactory grains, int sellerId, int productId)
+    public async Task<ActionResult<Product>> GetBySellerIdAndProductId([FromServices] IGrainFactory grainFactory, int sellerId, int productId)
     {
-        var product = await this.callback(grains, sellerId, productId).GetProduct();
+        Product product;
+        if(this.OrleansTransactions){
+            var grain = this.GetTxProductActor(grainFactory, sellerId, productId);
+            product = await grain.GetProduct();
+        }
+        else
+        {
+            var grain = GetDefaultProductActor(grainFactory, sellerId, productId);
+            product = await grain.GetProduct();
+        }
         if (product is null)
             return NotFound();
         return Ok(product);
@@ -44,45 +69,58 @@ public sealed class ProductController : ControllerBase
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
-    public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grains, [FromBody] PriceUpdate update)
+    public async Task<ActionResult> ProcessPriceUpdate([FromServices] IGrainFactory grainFactory, [FromBody] PriceUpdate update)
     {
-        var grain = this.callback(grains, update.sellerId, update.productId);
-        try{
-            await grain.ProcessPriceUpdate(update);
-            return Accepted();
-        } catch(Exception e)
-        {
-            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        this.logger.LogDebug("[ProcessPriceUpdate] for ID {0}|{1}", update.sellerId, update.productId);
+        if(this.OrleansTransactions){
+            var grain = this.GetTxProductActor(grainFactory, update.sellerId, update.productId);
+            await this.transactionClient.RunTransaction(
+                TransactionOption.Create, 
+                async () =>
+                {
+                    await grain.ProcessPriceUpdate(update);
+                });
         }
+        else
+        {
+            var grain = GetDefaultProductActor(grainFactory, update.sellerId, update.productId);
+            await grain.ProcessPriceUpdate(update);
+        }
+        return Accepted();
     }
 
     [HttpPut]
     [Route("/product")]
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
-    public async Task<ActionResult> ProcessUpdateProduct([FromServices] IGrainFactory grains, [FromBody] Product product)
+    public async Task<ActionResult> ProcessUpdateProduct([FromServices] IGrainFactory grainFactory, [FromBody] Product product)
     {
-        var grain = this.callback(grains, product.seller_id, product.product_id);
-
-        try{
-            await grain.ProcessProductUpdate(product);
-            return Accepted();
-        } catch(Exception e)
-        {
-            return StatusCode((int)HttpStatusCode.InternalServerError, e.Message);
+        this.logger.LogDebug("[ProcessUpdateProduct] for ID {0}|{1}", product.seller_id, product.product_id);
+        if(this.OrleansTransactions){
+            var grain = this.GetTxProductActor(grainFactory, product.seller_id, product.product_id);
+            await this.transactionClient.RunTransaction(
+                TransactionOption.Create, 
+                async () =>
+                {
+                    await grain.ProcessProductUpdate(product);
+                });
         }
+        else
+        {
+            var grain = GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
+            await grain.ProcessProductUpdate(product);
+        }
+        return Accepted();
     }
 
-    private delegate IProductActor GetProductActorDelegate(IGrainFactory grains, int sellerId, int productId);
-
-    private IProductActor GetProductActor(IGrainFactory grains, int sellerId, int productId)
+    private IProductActor GetDefaultProductActor(IGrainFactory grainFactory, int sellerId, int productId)
     {
-        return grains.GetGrain<IProductActor>(sellerId, productId.ToString());
+        return grainFactory.GetGrain<IProductActor>(sellerId, productId.ToString());
     }
 
-    private ITransactionalProductActor GetTransactionalProductActor(IGrainFactory grains, int sellerId, int productId)
+    private ITransactionalProductActor GetTxProductActor(IGrainFactory grainFactory, int sellerId, int productId)
     {
-        return grains.GetGrain<ITransactionalProductActor>(sellerId, productId.ToString());
+        return grainFactory.GetGrain<ITransactionalProductActor>(sellerId, productId.ToString());
     }
 
 }

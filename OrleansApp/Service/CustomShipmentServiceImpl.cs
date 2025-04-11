@@ -19,7 +19,6 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
 
     private readonly AppConfig config;
     private readonly IDbContextFactory<SellerDbContext> dbContextFactory;
-    private readonly GetShipmentActorDelegate callback;
     private readonly IGrainFactory grainFactory;
     private readonly ILogger<CustomShipmentServiceImpl> logger;
 
@@ -29,7 +28,6 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
     {
         this.config = config;
         this.dbContextFactory = dbContextFactory;
-        this.callback = config.OrleansTransactions ? GetTransactionalShipmentActor : GetShipmentActor;
         this.grainFactory = grainFactory;
         this.logger = logger;
     }
@@ -64,20 +62,31 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
         this.logger.LogInformation(dict.Count+ " order entries retrieved from the database.");
         // FIXME some requests can obtain the same entries though... the abstractshipmentactor must avoid the cases where the shipment is not found
         List<Task> tasks = new List<Task>(dict.Count);
-        foreach (var entry in dict)
+        if (config.OrleansTransactions)
         {
-            var grain = this.callback(entry.Key);
-            tasks.Add(grain.UpdateShipment(instanceId, entry.Value));
+            foreach (var entry in dict)
+            {
+                var grain = this.GetTxShipmentActor(entry.Key);
+                tasks.Add(grain.UpdateShipment(instanceId, entry.Value));
+            }
+        } else
+        {
+            foreach (var entry in dict)
+            {
+                var grain = this.GetDefaultShipmentActor(entry.Key);
+                tasks.Add(grain.UpdateShipment(instanceId, entry.Value));
+            }
         }
+        
         await Task.WhenAll(tasks);
     }
 
-    private IShipmentActor GetShipmentActor(int partitionId)
+    private IShipmentActor GetDefaultShipmentActor(int partitionId)
     {
         return this.grainFactory.GetGrain<IShipmentActor>(partitionId);
     }
 
-    private ITransactionalShipmentActor GetTransactionalShipmentActor(int partitionId)
+    private ITransactionalShipmentActor GetTxShipmentActor(int partitionId)
     {
         return this.grainFactory.GetGrain<ITransactionalShipmentActor>(partitionId);
     }

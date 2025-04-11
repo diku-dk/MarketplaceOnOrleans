@@ -9,15 +9,14 @@ namespace Test.Workflows;
 [Collection(NonTransactionalClusterCollection.Name)]
 public class ShipmentTest : BaseTest
 {
-
-    int numCheckouts = 10;
+    private int numCheckouts = 10;
 
     public ShipmentTest(NonTransactionalClusterFixture fixture) : base(fixture.Cluster) {}
 
     [Fact]
     public async Task SimpleDeliveryTest()
     {
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        var config = (AppConfig)this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
 
         int customerId = 1;
         await InitData(1,2);
@@ -31,11 +30,11 @@ public class ShipmentTest : BaseTest
 
          // should have no shipments
         var shipments = await shipmentActor.GetShipments(0);
-        Assert.True(shipments.Count == 0);
+        Assert.Empty(shipments);
 
         // should have no orders
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
-        Assert.True( ( await orderActor.GetOrders()).Count == 0 );
+        var orderActor = this._cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
+        Assert.Empty(await orderActor.GetOrders());
 
         await shipmentActor.Reset();
         await orderActor.Reset();
@@ -45,31 +44,31 @@ public class ShipmentTest : BaseTest
     [Fact]
     public async Task ManyCheckoutsDeliveryTest()
     {
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        var config = (AppConfig)this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
 
         int customerId = 1;
-        await InitData(customerId, 2);
+        await this.InitData(customerId, 2);
 
-        for(int i = 1; i <= numCheckouts; i++){
-            await BuildAndSendCheckout(customerId);
+        for(int i = 1; i <= this.numCheckouts; i++){
+            await this.BuildAndSendCheckout(customerId);
         }
 
-        int numToRetrieve = numCheckouts - 1;
+        int numToRetrieve = this.numCheckouts - 1;
 
         int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
 
         var shipmentActor = this._cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
 
         await shipmentActor.UpdateShipment(1.ToString());
-
+        
         // should have a shipment
         var shipments = await shipmentActor.GetShipments(customerId);
         Assert.True(shipments.Count == numToRetrieve);
 
         // should have an order
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
-        Assert.True( ( await orderActor.GetOrders()).Count == numToRetrieve);
-
+        var orderActor = this._cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
+        Assert.True((await orderActor.GetOrders()).Count == numToRetrieve);
+   
         await shipmentActor.Reset();
         await orderActor.Reset();
     }

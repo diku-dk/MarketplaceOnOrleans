@@ -1,10 +1,8 @@
 ﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
-using Orleans.Runtime;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
-using OrleansApp.Interfaces;
 using Common.Config;
 
 namespace OrleansApp.Grains;
@@ -93,13 +91,4 @@ public sealed class OrderActor : AbstractOrderActor
         }
     }
 
-    public override IStockActor GetStockActor(int sellerId, int productId)
-    {
-        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "OrleansApp.Grains.StockActor");
-    }
-
-    public override IPaymentActor GetPaymentActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "OrleansApp.Grains.PaymentActor");
-    }
 }

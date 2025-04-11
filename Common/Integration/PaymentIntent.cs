@@ -1,5 +1,4 @@
-﻿using System;
-namespace Common.Integration
+﻿namespace Common.Integration
 {
 	/**
      * Inspired by Stripe payment system
@@ -36,7 +35,6 @@ namespace Common.Integration
 		public string confirmation_method = "automatic";
 
         public long created { get; set; }
-
 	}
 }
 

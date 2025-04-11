@@ -8,6 +8,7 @@ using System.Text;
 using System.Globalization;
 using Common.Config;
 using OrleansApp.Interfaces.SellerView;
+using OrleansApp.Transactional;
 
 namespace OrleansApp.Abstract;
 
@@ -84,8 +85,15 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         for (var idx = 0; idx < reserveStock.items.Count; idx++)
         {
             var item = reserveStock.items[idx];
-            var stockActor = this.GetStockActor(item.SellerId, item.ProductId);
-            statusResp.Insert(idx, stockActor.AttemptReservation(item));
+            if (config.OrleansTransactions)
+            {
+                var stockActor = this.GetTxStockActor(item.SellerId, item.ProductId);
+                statusResp.Insert(idx, stockActor.AttemptReservation(item));
+            } else
+            {
+                var stockActor = this.GetDefaultStockActor(item.SellerId, item.ProductId);
+                statusResp.Insert(idx, stockActor.AttemptReservation(item));
+            }
         }
         await Task.WhenAll(statusResp);
 
@@ -221,8 +229,14 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
         await Task.WhenAll(tasks);
 
-        var paymentActor = this.GetPaymentActor(this.customerId);
-        await paymentActor.ProcessPayment(invoice);
+        if (config.OrleansTransactions)
+        {
+            var paymentActor = this.GetTxPaymentActor(this.customerId);
+            await paymentActor.ProcessPayment(invoice);
+        } else {
+            var paymentActor = this.GetDefaultPaymentActor(this.customerId);
+            await paymentActor.ProcessPayment(invoice);
+        }
     }
 
     public async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
@@ -325,9 +339,25 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }
 
-    public abstract IStockActor GetStockActor(int sellerId, int productId);
+    public IStockActor GetDefaultStockActor(int sellerId, int productId)
+    {
+        return this.GrainFactory.GetGrain<IStockActor>(sellerId, productId.ToString(), "OrleansApp.Grains.StockActor");
+    }
 
-    public abstract IPaymentActor GetPaymentActor(int customerId);
+    public IPaymentActor GetDefaultPaymentActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<IPaymentActor>(customerId, "OrleansApp.Grains.PaymentActor");
+    }
+
+    public ITransactionalStockActor GetTxStockActor(int sellerId, int productId)
+    {
+        return this.GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId.ToString());
+    }
+
+    public ITransactionalPaymentActor GetTxPaymentActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<ITransactionalPaymentActor>(customerId);
+    }
 
     protected abstract Task<int> GetNextOrderId();
 

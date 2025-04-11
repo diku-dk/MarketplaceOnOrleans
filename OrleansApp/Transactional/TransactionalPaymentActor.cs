@@ -1,33 +1,48 @@
 ﻿using Common.Config;
+using Common.Entities;
 using Microsoft.Extensions.Logging;
+using Orleans.Concurrency;
+using Orleans.Transactions.Abstractions;
 using OrleansApp.Abstract;
-using OrleansApp.Grains;
 using OrleansApp.Infra;
 
 namespace OrleansApp.Transactional;
 
 /**
 * For some unknown reason, having reentrancy here leads to non-deterministic degradation of performance.
+* News: From Orleans 8.0 on, [Reentrant] is necessary in every transactional grain
 */
+[Reentrant]
 public sealed class TransactionalPaymentActor : AbstractPaymentActor, ITransactionalPaymentActor
 {
-    public TransactionalPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger) : base(persistence, options, _logger)
+
+    private readonly ITransactionalState<SortedDictionary<int,List<OrderPayment>>> orderPayments;
+    private readonly ITransactionalState<SortedDictionary<int,OrderPaymentCard>> orderPaymentCards;
+
+    public TransactionalPaymentActor(
+         [TransactionalState(stateName: "orderPayments", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int,List<OrderPayment>>> orderPayments,
+         [TransactionalState(stateName: "orderPaymentCards", storageName: Constants.OrleansStorage)] ITransactionalState<SortedDictionary<int,OrderPaymentCard>> orderPaymentCards,
+         IAuditLogger persistence, 
+         AppConfig options, 
+         ILogger<TransactionalPaymentActor> logger) : base(persistence, options, logger)
     {
+        this.orderPayments = orderPayments;
+        this.orderPaymentCards = orderPaymentCards;
     }
 
-    protected override ITransactionalOrderActor GetOrderActor(int id)
+    public override Task InsertPaymentIntoState(int id, OrderPaymentCard orderPaymentCard, List<OrderPayment> orderPayments)
     {
-        return GrainFactory.GetGrain<ITransactionalOrderActor>(id);
+        Task t1 = this.orderPayments.PerformUpdate(s => { s.Add(id, orderPayments); });
+        Task t2 = this.orderPaymentCards.PerformUpdate(p => { p.Add(id, orderPaymentCard); });
+        return Task.WhenAll(t1, t2);
     }
 
-    protected override ITransactionalShipmentActor GetShipmentActor(int id)
+    public override Task Reset()
     {
-        return GrainFactory.GetGrain<ITransactionalShipmentActor>(id);
+        Task t1 = this.orderPayments.PerformUpdate(s => { s.Clear(); });
+        Task t2 = this.orderPaymentCards.PerformUpdate(p => { p.Clear(); });
+        return Task.WhenAll(t1, t2);
     }
 
-    protected override ITransactionalStockActor GetStockActor(int sellerId, string productId)
-    {
-        return GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId);
-    }
 }
 

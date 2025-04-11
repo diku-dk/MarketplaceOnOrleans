@@ -12,12 +12,11 @@ namespace OrleansApp.Grains;
 
 public class CartActor : Grain, ICartActor
 {
-    private delegate IOrderActor GetOrderActorDelegate(int customerId);
     protected readonly IPersistentState<Cart> cart;
     protected readonly bool orleansStorage;
     private readonly bool trackHistory;
     protected int customerId;
-    private readonly GetOrderActorDelegate callback;
+    private readonly bool OrleansTransactions;
     protected readonly ILogger<CartActor> logger;
 
     private readonly Dictionary<string,List<CartItem>> history;
@@ -29,7 +28,7 @@ public class CartActor : Grain, ICartActor
         ILogger<CartActor> _logger)
     {
         this.cart = state;
-        this.callback = options.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
+        this.OrleansTransactions = options.OrleansTransactions;
         this.orleansStorage = options.OrleansStorage;
         this.trackHistory = options.TrackCartHistory;
         if(this.trackHistory) this.history = new Dictionary<string, List<CartItem>>();
@@ -77,8 +76,6 @@ public class CartActor : Grain, ICartActor
     // customer decided to checkout
     public virtual async Task NotifyCheckout(CustomerCheckout customerCheckout)
     {
-        // access the orderGrain for this specific order
-        var orderActor = this.callback(this.customerId);
         var checkout = new ReserveStock(DateTime.UtcNow, customerCheckout, this.cart.State.items, customerCheckout.instanceId);
         this.cart.State.status = CartStatus.CHECKOUT_SENT;
         try {
@@ -87,7 +84,13 @@ public class CartActor : Grain, ICartActor
                 // store cart items internally
                 this.history.TryAdd(customerCheckout.instanceId, new(this.cart.State.items));
             }
-            await orderActor.Checkout(checkout);
+            if(OrleansTransactions){
+                
+                await this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId).Checkout(checkout);
+            } else
+            {
+                await this.GrainFactory.GetGrain<IOrderActor>(customerId).Checkout(checkout);
+            }
             await this.Seal();
         } catch(Exception e) {
             var str = string.Format("Checkout exception caught in cart ID {0}: {1} - {2} - {3} - {4}", this.customerId, e.StackTrace, e.Source, e.InnerException, e.Data);
@@ -106,19 +109,9 @@ public class CartActor : Grain, ICartActor
 
     public Task<List<CartItem>> GetHistory(string tid)
     {
-        if(this.history.ContainsKey(tid))
-            return Task.FromResult(this.history[tid]);
+        if(this.history.TryGetValue(tid, out List<CartItem> value))
+            return Task.FromResult(value);
         return Task.FromResult(new List<CartItem>());
-    }
-
-    private IOrderActor GetOrderActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<IOrderActor>(customerId);
-    }
-
-    private ITransactionalOrderActor GetTransactionalOrderActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
     }
 
 }

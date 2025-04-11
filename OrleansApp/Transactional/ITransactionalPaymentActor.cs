@@ -8,5 +8,7 @@ public interface ITransactionalPaymentActor : IPaymentActor
     [Transaction(TransactionOption.Join)]
     new Task ProcessPayment(InvoiceIssued invoiceIssued);
 
+    [Transaction(TransactionOption.Create)]
+    new Task Reset();
 }
 

@@ -1,10 +1,8 @@
 ﻿using Common.Entities;
 using Microsoft.Extensions.Logging;
-using Orleans.Runtime;
 using OrleansApp.Infra;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
-using OrleansApp.Interfaces;
 using Common.Config;
 
 namespace OrleansApp.Grains;
@@ -12,11 +10,10 @@ namespace OrleansApp.Grains;
 [Reentrant]
 public sealed class ShipmentActor : AbstractShipmentActor
 {
-
+    // key: customer ID + "-" + order ID
     private readonly IPersistentState<SortedDictionary<int,Shipment>> shipments;
-    private readonly IPersistentState<SortedDictionary<int,List<Package>>> packages;   // key: customer ID + "-" + order ID
+    private readonly IPersistentState<SortedDictionary<int,List<Package>>> packages;
     private readonly IPersistentState<NextShipmentIdState> nextShipmentId;
-
 
     public ShipmentActor(
          [PersistentState(stateName: "shipments", storageName: Constants.OrleansStorage)] IPersistentState<SortedDictionary<int,Shipment>> shipments,
@@ -29,11 +26,6 @@ public sealed class ShipmentActor : AbstractShipmentActor
         this.shipments = shipments;
         this.packages = packages;
         this.nextShipmentId = nextShipmentId;
-    }
-
-    public override async Task OnActivateAsync(CancellationToken token)
-    {
-        await base.OnActivateAsync(token);
     }
 
     public override async Task Reset()
@@ -86,7 +78,9 @@ public sealed class ShipmentActor : AbstractShipmentActor
             throw new InvalidOperationException(str);
         }
         if (this.config.OrleansStorage)
+        {
             await Task.WhenAll(this.shipments.WriteStateAsync(), this.packages.WriteStateAsync(), this.nextShipmentId.WriteStateAsync());
+        }
     }
 
     protected override async Task DeleteShipmentById(int id)
@@ -116,10 +110,9 @@ public sealed class ShipmentActor : AbstractShipmentActor
         this.shipments.State[id].status = status;
     }
 
-    public override IOrderActor GetOrderActor(int customerId)
+    protected override Task<Dictionary<int, int>> GetOldestOpenShipmentPerSellerAsync()
     {
-        return this.GrainFactory.GetGrain<IOrderActor>(customerId);
+        throw new NotImplementedException();
     }
-
 }
 

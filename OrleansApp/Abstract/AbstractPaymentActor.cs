@@ -1,22 +1,24 @@
 ﻿using Common.Entities;
 using Common.Events;
+using Common.Integration;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
+using OrleansApp.Interfaces.SellerView;
 using System.Text;
 using System.Text.Json;
 using Common.Config;
-using OrleansApp.Interfaces.SellerView;
+using OrleansApp.Transactional;
 
 namespace OrleansApp.Abstract;
 
 public abstract class AbstractPaymentActor : Grain, IPaymentActor
 {
     private static readonly string Name = typeof(PaymentActor).FullName;
-    private readonly AppConfig config;
-    private int customerId;
-    private readonly ILogger<PaymentActor> logger;
+    protected readonly AppConfig config;
+    protected int customerId;
+    protected readonly ILogger<IPaymentActor> logger;
     private readonly IAuditLogger persistence;
 
     private delegate ISellerActor GetSellerActorDelegate(int sellerId);
@@ -25,12 +27,12 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
     private class PaymentState
     {
         public List<OrderPayment> orderPayments { get; set; }
-        public OrderPaymentCard card { get; set; }
+        public OrderPaymentCard orderPaymentCard { get; set; }
 
         public PaymentState() { }
     }
 
-    public AbstractPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<PaymentActor> _logger)
+    public AbstractPaymentActor(IAuditLogger persistence, AppConfig options, ILogger<IPaymentActor> _logger)
     {
         this.persistence = persistence;
         this.config = options;
@@ -44,30 +46,61 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         return Task.CompletedTask;
     }
 
+    public abstract Task Reset();
+
+    public abstract Task InsertPaymentIntoState(int id, OrderPaymentCard orderPaymentCard, List<OrderPayment> orderPayments);
+
+    private static bool IsCard(string type){
+        switch (type){
+            case "CREDIT_CARD":{
+                return true;
+            }
+            case "DEBIT_CARD":{
+                return true;
+            }
+            default: {
+                return false;
+            }
+        }
+    }
+
+    private PaymentStatus GetPaymentStatus(InvoiceIssued invoiceIssued) {
+        PaymentStatus status;
+        if(config.PaymentProvider){
+            // TODO provider communication
+            status = PaymentStatus.requires_payment_method;
+        } else {
+            status = PaymentStatus.succeeded;
+        }
+        return status;
+    }
+
     public async Task ProcessPayment(InvoiceIssued invoiceIssued)
     {
+        this.logger.LogDebug("APP: Payment received an invoice issued event with TID: "+ invoiceIssued.instanceId);
+        var paymentTs = DateTime.UtcNow;
+        PaymentStatus status = GetPaymentStatus(invoiceIssued);
         int seq = 1;
+        var isCard = IsCard(invoiceIssued.customer.PaymentType);
 
-        var cc = invoiceIssued.customer.PaymentType.Equals(PaymentType.CREDIT_CARD.ToString());
-
-        // create payment tuples
         var orderPayments = new List<OrderPayment>();
-        OrderPaymentCard card = null;
-        if (cc || invoiceIssued.customer.PaymentType.Equals(PaymentType.DEBIT_CARD.ToString()))
+        OrderPaymentCard orderPaymentCard = null;
+        if (isCard)
         {
             var cardPaymentLine = new OrderPayment()
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
-                type = cc ? PaymentType.CREDIT_CARD : PaymentType.DEBIT_CARD,
+                type = invoiceIssued.customer.PaymentType.SequenceEqual(PaymentType.CREDIT_CARD.ToString()) ?
+                    PaymentType.CREDIT_CARD : PaymentType.DEBIT_CARD,
                 installments = invoiceIssued.customer.Installments,
                 value = invoiceIssued.totalInvoice,
-                status = Common.Integration.PaymentStatus.succeeded
+                status = status
             };
             orderPayments.Add(cardPaymentLine);
 
             // create an entity for credit card payment details with FK to order payment
-            card = new OrderPaymentCard()
+            orderPaymentCard = new OrderPaymentCard()
             {
                 order_id = invoiceIssued.orderId,
                 payment_sequential = seq,
@@ -76,7 +109,6 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
                 card_expiration = invoiceIssued.customer.CardExpiration,
                 card_brand = invoiceIssued.customer.CardBrand
             };
-
             seq++;
         }
 
@@ -89,65 +121,95 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
                 type = PaymentType.BOLETO,
                 installments = 1,
                 value = invoiceIssued.totalInvoice,
-                status = Common.Integration.PaymentStatus.succeeded
+                status = status
             });
-
             seq++;
         }
 
         // then one line for each voucher
-        foreach (var item in invoiceIssued.items)
-        {
-            if (item.voucher > 0)
+        if(status == PaymentStatus.succeeded){
+            foreach (var item in invoiceIssued.items)
             {
-                orderPayments.Add(new OrderPayment()
+                if (item.voucher > 0)
                 {
-                    order_id = invoiceIssued.orderId,
-                    payment_sequential = seq,
-                    type = PaymentType.VOUCHER,
-                    installments = 1,
-                    value = item.voucher
-                });
+                    orderPayments.Add(new OrderPayment()
+                    {
+                        order_id = invoiceIssued.orderId,
+                        payment_sequential = seq,
+                        type = PaymentType.VOUCHER,
+                        installments = 1,
+                        value = item.voucher
+                    });
 
-                seq++;
+                    seq++;
+                }
             }
         }
+
+        await this.InsertPaymentIntoState(invoiceIssued.orderId, orderPaymentCard, orderPayments);
 
         var tasks = new List<Task>();
 
         // Using strings below, but can also use byte arrays for both keys and values
         if (config.LogRecords)
         {
-            var str = JsonSerializer.Serialize(new PaymentState() { orderPayments = orderPayments, card = card });
+            var str = JsonSerializer.Serialize(new PaymentState() { orderPayments = orderPayments, orderPaymentCard = orderPaymentCard });
             var key = new StringBuilder(this.customerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
             tasks.Add(persistence.Log(Name, key, str));
         }
-        // inform related stock actors to reduce the amount because the payment has succeeded
-        foreach (var item in invoiceIssued.items)
-        {
-            var stockActor = GetStockActor(item.seller_id, item.product_id.ToString());
-            tasks.Add(stockActor.ConfirmReservation(item.quantity));
-        }
 
-        var paymentTs = DateTime.UtcNow;
         var paymentConfirmedWithItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, paymentTs, invoiceIssued.instanceId);
-        var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
-        foreach (var sellerID in sellers)
-        {
-            var sellerActor = this.getSellerDelegate(sellerID);
-            tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmedWithItems));
+
+        if(config.FeedbackEvents){
+            // inform related stock actors to reduce the amount because the payment has succeeded
+            foreach (var item in invoiceIssued.items)
+            {
+                Task taskStock;
+                if (config.OrleansTransactions)
+                {
+                    var stockActor = GetTxStockActor(item.seller_id, item.product_id.ToString());
+                    taskStock = stockActor.ConfirmReservation(item.quantity);
+                } else
+                {
+                    var stockActor = GetDefaultStockActor(item.seller_id, item.product_id.ToString());
+                    taskStock = stockActor.ConfirmReservation(item.quantity);
+                }
+               tasks.Add(taskStock);
+            }
+
+            var sellers = invoiceIssued.items.Select(x => x.seller_id).ToHashSet();
+            foreach (var sellerID in sellers)
+            {
+                var sellerActor = this.getSellerDelegate(sellerID);
+                tasks.Add(sellerActor.ProcessPaymentConfirmed(paymentConfirmedWithItems));
+            }
+
+            var paymentConfirmedNoItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, null, paymentTs, invoiceIssued.instanceId);
+
+            Task taskOrder;
+            if (config.OrleansTransactions)
+            {
+                taskOrder = this.GetTxOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems);
+            } else
+            {
+                taskOrder = this.GetDefaultOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems);
+            }
+            
+            tasks.Add(GrainFactory.GetGrain<ICustomerActor>(this.customerId).NotifyPaymentConfirmed(paymentConfirmedNoItems));
+            tasks.Add(taskOrder);
+            await Task.WhenAll(tasks);
         }
 
-        var paymentConfirmedNoItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, null, paymentTs, invoiceIssued.instanceId);
-
-        tasks.Add(GrainFactory.GetGrain<ICustomerActor>(this.customerId).NotifyPaymentConfirmed(paymentConfirmedNoItems));
-        tasks.Add(this.GetOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems));
-        await Task.WhenAll(tasks);
-
-        // proceed to shipment actor
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId, this.config.NumShipmentActors);
-        var shipmentActor = this.GetShipmentActor(shipmentActorID);
-        await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
+        if(config.OrleansTransactions){
+            var shipmentActor = this.GetTxShipmentActor(shipmentActorID);
+            await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
+        }
+        else
+        {
+            var shipmentActor = this.GetDefaultShipmentActor(shipmentActorID);
+            await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
+        }
     }
 
     private ISellerActor GetSellerActor(int sellerId)
@@ -160,10 +222,34 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }
 
-    protected abstract IShipmentActor GetShipmentActor(int id);
+    protected IOrderActor GetDefaultOrderActor(int id)
+    {
+        return GrainFactory.GetGrain<IOrderActor>(id);
+    }
 
-    protected abstract IOrderActor GetOrderActor(int id);
+    protected IShipmentActor GetDefaultShipmentActor(int id)
+    {
+        return GrainFactory.GetGrain<IShipmentActor>(id);
+    }
 
-    protected abstract IStockActor GetStockActor(int sellerId, string productId);
+    protected IStockActor GetDefaultStockActor(int sellerId, string productId)
+    {
+        return GrainFactory.GetGrain<IStockActor>(sellerId, productId);
+    }
+
+    protected ITransactionalOrderActor GetTxOrderActor(int id)
+    {
+        return GrainFactory.GetGrain<ITransactionalOrderActor>(id);
+    }
+
+    protected ITransactionalShipmentActor GetTxShipmentActor(int id)
+    {
+        return GrainFactory.GetGrain<ITransactionalShipmentActor>(id);
+    }
+
+    protected ITransactionalStockActor GetTxStockActor(int sellerId, string productId)
+    {
+        return GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId);
+    }
 }
 

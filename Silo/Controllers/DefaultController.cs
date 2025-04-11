@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
-using Orleans.Runtime;
 using Common.Config;
 
 namespace Silo.Controllers;
@@ -139,6 +138,24 @@ public sealed class DefaultController : ControllerBase
         if (config.SellerViewPostgres)
         {
             await persistence.ExecuteSqlCommand("TRUNCATE TABLE public.order_entries;");
+        }
+        return Ok();
+    }
+
+    [Route("/status")]
+    [HttpGet]
+    [ProducesResponseType((int)HttpStatusCode.Accepted)]
+    public async Task<ActionResult> Status([FromServices] IGrainFactory grains)
+    {
+        this.logger.LogDebug("Status requested at {0}", DateTime.UtcNow);
+        var managementGrain = grains.GetGrain<IManagementGrain>(0);
+        var stats = await managementGrain.GetDetailedGrainStatistics();
+        foreach (var stat in stats)
+        {
+            if (stat.GrainType.Contains("OrleansApp.Grains"))
+            {
+                Console.WriteLine($"GrainType: {stat.GrainType}, GrainId: {stat.GrainId}, Silo: {stat.SiloAddress}");
+            }
         }
         return Ok();
     }

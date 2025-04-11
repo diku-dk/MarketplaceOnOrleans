@@ -8,6 +8,7 @@ using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
+using OrleansApp.Transactional;
 
 namespace OrleansApp.Abstract;
 
@@ -23,16 +24,6 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
 
     private delegate ISellerActor GetSellerActorDelegate(int sellerId);
     private readonly GetSellerActorDelegate getSellerDelegate;
-
-    private ISellerActor GetSellerActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
-    }
-
-    private ISellerViewActor GetSellerViewActor(int sellerId)
-    {
-        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
-    }
 
     public class NextShipmentIdState
     {
@@ -116,20 +107,27 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
             package_id++;
         }
         await InsertShipmentIntoState(id, shipment, packages);
-    
-        ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
-        // inform seller
-        var tasks = new List<Task>();
-        var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
-        foreach (var sellerId in sellers)
-        {
-            var sellerActor = this.getSellerDelegate(sellerId);
-            tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
+
+        if(config.FeedbackEvents){
+            ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
+            // inform seller
+            var tasks = new List<Task>();
+            var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
+            foreach (var sellerId in sellers)
+            {
+                var sellerActor = this.getSellerDelegate(sellerId);
+                tasks.Add(sellerActor.ProcessShipmentNotification(shipmentNotification));
+            }
+            if(config.OrleansTransactions){
+                var orderActor = this.GetTxOrderActor(paymentConfirmed.customer.CustomerId);
+                tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+            } else
+            {
+                var orderActor = this.GetDefaultOrderActor(paymentConfirmed.customer.CustomerId);
+                tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+            }
+            await Task.WhenAll(tasks);
         }
-        
-        var orderActor = this.GetOrderActor(paymentConfirmed.customer.CustomerId);
-        tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
-        await Task.WhenAll(tasks);
     }
 
     /**
@@ -179,7 +177,14 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
 
                 ShipmentNotification shipmentNotification = new ShipmentNotification(
                         shipment.customer_id, shipment.order_id, now, tid, ShipmentStatus.delivery_in_progress);
-                tasks.Add(this.GetOrderActor(shipment.customer_id).ProcessShipmentNotification(shipmentNotification));
+                if(config.OrleansTransactions){
+                    var orderActor = this.GetTxOrderActor(shipment.customer_id);
+                    tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+                } else
+                {
+                    var orderActor = this.GetDefaultOrderActor(shipment.customer_id);
+                    tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+                }
             }
 
             if (shipment.package_count == countDelivered + sellerPackages.Count)
@@ -195,7 +200,14 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
                     tasks.Add(this.getSellerDelegate(sellerID).ProcessShipmentNotification(shipmentNotification));
                 }
 
-                tasks.Add(GetOrderActor(shipment.customer_id).ProcessShipmentNotification(shipmentNotification));
+                if(config.OrleansTransactions){
+                    var orderActor = this.GetTxOrderActor(shipment.customer_id);
+                    tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+                } else
+                {
+                    var orderActor = this.GetDefaultOrderActor(shipment.customer_id);
+                    tasks.Add(orderActor.ProcessShipmentNotification(shipmentNotification));
+                }
 
                 // log shipment and packages
                 if (this.config.LogRecords)
@@ -214,8 +226,6 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         await Task.WhenAll(tasks);
     }
 
-    public abstract IOrderActor GetOrderActor(int customerId);
-
     protected abstract void UpdateShipmentStatus(int id, ShipmentStatus status);
 
     protected abstract void SetPackageToDelivered(int id, Package package, DateTime time);
@@ -226,15 +236,9 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
 
     public abstract Task<int> GetNextShipmentId();
 
-    protected virtual Dictionary<int, int> GetOldestOpenShipmentPerSeller()
-    {
-        throw new NotImplementedException();
-    }
+    protected abstract Dictionary<int, int> GetOldestOpenShipmentPerSeller();
 
-    protected virtual Task<Dictionary<int, int>> GetOldestOpenShipmentPerSellerAsync()
-    {
-        throw new NotImplementedException();
-    }
+    protected abstract Task<Dictionary<int, int>> GetOldestOpenShipmentPerSellerAsync();
 
     protected abstract Task<(Shipment, List<Package>)> GetShipmentById(int id);
 
@@ -245,6 +249,26 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
     public virtual Task UpdateShipment(string tid, ISet<(int customerId, int orderId, int sellerId)> entries)
     {
         throw new NotImplementedException();
+    }
+
+    public IOrderActor GetDefaultOrderActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<IOrderActor>(customerId);
+    }
+
+    public ITransactionalOrderActor GetTxOrderActor(int customerId)
+    {
+        return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
+    }
+
+    private ISellerActor GetSellerActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerActor>(sellerId);
+    }
+
+    private ISellerViewActor GetSellerViewActor(int sellerId)
+    {
+        return this.GrainFactory.GetGrain<ISellerViewActor>(sellerId);
     }
 
 }

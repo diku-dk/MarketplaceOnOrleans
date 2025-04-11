@@ -25,16 +25,6 @@ public sealed class TransactionalOrderActor : AbstractOrderActor, ITransactional
         this.nextOrderId = nextOrderId;
     }
 
-    public override ITransactionalStockActor GetStockActor(int sellerId, int productId)
-    {
-        return this.GrainFactory.GetGrain<ITransactionalStockActor>(sellerId, productId.ToString());
-    }
-
-    public override ITransactionalPaymentActor GetPaymentActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<ITransactionalPaymentActor>(customerId);
-    }
-
     protected override async Task<int> GetNextOrderId()
     {
          return await this.nextOrderId.PerformUpdate(id => id.GetNextOrderId().Value);

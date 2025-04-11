@@ -8,9 +8,11 @@ using Common.Config;
 using Common.Integration;
 using OrleansApp.Infra;
 using OrleansApp.Infra.Redis;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
+[Reentrant]
 public sealed class TransactionalProductActor : Grain, ITransactionalProductActor
 {
     private IStreamProvider streamProvider;

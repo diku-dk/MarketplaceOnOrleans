@@ -1,12 +1,14 @@
 ﻿using Common.Entities;
+using Common.Config;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Abstract;
 using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
-using Common.Config;
+using Orleans.Concurrency;
 
 namespace OrleansApp.Transactional;
 
+[Reentrant]
 public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransactionalShipmentActor
 {
 
@@ -25,11 +27,6 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
         this.shipments = shipments;
         this.packages = packages;
         this.nextShipmentId = nextShipmentId;
-    }
-
-    public override async Task OnActivateAsync(CancellationToken token)
-    {
-        await base.OnActivateAsync(token);
     }
 
     public override async Task<int> GetNextShipmentId()
@@ -83,6 +80,11 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
             ToDictionary(g => g.key, g => g.Sort));
     }
 
+    protected override Dictionary<int, int> GetOldestOpenShipmentPerSeller()
+    {
+        throw new NotImplementedException();
+    }
+
     protected override async void SetPackageToDelivered(int id, Package package, DateTime time)
     {
         await this.packages.PerformUpdate(p => {
@@ -97,11 +99,6 @@ public sealed class TransactionalShipmentActor : AbstractShipmentActor, ITransac
         await this.shipments.PerformUpdate(s => {
             s[id].status = status;
         });
-    }
-
-    public override ITransactionalOrderActor GetOrderActor(int customerId)
-    {
-        return this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId);
     }
 
     private readonly KeyValuePair<int, Shipment> EMPTY = new KeyValuePair<int, Shipment>(-1,null);

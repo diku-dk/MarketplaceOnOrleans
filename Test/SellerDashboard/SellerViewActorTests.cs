@@ -49,7 +49,7 @@ public class SellerViewActorTests : BaseTest
 
         var dashboard = await sellerViewActor.QueryDashboard();
 
-        Assert.True(dashboard.orderEntries.Count == 1);
+        Assert.Single(dashboard.orderEntries);
 
         await sellerViewActor.ProcessDeliveryNotification(new DeliveryNotification()
         {
@@ -78,11 +78,11 @@ public class SellerViewActorTests : BaseTest
 
         dashboard = await sellerViewActor.QueryDashboard();
 
-        Assert.True(dashboard.orderEntries.Count == 0);
+        Assert.Empty(dashboard.orderEntries);
 
         // check if result is none
-        Assert.True(dashboard.sellerView.seller_id == 1);
-        Assert.True(dashboard.sellerView.count_orders == 0);
+        Assert.Equal(1, dashboard.sellerView.seller_id);
+        Assert.Equal(0, dashboard.sellerView.count_orders);
     }
 
     protected OrderItem GenerateOrderItem(int sellerId, int productId)

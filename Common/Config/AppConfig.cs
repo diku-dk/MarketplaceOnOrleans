@@ -28,6 +28,10 @@ public sealed class AppConfig
 
     public bool LogRecords { get; set; }
 
+    public bool FeedbackEvents { get; set; }
+
+    public bool PaymentProvider { get; set; }
+
     public int NumShipmentActors { get; set; }
 
     public bool UseDashboard { get; set; }
@@ -47,6 +51,7 @@ public sealed class AppConfig
             " \nAdoNetConnectionString: " + AdoNetConnectionString +
             " \nNumShipmentActors: " + NumShipmentActors +
             " \nLogRecords: " + LogRecords +
+            " \nFeedbackEvents: " + FeedbackEvents +
             " \nUseDashboard: " + UseDashboard +
             " \nUseSwagger: " + UseSwagger +
             " \nRedisReplication: " + RedisReplication +

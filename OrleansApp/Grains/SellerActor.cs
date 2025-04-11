@@ -3,12 +3,12 @@ using Common.Events;
 using Common.Integration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Orleans.Runtime;
 using OrleansApp.Infra;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using System.Text;
 using Common.Config;
+using Orleans.Storage;
 
 namespace OrleansApp.Grains;
 
@@ -34,59 +34,80 @@ public sealed class SellerActor : AbstractSellerActor
     public override async Task OnActivateAsync(CancellationToken token)
     {
         await base.OnActivateAsync(token);
-        // persistence
         this.orderEntries.State ??= new();
     }
 
     protected override async Task ProcessNewOrderEntries(InvoiceIssued invoiceIssued, List<OrderEntry> orderEntries)
     {
         string id = BuildUniqueOrderIdentifier(invoiceIssued);
-        if (this.orderEntries.State.ContainsKey(id))
+        if (this.orderEntries.State.TryGetValue(id, out List<OrderEntry> value))
         {
-            this.logger.LogError("Seller {0} - Customer ID {1} Order ID {2} already exists. {3},{4}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, invoiceIssued.items[0].order_id, this.orderEntries.State[id][0].order_id);
+            this.logger.LogError("Seller {0} - Customer ID {1} Order ID {2} already exists. {3},{4}", this.sellerId, invoiceIssued.customer.CustomerId, invoiceIssued.orderId, invoiceIssued.items[0].order_id, value[0].order_id);
             return;
         }
 
         this.orderEntries.State.Add(id, orderEntries);
 
         if (this.config.OrleansStorage)
-        {
-            await this.orderEntries.WriteStateAsync();
+        {    
+            try {
+                await this.orderEntries.WriteStateAsync();
+            }
+            catch(Exception e)
+            {
+                this.logger.LogCritical($"ERROR in ProcessNewOrderEntries: {e}");
+            }
         }
     }
 
     public override async Task ProcessPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         string id = BuildUniqueOrderIdentifier(paymentConfirmed);
-        if (!this.orderEntries.State.ContainsKey(id))
+        if (!orderEntries.State.TryGetValue(id, out List<OrderEntry> entries))
         {
             logger.LogDebug("Cannot process payment confirmed event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
         }
-        foreach (var item in this.orderEntries.State[id])
+        foreach (var item in entries)
         {
             item.order_status = OrderStatus.PAYMENT_PROCESSED;
         }
         if (this.config.OrleansStorage)
-            await this.orderEntries.WriteStateAsync();
+        {    
+            try {
+                await this.orderEntries.WriteStateAsync();
+            }
+            catch(Exception e)
+            {
+                this.logger.LogCritical($"ERROR in ProcessPaymentConfirmed: {e}");
+            }
+        }
     }
 
     public override async Task ProcessPaymentFailed(PaymentFailed paymentFailed)
     {
         string id = BuildUniqueOrderIdentifier(paymentFailed);
-        if (!this.orderEntries.State.ContainsKey(id)) return;
-        foreach (var item in this.orderEntries.State[id])
+        if (!orderEntries.State.TryGetValue(id, out List<OrderEntry> orderEntriesOrd)) return;
+        foreach (var item in orderEntriesOrd)
         {
             item.order_status = OrderStatus.PAYMENT_FAILED;
         }
         if (this.config.OrleansStorage)
-            await this.orderEntries.WriteStateAsync();
+        {    
+            try {
+                await this.orderEntries.WriteStateAsync();
+            }
+            catch(Exception e)
+            {
+                this.logger.LogCritical($"ERROR in ProcessPaymentFailed: {e}");
+            }
+        }
     }
 
     public override async Task ProcessShipmentNotification(ShipmentNotification shipmentNotification)
     {
         string id = BuildUniqueOrderIdentifier(shipmentNotification);
-        if (!this.orderEntries.State.ContainsKey(id))
+        if (!this.orderEntries.State.TryGetValue(id, out List<OrderEntry> entries))
         {
             this.logger.LogDebug("Cannot process shipment notification event because invoice ID {0} has not been found", id);
             return; // Have been either removed from state already or not yet added to the state (due to interleaving)
@@ -95,7 +116,6 @@ public sealed class SellerActor : AbstractSellerActor
         // log delivered entries and remove them from state
         if (shipmentNotification.status == ShipmentStatus.concluded)
         {
-            List<OrderEntry> entries = this.orderEntries.State[id];
             if (this.config.LogRecords)
             {
                 var str = JsonSerializer.Serialize(entries);
@@ -105,7 +125,7 @@ public sealed class SellerActor : AbstractSellerActor
         }
         else
         {
-            foreach (var item in this.orderEntries.State[id])
+            foreach (var item in entries)
             {
                 if (shipmentNotification.status == ShipmentStatus.approved)
                 {
@@ -128,26 +148,54 @@ public sealed class SellerActor : AbstractSellerActor
         }
 
         if (this.config.OrleansStorage)
-            await this.orderEntries.WriteStateAsync();
+        {
+            await this.WriteToState(id, entries, "ProcessShipmentNotification");
+        }
     }
 
     public override async Task ProcessDeliveryNotification(DeliveryNotification deliveryNotification)
     {
         string id = BuildUniqueOrderIdentifier(deliveryNotification);
         // interleaving of shipment and delivery
-        if (!this.orderEntries.State.ContainsKey(id))
+        if (!this.orderEntries.State.TryGetValue(id, out List<OrderEntry> entries))
         {
             this.logger.LogDebug("Cannot process delivery notification event because invoice ID {0} has not been found", id);
             return;
         }
-        var entry = this.orderEntries.State[id].FirstOrDefault(oe => oe.product_id == deliveryNotification.productId, null);
+        var entry = entries.FirstOrDefault(oe => oe.product_id == deliveryNotification.productId, null);
         if (entry is not null)
         {
             entry.package_id = deliveryNotification.packageId;
             entry.delivery_status = PackageStatus.delivered;
             entry.delivery_date = deliveryNotification.deliveryDate;
+            this.orderEntries.State[id] = entries;
             if (this.config.OrleansStorage)
-                await this.orderEntries.WriteStateAsync();
+            {
+                await this.WriteToState(id, entries, "ProcessDeliveryNotification");
+            }
+        }
+    }
+
+    private async Task WriteToState(string id, List<OrderEntry> entries, string source)
+    {
+        try {
+            await this.orderEntries.WriteStateAsync();
+        } catch(Exception e0)
+        {
+            if(e0 is InconsistentStateException)
+            {
+                try {
+                    await this.orderEntries.ReadStateAsync();
+                    this.orderEntries.State[id] = entries;
+                    await this.orderEntries.WriteStateAsync();
+                } catch(Exception e1)
+                {
+                    this.logger.LogCritical($"ERROR again in {source}: {e1.Message}");
+                    return;
+                }
+
+            }
+            this.logger.LogCritical($"ERROR in {source}: {e0.Message}");
         }
     }
 
@@ -159,7 +207,7 @@ public sealed class SellerActor : AbstractSellerActor
         {
             seller_id = this.sellerId,
             count_orders = entries.Select(x => x.order_id).ToHashSet().Count,
-            count_items = entries.Count(),
+            count_items = entries.Count,
             total_invoice = entries.Sum(x => x.total_invoice),
             total_amount = entries.Sum(x => x.total_amount),
             total_freight = entries.Sum(x => x.freight_value),

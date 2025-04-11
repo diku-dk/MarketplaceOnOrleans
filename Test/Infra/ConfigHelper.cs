@@ -4,9 +4,9 @@ namespace Test.Infra;
 
 public class ConfigHelper
 {
-    public static AppConfig TransactionalDefaultAppConfig = new()
+    public static readonly AppConfig TransactionalDefaultAppConfig = new()
     {
-        SellerViewPostgres = true,
+        SellerViewPostgres = false,
         StreamReplication = true,
         OrleansTransactions = true,
         OrleansStorage = false,
@@ -16,10 +16,10 @@ public class ConfigHelper
         NumShipmentActors = 1,
         UseDashboard = false,
         UseSwagger = false,
-        TrackCartHistory = true
+        TrackCartHistory = false
     };
 
-    public static AppConfig NonTransactionalDefaultAppConfig = new()
+    public static readonly AppConfig NonTransactionalDefaultAppConfig = new()
     {
         SellerViewPostgres = false,
         StreamReplication = false,

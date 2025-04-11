@@ -5,4 +5,5 @@ namespace OrleansApp.Interfaces;
 public interface IPaymentActor : IGrainWithIntegerKey
 {
 	Task ProcessPayment(InvoiceIssued invoiceIssued);
+	Task Reset();
 }

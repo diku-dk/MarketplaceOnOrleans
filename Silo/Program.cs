@@ -25,6 +25,7 @@ var orleansStorage = configSection.GetValue<bool>("OrleansStorage");
 var adoNetGrainStorage = configSection.GetValue<bool>("AdoNetGrainStorage");
 var adoNetConnectionString = configSection.GetValue<string>("AdoNetConnectionString");
 var logRecords = configSection.GetValue<bool>("LogRecords");
+var feedbackEvents = configSection.GetValue<bool>("FeedbackEvents");
 int numShipmentActors = configSection.GetValue<int>("NumShipmentActors");
 var useDash = configSection.GetValue<bool>("UseDashboard");
 var useSwagger = configSection.GetValue<bool>("UseSwagger");
@@ -56,6 +57,7 @@ AppConfig appConfig = new()
     AdoNetGrainStorage = adoNetGrainStorage,
     AdoNetConnectionString = adoNetConnectionString,
     LogRecords = logRecords,
+    FeedbackEvents = feedbackEvents,
     NumShipmentActors = numShipmentActors,
     UseDashboard = useDash,
     UseSwagger = useSwagger,
@@ -84,7 +86,7 @@ if (logRecords){
 // in case aspnet core with orleans client: https://learn.microsoft.com/en-us/dotnet/orleans/tutorials-and-samples/tutorial-1
 builder.Host.UseOrleans(siloBuilder =>
 {
-    if(appConfig.Cluster.ClusterId is null){
+    if(appConfig.Cluster.ClusterId.SequenceEqual("")){
         siloBuilder
              .UseLocalhostClustering()
              .ConfigureLogging(logging =>
@@ -140,7 +142,8 @@ builder.Host.UseOrleans(siloBuilder =>
 
     if (streamReplication)
     {
-        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider).AddMemoryGrainStorage(Constants.DefaultStreamStorage);
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
+                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
 
     if (orleansTransactions)
@@ -254,6 +257,7 @@ Console.WriteLine(
     " \n AdoNetGrainStorage: "+appConfig.AdoNetGrainStorage +
     " \n AdoNetConnectionString: "+appConfig.AdoNetConnectionString +
     " \n LogRecords: "+appConfig.LogRecords +
+    " \n FeedbackEvents: "+appConfig.FeedbackEvents +
     " \n UseSwagger: "+useSwagger +
     " \n UseDashboard: "+appConfig.UseDashboard +
     " \n NumShipmentActors: "+appConfig.NumShipmentActors +

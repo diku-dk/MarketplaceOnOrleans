@@ -1,12 +1,10 @@
-﻿using System;
-namespace Common.Entities
+﻿namespace Common.Entities;
+
+public enum PaymentType
 {
-	public enum PaymentType
-	{
-		CREDIT_CARD,
-		BOLETO,
-		VOUCHER,
-		DEBIT_CARD
-	}
+	CREDIT_CARD,
+	BOLETO,
+	VOUCHER,
+	DEBIT_CARD
 }
 

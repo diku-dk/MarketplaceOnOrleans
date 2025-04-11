@@ -8,7 +8,6 @@ using Orleans.TestingHost;
 using OrleansApp.Infra.Redis;
 using OrleansApp.Infra.SellerDb;
 using OrleansApp.Service;
-using Orleans.Hosting;
 
 namespace Test.Infra.Transactional;
 
@@ -57,7 +56,6 @@ public sealed class TransactionalClusterFixture : IDisposable
 
             if (ConfigHelper.TransactionalDefaultAppConfig.OrleansTransactions)
             {
-                hostBuilder.UseTransactions();
                 if (ConfigHelper.TransactionalDefaultAppConfig.AdoNetGrainStorage) { 
 
                     hostBuilder.AddAdoNetGrainStorage(Constants.OrleansStorage, options =>
@@ -70,6 +68,7 @@ public sealed class TransactionalClusterFixture : IDisposable
                 {
                     hostBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
                 }
+                hostBuilder.UseTransactions();
             }
 
             hostBuilder.Services.AddSerializer(ser => { ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Common") || type.Namespace.StartsWith("OrleansApp.Abstract")); })

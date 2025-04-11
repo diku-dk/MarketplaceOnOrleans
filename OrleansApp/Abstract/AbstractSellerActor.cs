@@ -98,7 +98,9 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
     {
         this.seller.State = null;
         if (this.config.OrleansStorage)
+        {
             await this.seller.WriteStateAsync();
+        } 
     }
 
 }

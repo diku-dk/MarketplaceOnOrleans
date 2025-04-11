@@ -18,7 +18,6 @@ public class CheckoutTest : BaseTest
     {
         // make sure transactions is not activated
         var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-        //config.OrleansTransactions = false;
 
         int customerId = 1;
         await InitStorage();
@@ -34,7 +33,7 @@ public class CheckoutTest : BaseTest
         var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         var shipments = await shipmentActor.GetShipments(customerId);
         var count = shipments.Count;
-        Assert.True(count == 1);
+        Assert.Equal(1, count);
 
         await shipmentActor.Reset();
         await orderActor.Reset();
@@ -72,7 +71,7 @@ public class CheckoutTest : BaseTest
             Installments = 1
         };
 
-        var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
+        var cart = this._cluster.GrainFactory.GetGrain<ICartActor>(customerId);
 
         for (var i = 0; i < 2; i++)
         {
@@ -81,14 +80,14 @@ public class CheckoutTest : BaseTest
             await cart.NotifyCheckout(customerCheckout);
         }
 
-        var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
+        var orderActor = this._cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
         var numOrders = await orderActor.GetNumOrders();
         Console.WriteLine("[CheckoutTwoOrdersSameCustomer] Customer ID {0} Count {1}", 0, numOrders);
         Assert.True(2 == numOrders);
         await orderActor.Reset();
 
         int shipmentActorId = Helper.GetShipmentActorID(customerId, config.NumShipmentActors);
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
+        var shipmentActor = this._cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         var shipments = await shipmentActor.GetShipments(customerId);
         var count = shipments.Count;
         Assert.True(count == 2);
@@ -99,7 +98,7 @@ public class CheckoutTest : BaseTest
     [Fact]
     public async Task CheckoutTwoOrdersDifferentCustomers()
     {
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
+        var config = (AppConfig)this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
 
         var numCustomers = 2;
         await InitStorage();
@@ -127,7 +126,7 @@ public class CheckoutTest : BaseTest
                 Installments = 1
             };
 
-            var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
+            var cart = this._cluster.GrainFactory.GetGrain<ICartActor>(customerId);
             await cart.AddItem(GenerateCartItem(1, 1));
             await cart.AddItem(GenerateCartItem(1, 2));
             tasks.Add(cart.NotifyCheckout(customerCheckout));
@@ -135,14 +134,14 @@ public class CheckoutTest : BaseTest
         await Task.WhenAll(tasks);
 
         int shipmentActorId = Helper.GetShipmentActorID(0, config.NumShipmentActors);
-        var shipmentActor = _cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
+        var shipmentActor = this._cluster.GrainFactory.GetGrain<IShipmentActor>(shipmentActorId);
         for (var customerId = 1; customerId < numCustomers; customerId++)
         {
             var shipments = await shipmentActor.GetShipments(customerId);
             var numShipments = shipments.Count;
             Console.WriteLine("[CheckoutTwoOrdersDifferentCustomers] Customer ID {0} Count {1}", customerId, numShipments);
-            Assert.True(numShipments == 1);
-            var orderActor = _cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
+            Assert.Equal(1, numShipments);
+            var orderActor = this._cluster.GrainFactory.GetGrain<IOrderActor>(customerId);
             var numOrders = await orderActor.GetNumOrders();
             Console.WriteLine("[CheckoutTwoOrdersDifferentCustomers] Customer ID {0} numOrders {1}", customerId, numOrders);
             await orderActor.Reset();
@@ -153,7 +152,7 @@ public class CheckoutTest : BaseTest
 
     async Task InitStorage()
     {
-        IAuditLogger persistence = (IAuditLogger)_cluster.Client.ServiceProvider.GetService(typeof(IAuditLogger));
+        IAuditLogger persistence = (IAuditLogger)this._cluster.Client.ServiceProvider.GetService(typeof(IAuditLogger));
         if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords)
         {
             await persistence.SetUpLog();

@@ -13,11 +13,13 @@ public abstract class BaseTest
 {
 
     protected readonly TestCluster _cluster;
+    protected readonly AppConfig config;
     protected readonly Random random = new Random();
 
     public BaseTest(TestCluster cluster)
     {
         this._cluster = cluster;
+        this.config = (AppConfig)this._cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
     }
 
     protected SellerDbContext InitSellerDbContext()
@@ -61,12 +63,10 @@ public abstract class BaseTest
     protected async Task BuildAndSendCheckout(int customerId = 1, int numItems = 2)
     {
         CustomerCheckout customerCheckout = BuildCustomerCheckout(customerId);
-
         var cart = _cluster.GrainFactory.GetGrain<ICartActor>(customerId);
         for(int i = 1; i <= numItems; i++){
             await cart.AddItem(GenerateCartItem(1, i));
         }
-
         await cart.NotifyCheckout(customerCheckout);
     }
 
@@ -75,7 +75,7 @@ public abstract class BaseTest
         // load customer in customer actor
         for (var customerId = 1; customerId <= numCustomer; customerId++)
         {
-            var customer = _cluster.GrainFactory.GetGrain<ICustomerActor>(customerId);
+            var customer = this._cluster.GrainFactory.GetGrain<ICustomerActor>(customerId);
             await customer.SetCustomer(new Customer()
             {
                 id = customerId,
@@ -93,27 +93,37 @@ public abstract class BaseTest
             });
         }
 
-        var config = (AppConfig)_cluster.Client.ServiceProvider.GetService(typeof(AppConfig));
-
         // add correspondent stock items
         for (var itemId = 1; itemId <= numStockItem; itemId++)
         {
-            IStockActor stockActor;
-            if (config.OrleansTransactions)
-                stockActor = _cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, itemId.ToString());
-            else
-                stockActor = _cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(), "OrleansApp.Grains.StockActor");
-
-            await stockActor.SetItem(new StockItem()
-            {
-                product_id = itemId,
-                seller_id = 1,
-                qty_available = 10,
-                qty_reserved = 0,
-                order_count = 0,
-                ytd = 1,
-                version = 1.ToString()
-            });
+            if (config.OrleansTransactions){
+                ITransactionalStockActor stockActor = this._cluster.GrainFactory.GetGrain<ITransactionalStockActor>(1, itemId.ToString());
+                await stockActor.Reset();
+                await stockActor.SetItem(new StockItem()
+                {
+                    product_id = itemId,
+                    seller_id = 1,
+                    qty_available = 10,
+                    qty_reserved = 0,
+                    order_count = 0,
+                    ytd = 1,
+                    version = 1.ToString()
+                });
+            } else {
+                IStockActor stockActor = this._cluster.GrainFactory.GetGrain<IStockActor>(1, itemId.ToString(), "OrleansApp.Grains.StockActor");
+                await stockActor.Reset();
+                await stockActor.SetItem(new StockItem()
+                {
+                    product_id = itemId,
+                    seller_id = 1,
+                    qty_available = 10,
+                    qty_reserved = 0,
+                    order_count = 0,
+                    ytd = 1,
+                    version = 1.ToString()
+                });
+            }
+            
         }
     }
 
