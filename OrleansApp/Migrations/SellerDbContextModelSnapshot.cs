@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 
 #nullable disable
 
-namespace Orleans.Migrations
+namespace OrleansApp.Migrations
 {
     [DbContext(typeof(SellerDbContext))]
     partial class SellerDbContextModelSnapshot : ModelSnapshot

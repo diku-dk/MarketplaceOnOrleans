@@ -1,13 +1,12 @@
 ﻿using Orleans.Configuration;
 using OrleansApp.Infra;
 using Orleans.Serialization;
-using Orleans.Infra.SellerDb;
-using Orleans.Infra.Redis;
+using OrleansApp.Infra.SellerDb;
+using OrleansApp.Infra.Redis;
 using Microsoft.EntityFrameworkCore;
 using Common.Config;
 using OrleansApp.Service;
 using System.Net;
-using Orleans.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 

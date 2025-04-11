@@ -8,7 +8,7 @@ using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 
-namespace Orleans.Abstract;
+namespace OrleansApp.Abstract;
 
 public abstract class AbstractSellerActor : Grain, ISellerActor
 {

@@ -2,12 +2,12 @@
 using Common.Events;
 using Common.Requests;
 using Microsoft.Extensions.Logging;
-using OrleansApp.Infra;
 using Orleans.Transactions.Abstractions;
 using Orleans.Streams;
 using Common.Config;
 using Common.Integration;
-using Orleans.Infra.Redis;
+using OrleansApp.Infra;
+using OrleansApp.Infra.Redis;
 
 namespace OrleansApp.Transactional;
 

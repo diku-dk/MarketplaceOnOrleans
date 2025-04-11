@@ -4,16 +4,16 @@ using Common.Events;
 using Common.Integration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Orleans.Abstract;
-using Orleans.Interfaces.SellerView;
+using OrleansApp.Abstract;
+using OrleansApp.Interfaces.SellerView;
 using Orleans.Runtime;
 using OrleansApp.Infra;
 using System.Text;
 using System.Text.Json;
 using Orleans.Concurrency;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 
-namespace Orleans.Grains.SellerView;
+namespace OrleansApp.Grains.SellerView;
 
 /**
  *

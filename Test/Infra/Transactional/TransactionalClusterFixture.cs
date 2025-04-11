@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using Orleans.Serialization;
 using Orleans.TestingHost;
-using Orleans.Infra.Redis;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.Redis;
+using OrleansApp.Infra.SellerDb;
 using OrleansApp.Service;
 using Orleans.Hosting;
 

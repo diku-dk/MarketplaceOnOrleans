@@ -3,7 +3,7 @@ using Common.Entities;
 using Common.Integration;
 using Common.Config;
 
-namespace Orleans.Infra.SellerDb
+namespace OrleansApp.Infra.SellerDb
 {
     public sealed class SellerDbContext : DbContext
     {

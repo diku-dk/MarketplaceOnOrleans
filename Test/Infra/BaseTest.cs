@@ -4,7 +4,7 @@ using OrleansApp.Interfaces;
 using Orleans.TestingHost;
 using OrleansApp.Transactional;
 using Common.Config;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 using Microsoft.EntityFrameworkCore;
 
 namespace Test.Infra;

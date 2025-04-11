@@ -6,7 +6,7 @@ using System.Text.Json;
 using Orleans.Runtime;
 using OrleansApp.Infra;
 using Orleans.Concurrency;
-using Orleans.Abstract;
+using OrleansApp.Abstract;
 using System.Text;
 using Common.Config;
 

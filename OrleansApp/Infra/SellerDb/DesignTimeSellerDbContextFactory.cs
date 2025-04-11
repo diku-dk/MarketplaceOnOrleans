@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Design;
 using Common.Config;
 
-namespace Orleans.Infra.SellerDb;
+namespace OrleansApp.Infra.SellerDb;
 
 /**
  * Necessary to create a migration. Guess because it is not startup project. See more details in:

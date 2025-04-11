@@ -4,13 +4,12 @@ using Common.Integration;
 using Common.Requests;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra.Redis;
-using Orleans.Interfaces.Replication;
+using OrleansApp.Infra.Redis;
+using OrleansApp.Interfaces.Replication;
 using Orleans.Runtime;
-using OrleansApp.Grains;
 using OrleansApp.Infra;
 
-namespace Orleans.Grains.Replication
+namespace OrleansApp.Grains.Replication
 {
 
     /**

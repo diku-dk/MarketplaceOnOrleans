@@ -1,6 +1,6 @@
 ﻿using Common.Entities;
 using Common.Requests;
-using Orleans.Interfaces.Replication;
+using OrleansApp.Interfaces.Replication;
 using OrleansApp.Grains;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;

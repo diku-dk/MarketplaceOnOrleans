@@ -1,7 +1,6 @@
 ﻿using Common.Integration;
-using OrleansApp.Interfaces;
 
-namespace Orleans.Interfaces.Replication
+namespace OrleansApp.Interfaces.Replication
 {
     public interface ICausalCartActor : ICartActor
     {

@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Orleans.Migrations
+namespace OrleansApp.Migrations
 {
     /// <inheritdoc />
     public partial class InitialMigration : Migration

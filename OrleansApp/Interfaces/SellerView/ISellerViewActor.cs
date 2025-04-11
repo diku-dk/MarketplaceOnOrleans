@@ -1,6 +1,4 @@
-﻿using OrleansApp.Interfaces;
-
-namespace Orleans.Interfaces.SellerView;
+﻿namespace OrleansApp.Interfaces.SellerView;
 
 /**
  * To have strong consistent seller dashboard, methods that alter the view state should not be one way

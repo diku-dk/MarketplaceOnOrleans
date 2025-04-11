@@ -1,7 +1,7 @@
 ﻿using Common.Integration;
 using StackExchange.Redis;
 
-namespace Orleans.Infra.Redis
+namespace OrleansApp.Infra.Redis
 {
 
     public interface IRedisConnectionFactory

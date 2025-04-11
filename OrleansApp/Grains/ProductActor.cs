@@ -9,7 +9,7 @@ using Orleans.Runtime;
 using Orleans.Streams;
 using Common.Config;
 using Common.Integration;
-using Orleans.Infra.Redis;
+using OrleansApp.Infra.Redis;
 
 namespace OrleansApp.Grains;
 

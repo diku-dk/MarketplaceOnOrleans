@@ -3,7 +3,7 @@ using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Interfaces;
 using Common.Integration;
-using Orleans.Interfaces.SellerView;
+using OrleansApp.Interfaces.SellerView;
 using Common.Config;
 
 namespace Silo.Controllers;

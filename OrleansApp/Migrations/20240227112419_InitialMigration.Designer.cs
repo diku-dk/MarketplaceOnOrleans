@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 
 #nullable disable
 
-namespace Orleans.Migrations
+namespace OrleansApp.Migrations
 {
     [DbContext(typeof(SellerDbContext))]
     [Migration("20240227112419_InitialMigration")]

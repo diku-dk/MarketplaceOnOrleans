@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
-namespace Orleans.Infra.Redis
+namespace OrleansApp.Infra.Redis
 {
     public sealed class RedisConnectionFactoryImpl : IRedisConnectionFactory
     {

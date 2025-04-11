@@ -3,7 +3,7 @@ using Common.Requests;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using OrleansApp.Interfaces;
-using Orleans.Interfaces.Replication;
+using OrleansApp.Interfaces.Replication;
 using Common.Config;
 
 namespace Silo.Controllers;

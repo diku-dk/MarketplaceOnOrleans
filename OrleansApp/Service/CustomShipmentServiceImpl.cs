@@ -1,7 +1,7 @@
 ﻿using Common.Config;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;

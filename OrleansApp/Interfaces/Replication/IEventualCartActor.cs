@@ -1,7 +1,6 @@
 ﻿using Common.Entities;
-using OrleansApp.Interfaces;
 
-namespace Orleans.Interfaces.Replication;
+namespace OrleansApp.Interfaces.Replication;
 
 public interface IEventualCartActor : ICartActor
 {

@@ -1,6 +1,6 @@
 ﻿using Common.Entities;
 using Common.Events;
-using Orleans.Interfaces.SellerView;
+using OrleansApp.Interfaces.SellerView;
 using Test.Infra;
 using Test.Infra.Transactional;
 

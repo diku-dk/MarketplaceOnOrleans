@@ -7,7 +7,7 @@ using OrleansApp.Interfaces;
 using System.Text;
 using System.Text.Json;
 using Common.Config;
-using Orleans.Interfaces.SellerView;
+using OrleansApp.Interfaces.SellerView;
 
 namespace OrleansApp.Abstract;
 

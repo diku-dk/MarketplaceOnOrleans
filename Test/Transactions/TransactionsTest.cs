@@ -2,7 +2,7 @@
 using Common.Entities;
 using Common.Requests;
 using Microsoft.EntityFrameworkCore;
-using Orleans.Infra.SellerDb;
+using OrleansApp.Infra.SellerDb;
 using OrleansApp.Grains;
 using OrleansApp.Service;
 using OrleansApp.Transactional;

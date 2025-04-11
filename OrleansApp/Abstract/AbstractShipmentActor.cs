@@ -2,7 +2,7 @@
 using Common.Entities;
 using Common.Events;
 using Microsoft.Extensions.Logging;
-using Orleans.Interfaces.SellerView;
+using OrleansApp.Interfaces.SellerView;
 using OrleansApp.Grains;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
