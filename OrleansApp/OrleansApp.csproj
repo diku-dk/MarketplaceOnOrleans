@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<OutputType>Library</OutputType>
+	  <OutputType>Library</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -20,18 +20,18 @@
     <PackageReference Include="Microsoft.Orleans.Transactions" Version="7.2.1" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="7.2.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.11" />
-	<PackageReference Include="StackExchange.Redis" Version="2.7.17" />
+	  <PackageReference Include="StackExchange.Redis" Version="2.7.17" />
   </ItemGroup>
   
     <ItemGroup>
-    <None Remove="Grains\" />
-    <None Remove="Infra\" />
-    <None Remove="Interfaces\" />
-    <None Remove="Migrations\" />
-    <None Remove="Infra\Redis\" />
-    <None Remove="Infra\SellerDb\" />
-    <None Remove="Service\" />
-  </ItemGroup>
+      <None Remove="Grains\" />
+      <None Remove="Infra\" />
+      <None Remove="Interfaces\" />
+      <None Remove="Migrations\" />
+      <None Remove="Infra\Redis\" />
+      <None Remove="Infra\SellerDb\" />
+      <None Remove="Service\" />
+    </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />

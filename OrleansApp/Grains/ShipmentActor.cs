@@ -1,12 +1,10 @@
 ﻿using Common.Entities;
-using Common.Events;
 using Microsoft.Extensions.Logging;
 using Orleans.Runtime;
 using OrleansApp.Infra;
 using Orleans.Concurrency;
 using OrleansApp.Abstract;
 using OrleansApp.Interfaces;
-using OrleansApp.Transactional;
 using Common.Config;
 
 namespace OrleansApp.Grains;

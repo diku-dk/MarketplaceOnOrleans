@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-	<ServerGarbageCollection>true</ServerGarbageCollection>
+	  <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
@@ -19,8 +19,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
-    <ProjectReference Include="..\Orleans\Orleans.csproj" />
+    <ProjectReference Include="..\Common\Common.csproj">
+      <ReferenceSourceTarget></ReferenceSourceTarget>
+      <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
+    </ProjectReference>
+    <ProjectReference Include="..\OrleansApp\OrleansApp.csproj">
+      <ReferenceSourceTarget></ReferenceSourceTarget>
+      <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -29,7 +35,4 @@
   <ItemGroup>
     <Folder Include="Scripts\" />
   </ItemGroup>
- <!-- <ItemGroup>
-    <Content Remove="runtimeconfig.json" />
-  </ItemGroup>-->
 </Project>

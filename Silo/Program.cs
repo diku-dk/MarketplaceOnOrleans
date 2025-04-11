@@ -99,9 +99,8 @@ builder.Host.UseOrleans(siloBuilder =>
     } else {
         var ipAddress = IPAddress.Parse(appConfig.Cluster.PrimarySiloIpAddress);
         var primarySiloEndpoint = new IPEndPoint(
-            ipAddress,
-            // IPAddress.Loopback,
-            11_111);
+            ipAddress, // IPAddress.Loopback,
+            EndpointOptions.DEFAULT_SILO_PORT);
         if (appConfig.Cluster.Primary)
         {
             siloBuilder.UseDevelopmentClustering(options =>
@@ -124,7 +123,7 @@ builder.Host.UseOrleans(siloBuilder =>
                     options.ClusterId = appConfig.Cluster.ClusterId;
                     options.ServiceId = appConfig.Cluster.ServiceId;
                 })
-                .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000)
+                .ConfigureEndpoints(siloPort: EndpointOptions.DEFAULT_SILO_PORT, gatewayPort: EndpointOptions.DEFAULT_GATEWAY_PORT)
                 .ConfigureLogging(logging => logging.AddConsole());
         }
     }
