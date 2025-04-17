@@ -18,8 +18,8 @@ public sealed class ProductController : ControllerBase
     public ProductController(AppConfig config, ITransactionClient transactionClient, ILogger<ProductController> logger)
     {
         this.logger = logger;
-        this.transactionClient = transactionClient;
         this.OrleansTransactions = config.OrleansTransactions;
+        this.transactionClient = transactionClient;
     }
 
     [HttpPost]
@@ -39,7 +39,7 @@ public sealed class ProductController : ControllerBase
         }
         else
         {
-            var grain = GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
+            var grain = this.GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
             await grain.SetProduct(product);
         }
         return Ok();
@@ -50,14 +50,19 @@ public sealed class ProductController : ControllerBase
     [ProducesResponseType(typeof(Product), (int)HttpStatusCode.OK)]
     public async Task<ActionResult<Product>> GetBySellerIdAndProductId([FromServices] IGrainFactory grainFactory, int sellerId, int productId)
     {
-        Product product;
+        Product product = null;
         if(this.OrleansTransactions){
             var grain = this.GetTxProductActor(grainFactory, sellerId, productId);
-            product = await grain.GetProduct();
+            await this.transactionClient.RunTransaction(
+                TransactionOption.Create,
+                async () =>
+                {
+                    product = await grain.GetProduct();
+                });
         }
         else
         {
-            var grain = GetDefaultProductActor(grainFactory, sellerId, productId);
+            var grain = this.GetDefaultProductActor(grainFactory, sellerId, productId);
             product = await grain.GetProduct();
         }
         if (product is null)
@@ -83,7 +88,7 @@ public sealed class ProductController : ControllerBase
         }
         else
         {
-            var grain = GetDefaultProductActor(grainFactory, update.sellerId, update.productId);
+            var grain = this.GetDefaultProductActor(grainFactory, update.sellerId, update.productId);
             await grain.ProcessPriceUpdate(update);
         }
         return Accepted();
@@ -107,7 +112,7 @@ public sealed class ProductController : ControllerBase
         }
         else
         {
-            var grain = GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
+            var grain = this.GetDefaultProductActor(grainFactory, product.seller_id, product.product_id);
             await grain.ProcessProductUpdate(product);
         }
         return Accepted();

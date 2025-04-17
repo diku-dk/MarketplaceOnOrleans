@@ -1,5 +1,6 @@
 using System.Net;
 using Common.Config;
+using Common.Entities;
 using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
@@ -10,29 +11,46 @@ namespace Silo.Controllers;
 public sealed class OrderController : ControllerBase
 {
     private readonly ILogger<OrderController> logger;
-    private readonly GetOrderActorDelegate callback;
+    private readonly bool OrleansTransactions;
+    private readonly ITransactionClient transactionClient;
 
-    private delegate IOrderActor GetOrderActorDelegate(IGrainFactory grains, int customerId);
-
-    public OrderController(AppConfig config, ILogger<OrderController> logger)
+    public OrderController(AppConfig config, ITransactionClient transactionClient, ILogger<OrderController> logger)
     {
         this.logger = logger;
-        this.callback = config.OrleansTransactions ? GetTransactionalOrderActor : GetOrderActor;
+        this.OrleansTransactions = config.OrleansTransactions;
+        this.transactionClient = transactionClient;
     }
 
     [HttpGet("/order/{customerId}")]
-    [ProducesResponseType(typeof(IEnumerable<Common.Entities.Order>), (int)HttpStatusCode.OK)]
-    public ActionResult<IEnumerable<Common.Entities.Order>> GetByCustomerId([FromServices] IGrainFactory grains, int customerId)
+    [ProducesResponseType(typeof(IEnumerable<Order>), (int)HttpStatusCode.OK)]
+    public async Task<ActionResult<IEnumerable<Order>>> GetByCustomerId([FromServices] IGrainFactory grainFactory, int customerId)
     {
-        return Ok(this.callback(grains,customerId).GetOrders());
+        List<Order> orders = null;     
+        if(this.OrleansTransactions){
+            var grain = this.GetTxOrderActor(grainFactory, customerId);
+            await this.transactionClient.RunTransaction(
+                TransactionOption.Create,
+                async () =>
+                {
+                    orders = await grain.GetOrders();
+                });
+        }
+        else
+        {
+            var grain = GetDefaultOrderActor(grainFactory, customerId);
+            orders = await grain.GetOrders();
+        }
+        if (orders is null)
+            return NotFound();
+        return Ok(orders);
     }
 
-    private IOrderActor GetOrderActor(IGrainFactory grains, int customerId)
+    private IOrderActor GetDefaultOrderActor(IGrainFactory grains, int customerId)
     {
         return grains.GetGrain<IOrderActor>(customerId);
     }
 
-    private ITransactionalOrderActor GetTransactionalOrderActor(IGrainFactory grains, int customerId)
+    private ITransactionalOrderActor GetTxOrderActor(IGrainFactory grains, int customerId)
     {
         return grains.GetGrain<ITransactionalOrderActor>(customerId);
     }

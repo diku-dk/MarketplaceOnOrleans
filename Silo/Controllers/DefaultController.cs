@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Common.Config;
+using OrleansApp.Service;
 
 namespace Silo.Controllers;
 
@@ -11,12 +12,14 @@ public sealed class DefaultController : ControllerBase
 {
     private readonly IAuditLogger persistence;
     private readonly AppConfig config;
+    private readonly IShipmentService shipmentService;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IAuditLogger persistence, AppConfig options, ILogger<DefaultController> logger)
+    public DefaultController(IAuditLogger persistence, AppConfig options, IShipmentService shipmentService, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
         this.config = options;
+        this.shipmentService = shipmentService;
         this.logger = logger;
     }
 
@@ -36,7 +39,7 @@ public sealed class DefaultController : ControllerBase
         // because some of them may have been already removed from memory
         foreach(var stat in stats)
         {
-            logger.LogDebug("{stat}",stat.ToString());
+            this.logger.LogDebug("{stat}",stat.ToString());
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.OrderActor,Orleans"))
             {
                 int num = stat.ActivationCount;
@@ -46,7 +49,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<IOrderActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} order states reset", num);
+                this.logger.LogWarning("{0} order states reset", num);
                 continue;
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.SellerActor,Orleans"))
@@ -58,7 +61,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<ISellerActor>(i).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} seller states reset", num);
+                this.logger.LogWarning("{0} seller states reset", num);
                 continue;
             }
             // seal carts that have not checked out in past run
@@ -71,7 +74,7 @@ public sealed class DefaultController : ControllerBase
                     tasks.Add( grains.GetGrain<ICartActor>(i).Seal() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} cart states reset", num);
+                this.logger.LogWarning("{0} cart states reset", num);
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,Orleans"))
             {
@@ -83,7 +86,7 @@ public sealed class DefaultController : ControllerBase
                         tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} stock states reset", num);
+                this.logger.LogWarning("{0} stock states reset", num);
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,Orleans"))
             {
@@ -95,26 +98,12 @@ public sealed class DefaultController : ControllerBase
                         tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
                 }
                 await Task.WhenAll(tasks);
-                logger.LogWarning("{0} product states reset", num);
+                this.logger.LogWarning("{0} product states reset", num);
             }
         }
-
-        await persistence.CleanLog();
-        await ResetShipmentActors(grains);
-
+        await this.persistence.CleanLog();
+        await this.shipmentService.ResetShipmentActors();
         return Ok();
-    }
-
-    private async Task ResetShipmentActors(IGrainFactory grains)
-    {
-        List<Task> tasks = new List<Task>(config.NumShipmentActors);
-        for(int i = 0; i < config.NumShipmentActors; i++)
-        {
-            var grain = grains.GetGrain<IShipmentActor>(i);
-            tasks.Add(grain.Reset());
-        }
-        await Task.WhenAll(tasks);
-        logger.LogWarning("{0} shipment states reset", config.NumShipmentActors);
     }
 
     /*
@@ -126,7 +115,6 @@ public sealed class DefaultController : ControllerBase
     public async Task<ActionResult> Cleanup()
     {
         this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-
         if (config.LogRecords)
         {
             await persistence.CleanLog();

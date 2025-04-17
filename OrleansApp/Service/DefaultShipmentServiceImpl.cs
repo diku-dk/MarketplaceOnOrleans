@@ -25,20 +25,39 @@ public sealed class DefaultShipmentServiceImpl : IShipmentService
         List<Task> tasks = new List<Task>(config.NumShipmentActors);
         if (this.config.OrleansTransactions)
         {
-            for (int i = 0; i < config.NumShipmentActors; i++)
+            for (int i = 0; i < this.config.NumShipmentActors; i++)
             {
                 var grain = this.GetTxShipmentActor(i);
                 tasks.Add(grain.UpdateShipment(instanceId));
             }
         } else
         {
-            for (int i = 0; i < config.NumShipmentActors; i++)
+            for (int i = 0; i < this.config.NumShipmentActors; i++)
             {
                 var grain = this.GetDefaultShipmentActor(i);
                 tasks.Add(grain.UpdateShipment(instanceId));
             }
         }
         await Task.WhenAll(tasks);
+    }
+
+    public async Task ResetShipmentActors()
+    {
+        List<Task> tasks = new List<Task>(config.NumShipmentActors);
+        for(int i = 0; i < this.config.NumShipmentActors; i++)
+        {
+            if (this.config.OrleansTransactions)
+            {
+                var grain = GetTxShipmentActor(i);
+                tasks.Add(grain.Reset());
+            }
+            else {
+                var grain = this.GetDefaultShipmentActor(i);
+                tasks.Add(grain.Reset());
+            }
+        }
+        await Task.WhenAll(tasks);
+        this.logger.LogWarning("{0} shipment states reset", this.config.NumShipmentActors);
     }
 
     private IShipmentActor GetDefaultShipmentActor(int partitionId)

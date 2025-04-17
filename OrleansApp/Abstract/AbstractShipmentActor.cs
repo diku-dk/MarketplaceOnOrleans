@@ -109,8 +109,7 @@ public abstract class AbstractShipmentActor : Grain, IShipmentActor
         await InsertShipmentIntoState(id, shipment, packages);
 
         if(config.FeedbackEvents){
-            ShipmentNotification shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
-            // inform seller
+            var shipmentNotification = new ShipmentNotification(paymentConfirmed.customer.CustomerId, paymentConfirmed.orderId, now, paymentConfirmed.instanceId, ShipmentStatus.approved);
             var tasks = new List<Task>();
             var sellers = paymentConfirmed.items.Select(x => x.seller_id).ToHashSet();
             foreach (var sellerId in sellers)

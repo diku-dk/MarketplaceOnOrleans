@@ -17,7 +17,6 @@ Further details about the benchmark can be found in the benchmark driver [reposi
     * [Redis Replication](#replication)
     * [UCloud](#ucloud)
     * [Troubleshooting](#troubleshooting)
-   
 
 ### <a name="prerequisites"></a>Prerequisites
 
@@ -25,7 +24,6 @@ Further details about the benchmark can be found in the benchmark driver [reposi
 - [PostgreSQL](https://www.postgresql.org/): If you want to either have durable state, audit logging, or seller dashboard performed via PostgreSQL
 - IDE (if you want to modify or debug the code): [Visual Studio](https://visualstudio.microsoft.com/vs/community/) or [VSCode](https://code.visualstudio.com/)
 - [dotnet-ef](https://learn.microsoft.com/en-us/ef/core/cli/dotnet): Version > '7.0.11'. Install only if you want to perform chances in the seller dashboard schema
-
 
 ### <a name="orleans"></a>New Orleans Users
 
@@ -54,7 +52,7 @@ Seller, Order, and Shipment.
 
 ### <a name="config"></a>Configuration
 
-Applicatins settings ca be defined per environment using two files: Development (`appsettings.Development.json`) and Production (`appsettings.Production.json`). We suggest using development file while evolving the application or debugging; while the production file should be used when running experiments.
+Applicatins settings can be defined per environment using two files: Development (`appsettings.Development.json`) and Production (`appsettings.Production.json`). We suggest using development file while evolving the application or debugging; while the production file should be used when running experiments.
 
 The `settings.[Development|Production].json` file defines entries that refer to configuration parameters. These are applied dynamically on application startup. The parameters and possible values are found in the table below:
 
@@ -62,11 +60,11 @@ Parameter     | Description                                                     
 ------------- |-------------------------------------------------------------------------------------|---------------------------------------------------|
 OrleansStorage | Defines whether Orleans storage is enabled (default to in-memory). Works independently of Orleans Transactions.  | `true/false` |
 OrleansTransactions | Defines whether Orleans transactions is enabled.  | `true/false`    |
-AdoNetGrainStorage | Defines whether PostgreSQL is used for Orleans storage (otherwise in-mmeory is used). Only applies if OrleansStorage is set to true. | `true/false`  |
+AdoNetGrainStorage | Defines whether PostgreSQL is used for Orleans storage (otherwise in-memory is used). Only applies if OrleansStorage is set to true. | `true/false`  |
 SellerViewPostgres  | Defines whether PostgreSQL is used to provide the Seller Dashboard            | `true/false`                          |
 StreamReplication   | Defines whether Orleans Streams is used to stream product updates to Cart actors |  `true/false`                      |
 LogRecords        | Defines whether PostgreSQL is used for audit logging                            | `true/false`                          |
-ConnectionString  | Defines the connection string to access PostgreSQL. Must be set in case LogRecords or AdoNetGrainStorage is enabled                 | `"Host=?;Port=5432;Database=?;Username=?;Password=?;"` |
+AdoNetConnectionString  | Defines the connection string to access PostgreSQL. Must be set in case LogRecords or AdoNetGrainStorage is enabled                 | `"Host=?;Port=5432;Database=?;Username=?;Password=?;"` |
 NumShipmentActors | Defines the number of shipment actors                                           | `1-N`                                  |
 
 We understand that the number of possibilities for deploying MarketplaceOnOrleans may lead to a certain confusion for newcomers, so we prepared a list of configuration templates that you can follow while experimenting with MarketplaceOnOrleans.
@@ -102,8 +100,7 @@ SellerViewPostgres  | false |
 LogRecords          | true  |
 
 
-As can be seen above, the parameters are used to drive a myriad of guarantees and functionalities in OnlineMarketplace.
-
+As can be seen above, the parameters are used to drive a myriad of guarantees and functionalities in OnlineMarketplaceOnOrleans.
 
 ### <a name="deploy"></a>Deployment
 

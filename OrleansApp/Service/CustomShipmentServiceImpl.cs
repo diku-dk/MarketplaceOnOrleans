@@ -9,14 +9,12 @@ using OrleansApp.Transactional;
 namespace OrleansApp.Service;
 
 /**
- * This class represents anattempt to avoid the substantial coordination required when updating
- * shipment/packages. However the latency incurred on querying postgres removes the envisioned
+ * This class represents an attempt to avoid the substantial coordination required when updating
+ * shipment/packages. However, the latency incurred on querying postgres refrains achieving the envisioned
  * benefits.
  */
 public sealed class CustomShipmentServiceImpl : IShipmentService
 {
-    private delegate IShipmentActor GetShipmentActorDelegate(int partitionId);
-
     private readonly AppConfig config;
     private readonly IDbContextFactory<SellerDbContext> dbContextFactory;
     private readonly IGrainFactory grainFactory;
@@ -44,11 +42,12 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
             foreach (var oe in orderEntries)
             {
                 int id = Helper.GetShipmentActorID(oe.customer_id, config.NumShipmentActors);
-                if(!dict.ContainsKey(id))
+                if(!dict.TryGetValue(id, out HashSet<(int customerId, int orderId, int sellerId)> value))
                 {
-                    dict.Add(id, new());
+                    value = new();
+                    dict.Add(id, value);
                 }
-                dict[id].Add((oe.customer_id, oe.order_id, oe.seller_id));
+                value.Add((oe.customer_id, oe.order_id, oe.seller_id));
             } 
         }
         // end transaction otherwise there is the risk of conflict with updates made by seller view actors
@@ -62,7 +61,7 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
         this.logger.LogInformation(dict.Count+ " order entries retrieved from the database.");
         // FIXME some requests can obtain the same entries though... the abstractshipmentactor must avoid the cases where the shipment is not found
         List<Task> tasks = new List<Task>(dict.Count);
-        if (config.OrleansTransactions)
+        if (this.config.OrleansTransactions)
         {
             foreach (var entry in dict)
             {
@@ -79,6 +78,26 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
         }
         
         await Task.WhenAll(tasks);
+    }
+
+    // FIXME duplicated. can create an abstract shipment service to avoid it
+    public async Task ResetShipmentActors()
+    {
+        List<Task> tasks = new List<Task>(config.NumShipmentActors);
+        for(int i = 0; i < this.config.NumShipmentActors; i++)
+        {
+            if (this.config.OrleansTransactions)
+            {
+                var grain = GetTxShipmentActor(i);
+                tasks.Add(grain.Reset());
+            }
+            else {
+                var grain = this.GetDefaultShipmentActor(i);
+                tasks.Add(grain.Reset());
+            }
+        }
+        await Task.WhenAll(tasks);
+        this.logger.LogWarning("{0} shipment states reset", this.config.NumShipmentActors);
     }
 
     private IShipmentActor GetDefaultShipmentActor(int partitionId)

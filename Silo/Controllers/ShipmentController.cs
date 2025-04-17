@@ -22,6 +22,7 @@ public sealed class ShipmentController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
     public async Task<ActionResult> UpdateShipment(string instanceId)
     {
+        this.logger.LogDebug("[UpdateShipment] for TID {0}", instanceId);
         try{
             await this.shipmentService.UpdateShipment(instanceId);
             return Accepted();
