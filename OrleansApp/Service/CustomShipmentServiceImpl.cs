@@ -5,6 +5,8 @@ using OrleansApp.Infra.SellerDb;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace OrleansApp.Service;
 
@@ -23,12 +25,12 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
 
     private const string sqlGetItemsForUpdate = "SELECT * FROM public.order_entries oe LIMIT 10 FOR UPDATE SKIP LOCKED";
 
-    public CustomShipmentServiceImpl(AppConfig config, IDbContextFactory<SellerDbContext> dbContextFactory, IGrainFactory grainFactory, ITransactionClient transactionClient, ILogger<CustomShipmentServiceImpl> logger)
+    public CustomShipmentServiceImpl(AppConfig config, IDbContextFactory<SellerDbContext> dbContextFactory, IGrainFactory grainFactory, IHost host, ILogger<CustomShipmentServiceImpl> logger)
     {
         this.config = config;
         this.dbContextFactory = dbContextFactory;
         this.grainFactory = grainFactory;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
         this.logger = logger;
     }
 

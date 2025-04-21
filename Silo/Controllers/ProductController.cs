@@ -15,11 +15,11 @@ public sealed class ProductController : ControllerBase
     private readonly bool OrleansTransactions;
     private readonly ITransactionClient transactionClient;
 
-    public ProductController(AppConfig config, ITransactionClient transactionClient, ILogger<ProductController> logger)
+    public ProductController(AppConfig config, IHost host, ILogger<ProductController> logger)
     {
         this.logger = logger;
         this.OrleansTransactions = config.OrleansTransactions;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
     }
 
     [HttpPost]

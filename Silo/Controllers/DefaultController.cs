@@ -17,12 +17,12 @@ public sealed class DefaultController : ControllerBase
     private readonly ITransactionClient transactionClient;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IAuditLogger persistence, AppConfig options, IShipmentService shipmentService, ITransactionClient transactionClient, ILogger<DefaultController> logger)
+    public DefaultController(IAuditLogger persistence, AppConfig options, IShipmentService shipmentService, IHost host, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.shipmentService = shipmentService;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
         this.logger = logger;
     }
 
@@ -53,6 +53,14 @@ public sealed class DefaultController : ControllerBase
                 Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () =>
                     grains.GetGrain<ITransactionalProductActor>(stat.GrainId).Reset());
                 tasks.Add(t);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,OrleansApp"))
+            {
+                tasks.Add( grains.GetGrain<IStockActor>(stat.GrainId).Reset() );
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,OrleansApp"))
+            {
+                tasks.Add( grains.GetGrain<IProductActor>(stat.GrainId).Reset() );
             }
         }
 
@@ -139,13 +147,6 @@ public sealed class DefaultController : ControllerBase
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                int j = 1;
-                for(int i = 1; i <= num; i++)
-                {
-                    tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
-                    j++;
-                    if(j == 11) j = 1;
-                }
                 this.logger.LogWarning("{0} stock states reset", num);
             }
             if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalProductActor,OrleansApp"))
@@ -156,13 +157,6 @@ public sealed class DefaultController : ControllerBase
             if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                int j = 1;
-                for(int i = 1; i <= num; i++)
-                {
-                    tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
-                    j++;
-                    if(j == 11) j = 1;
-                }
                 this.logger.LogWarning("{0} product states reset", num);
             }
         }

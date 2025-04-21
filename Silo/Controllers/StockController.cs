@@ -15,11 +15,11 @@ public sealed class StockController : ControllerBase
 
     private readonly ITransactionClient transactionClient;
 
-    public StockController(AppConfig config, ITransactionClient transactionClient, ILogger<StockController> logger)
+    public StockController(AppConfig config, IHost host, ILogger<StockController> logger)
     {
         this.logger = logger;
         this.OrleansTransactions = config.OrleansTransactions;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
     }
 
     [HttpPost]

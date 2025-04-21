@@ -94,13 +94,9 @@ public abstract class AbstractSellerActor : Grain, ISellerActor
 
     public abstract Task<SellerDashboard> QueryDashboard();
 
-    public async Task Reset()
+    public virtual async Task Reset()
     {
-        this.seller.State = null;
-        if (this.config.OrleansStorage)
-        {
-            await this.seller.WriteStateAsync();
-        } 
+        await this.seller.ClearStateAsync();
     }
 
 }

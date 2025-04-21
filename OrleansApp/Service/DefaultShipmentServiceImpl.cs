@@ -1,4 +1,6 @@
 ﻿using Common.Config;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
@@ -14,11 +16,11 @@ public sealed class DefaultShipmentServiceImpl : IShipmentService
     private readonly ITransactionClient transactionClient;
     private readonly ILogger<DefaultShipmentServiceImpl> logger;
 
-    public DefaultShipmentServiceImpl(AppConfig config, IGrainFactory grainFactory, ITransactionClient transactionClient, ILogger<DefaultShipmentServiceImpl> logger)
+    public DefaultShipmentServiceImpl(AppConfig config, IGrainFactory grainFactory, IHost host, ILogger<DefaultShipmentServiceImpl> logger)
     {
         this.config = config;
         this.grainFactory = grainFactory;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
         this.logger = logger;
     }
 

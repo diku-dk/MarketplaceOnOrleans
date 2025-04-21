@@ -14,11 +14,11 @@ public sealed class OrderController : ControllerBase
     private readonly bool OrleansTransactions;
     private readonly ITransactionClient transactionClient;
 
-    public OrderController(AppConfig config, ITransactionClient transactionClient, ILogger<OrderController> logger)
+    public OrderController(AppConfig config, IHost host, ILogger<OrderController> logger)
     {
         this.logger = logger;
         this.OrleansTransactions = config.OrleansTransactions;
-        this.transactionClient = transactionClient;
+        this.transactionClient = config.OrleansTransactions ? host.Services.GetRequiredService<ITransactionClient>() : null;
     }
 
     [HttpGet("/order/{customerId}")]

@@ -243,4 +243,9 @@ public sealed class SellerActor : AbstractSellerActor
         return new StringBuilder(deliveryNotification.customerId.ToString()).Append('-').Append(deliveryNotification.orderId).ToString();
     }
 
+    public override async Task Reset()
+    {
+        await orderEntries.ClearStateAsync();
+    }
+
 }
