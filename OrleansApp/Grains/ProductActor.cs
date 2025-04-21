@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
-using Orleans.Runtime;
 using Orleans.Streams;
 using Common.Config;
 using Common.Integration;

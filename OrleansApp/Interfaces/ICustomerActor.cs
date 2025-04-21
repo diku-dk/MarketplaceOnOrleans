@@ -9,7 +9,7 @@ namespace OrleansApp.Interfaces
         // API
         Task SetCustomer(Customer customer);
 
-        Task Clear();
+        Task Reset();
 
         [ReadOnly]
         Task<Customer> GetCustomer();

@@ -18,15 +18,17 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
     private readonly AppConfig config;
     private readonly IDbContextFactory<SellerDbContext> dbContextFactory;
     private readonly IGrainFactory grainFactory;
+    private readonly ITransactionClient transactionClient;
     private readonly ILogger<CustomShipmentServiceImpl> logger;
 
     private const string sqlGetItemsForUpdate = "SELECT * FROM public.order_entries oe LIMIT 10 FOR UPDATE SKIP LOCKED";
 
-    public CustomShipmentServiceImpl(AppConfig config, IDbContextFactory<SellerDbContext> dbContextFactory, IGrainFactory grainFactory, ILogger<CustomShipmentServiceImpl> logger)
+    public CustomShipmentServiceImpl(AppConfig config, IDbContextFactory<SellerDbContext> dbContextFactory, IGrainFactory grainFactory, ITransactionClient transactionClient, ILogger<CustomShipmentServiceImpl> logger)
     {
         this.config = config;
         this.dbContextFactory = dbContextFactory;
         this.grainFactory = grainFactory;
+        this.transactionClient = transactionClient;
         this.logger = logger;
     }
 
@@ -66,9 +68,11 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
             foreach (var entry in dict)
             {
                 var grain = this.GetTxShipmentActor(entry.Key);
-                tasks.Add(grain.UpdateShipment(instanceId, entry.Value));
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () => grain.UpdateShipment(instanceId, entry.Value));
+                tasks.Add(t);
             }
-        } else
+        }
+        else
         {
             foreach (var entry in dict)
             {
@@ -80,7 +84,7 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
         await Task.WhenAll(tasks);
     }
 
-    // FIXME duplicated. can create an abstract shipment service to avoid it
+    // TODO duplicated. can create an abstract shipment service to avoid it
     public async Task ResetShipmentActors()
     {
         List<Task> tasks = new List<Task>(config.NumShipmentActors);
@@ -89,7 +93,8 @@ public sealed class CustomShipmentServiceImpl : IShipmentService
             if (this.config.OrleansTransactions)
             {
                 var grain = GetTxShipmentActor(i);
-                tasks.Add(grain.Reset());
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, grain.Reset);
+                tasks.Add(t);
             }
             else {
                 var grain = this.GetDefaultShipmentActor(i);

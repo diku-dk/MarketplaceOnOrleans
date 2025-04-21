@@ -11,26 +11,30 @@ public sealed class DefaultShipmentServiceImpl : IShipmentService
 
     private readonly AppConfig config;
     private readonly IGrainFactory grainFactory;
+    private readonly ITransactionClient transactionClient;
     private readonly ILogger<DefaultShipmentServiceImpl> logger;
 
-    public DefaultShipmentServiceImpl(AppConfig config, IGrainFactory grainFactory, ILogger<DefaultShipmentServiceImpl> logger)
+    public DefaultShipmentServiceImpl(AppConfig config, IGrainFactory grainFactory, ITransactionClient transactionClient, ILogger<DefaultShipmentServiceImpl> logger)
     {
         this.config = config;
         this.grainFactory = grainFactory;
+        this.transactionClient = transactionClient;
         this.logger = logger;
     }
 
     public async Task UpdateShipment(string instanceId)
     {
-        List<Task> tasks = new List<Task>(config.NumShipmentActors);
+        List<Task> tasks = new List<Task>(this.config.NumShipmentActors);
         if (this.config.OrleansTransactions)
         {
             for (int i = 0; i < this.config.NumShipmentActors; i++)
             {
                 var grain = this.GetTxShipmentActor(i);
-                tasks.Add(grain.UpdateShipment(instanceId));
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () => grain.UpdateShipment(instanceId));
+                tasks.Add(t);
             }
-        } else
+        }
+        else
         {
             for (int i = 0; i < this.config.NumShipmentActors; i++)
             {
@@ -48,8 +52,9 @@ public sealed class DefaultShipmentServiceImpl : IShipmentService
         {
             if (this.config.OrleansTransactions)
             {
-                var grain = GetTxShipmentActor(i);
-                tasks.Add(grain.Reset());
+                var grain = this.GetTxShipmentActor(i);
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, grain.Reset);
+                tasks.Add(t);
             }
             else {
                 var grain = this.GetDefaultShipmentActor(i);

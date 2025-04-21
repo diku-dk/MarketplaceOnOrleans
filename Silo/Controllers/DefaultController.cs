@@ -4,6 +4,7 @@ using OrleansApp.Infra;
 using OrleansApp.Interfaces;
 using Common.Config;
 using OrleansApp.Service;
+using OrleansApp.Transactional;
 
 namespace Silo.Controllers;
 
@@ -13,13 +14,15 @@ public sealed class DefaultController : ControllerBase
     private readonly IAuditLogger persistence;
     private readonly AppConfig config;
     private readonly IShipmentService shipmentService;
+    private readonly ITransactionClient transactionClient;
     private readonly ILogger<DefaultController> logger;
 
-    public DefaultController(IAuditLogger persistence, AppConfig options, IShipmentService shipmentService, ILogger<DefaultController> logger)
+    public DefaultController(IAuditLogger persistence, AppConfig options, IShipmentService shipmentService, ITransactionClient transactionClient, ILogger<DefaultController> logger)
     {
         this.persistence = persistence;
         this.config = options;
         this.shipmentService = shipmentService;
+        this.transactionClient = transactionClient;
         this.logger = logger;
     }
 
@@ -28,81 +31,150 @@ public sealed class DefaultController : ControllerBase
     [ProducesResponseType((int)HttpStatusCode.Accepted)]
     public async Task<ActionResult> Reset([FromServices] IGrainFactory grains)
     {
-        logger.LogWarning("Reset requested at {0}", DateTime.UtcNow);
+        this.logger.LogWarning("Reset requested at {0}", DateTime.UtcNow);
 
         // SimpleGrainStatistic
         var mgmt = grains.GetGrain<IManagementGrain>(0);
         var stats = await mgmt.GetSimpleGrainStatistics();
 
+        var dStats = await mgmt.GetDetailedGrainStatistics();
+        var tasks = new List<Task>();
+
+        foreach (var stat in dStats)
+        {
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalStockActor,OrleansApp"))
+            {
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () =>
+                    grains.GetGrain<ITransactionalStockActor>(stat.GrainId).Reset());
+                tasks.Add(t);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalProductActor,OrleansApp"))
+            {
+                Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () =>
+                    grains.GetGrain<ITransactionalProductActor>(stat.GrainId).Reset());
+                tasks.Add(t);
+            }
+        }
+
         // get sellers and orders actors to reset
         // cannot get orders and sellers from shipments
         // because some of them may have been already removed from memory
-        foreach(var stat in stats)
+        foreach (var stat in stats)
         {
             this.logger.LogDebug("{stat}",stat.ToString());
-            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.OrderActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalOrderActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                var tasks = new List<Task>();
+                for(int i = 1; i <= num; i++)
+                {
+                    tasks.Add( grains.GetGrain<ITransactionalOrderActor>(i).Reset() );
+                }
+                this.logger.LogWarning("{0} order states reset", num);
+                continue;
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.OrderActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
                 for(int i = 1; i <= num; i++)
                 {
                     tasks.Add( grains.GetGrain<IOrderActor>(i).Reset() );
                 }
-                await Task.WhenAll(tasks);
                 this.logger.LogWarning("{0} order states reset", num);
                 continue;
             }
-            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.SellerActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.SellerActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                var tasks = new List<Task>();
                 for(int i = 1; i <= num; i++)
                 {
                     tasks.Add( grains.GetGrain<ISellerActor>(i).Reset() );
                 }
-                await Task.WhenAll(tasks);
                 this.logger.LogWarning("{0} seller states reset", num);
                 continue;
             }
-            // seal carts that have not checked out in past run
-            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.CartActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.CustomerActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                var tasks = new List<Task>();
+                for(int i = 1; i <= num; i++)
+                {
+                    tasks.Add( grains.GetGrain<ICustomerActor>(i).Reset() );
+                }
+                this.logger.LogWarning("{0} customer states reset", num);
+            }
+            // seal carts that have not checked out in past run
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.CartActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
                 for(int i = 1; i <= num; i++)
                 {
                     tasks.Add( grains.GetGrain<ICartActor>(i).Seal() );
                 }
-                await Task.WhenAll(tasks);
                 this.logger.LogWarning("{0} cart states reset", num);
             }
-            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalPaymentActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                var tasks = new List<Task>();
                 for(int i = 1; i <= num; i++)
                 {
-                    for(int j = 1; j <= 10; j++)
-                        tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
+                    Task t = this.transactionClient.RunTransaction(TransactionOption.Create, () =>
+                        grains.GetGrain<ITransactionalPaymentActor>(i).Reset());
+                    tasks.Add(t);
                 }
-                await Task.WhenAll(tasks);
+                this.logger.LogWarning("{0} transactional payment states reset", num);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.PaymentActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
+                for(int i = 1; i <= num; i++)
+                {
+                    tasks.Add( grains.GetGrain<IPaymentActor>(i).Reset() );
+                }
+                this.logger.LogWarning("{0} payment states reset", num);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalStockActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
+                this.logger.LogWarning("{0} transactional stock states reset", num);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.StockActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
+                int j = 1;
+                for(int i = 1; i <= num; i++)
+                {
+                    tasks.Add( grains.GetGrain<IStockActor>(i,j.ToString()).Reset() );
+                    j++;
+                    if(j == 11) j = 1;
+                }
                 this.logger.LogWarning("{0} stock states reset", num);
             }
-            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,Orleans"))
+            if (stat.GrainType.SequenceEqual("OrleansApp.Transactional.TransactionalProductActor,OrleansApp"))
             {
                 int num = stat.ActivationCount;
-                var tasks = new List<Task>();
+                this.logger.LogWarning("{0} transactional product states reset", num);
+            }
+            if (stat.GrainType.SequenceEqual("OrleansApp.Grains.ProductActor,OrleansApp"))
+            {
+                int num = stat.ActivationCount;
+                int j = 1;
                 for(int i = 1; i <= num; i++)
                 {
-                    for(int j = 1; j <= 10; j++)
-                        tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
+                    tasks.Add( grains.GetGrain<IProductActor>(i,j.ToString()).Reset() );
+                    j++;
+                    if(j == 11) j = 1;
                 }
-                await Task.WhenAll(tasks);
                 this.logger.LogWarning("{0} product states reset", num);
             }
         }
-        await this.persistence.CleanLog();
         await this.shipmentService.ResetShipmentActors();
+
+        if (this.config.LogRecords)
+        {
+            await this.persistence.CleanLog();
+        }
+
+        await Task.WhenAll(tasks);
+        
         return Ok();
     }
 
@@ -115,15 +187,15 @@ public sealed class DefaultController : ControllerBase
     public async Task<ActionResult> Cleanup()
     {
         this.logger.LogWarning("Cleanup requested at {0}", DateTime.UtcNow);
-        if (config.LogRecords)
+        if (this.config.LogRecords)
         {
             await persistence.CleanLog();
         }
-        if (config.AdoNetGrainStorage)
+        if (this.config.AdoNetGrainStorage)
         {
             await persistence.TruncateStorage();
         }
-        if (config.SellerViewPostgres)
+        if (this.config.SellerViewPostgres)
         {
             await persistence.ExecuteSqlCommand("TRUNCATE TABLE public.order_entries;");
         }

@@ -128,24 +128,6 @@ builder.Host.UseOrleans(siloBuilder =>
         }
     }
 
-    if (sellerViewPostgres)
-    {
-        siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
-        if(shipmentUpdatePostgres)
-            builder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
-        else
-            builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
-    } else
-    {
-        builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
-    }
-
-    if (streamReplication)
-    {
-        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
-                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
-    }
-
     if (orleansTransactions)
     {
         siloBuilder.UseTransactions();
@@ -186,6 +168,24 @@ builder.Host.UseOrleans(siloBuilder =>
         // required to make persistentState being injected on non-transactional grains
         // TODO separate OrleansStorage option from actual writes to storage grain state (WriteAsync)
         siloBuilder.AddMemoryGrainStorage(Constants.OrleansStorage);
+    }
+
+    if (sellerViewPostgres)
+    {
+        siloBuilder.Services.AddDbContextFactory<SellerDbContext>();
+        if(shipmentUpdatePostgres)
+            builder.Services.AddSingleton<IShipmentService, CustomShipmentServiceImpl>();
+        else
+            builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
+    } else
+    {
+        builder.Services.AddSingleton<IShipmentService, DefaultShipmentServiceImpl>();
+    }
+
+    if (streamReplication)
+    {
+        siloBuilder.AddMemoryStreams(Constants.DefaultStreamProvider)
+                    .AddMemoryGrainStorage(Constants.DefaultStreamStorage);
     }
 
     if(useDash){

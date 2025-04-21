@@ -66,7 +66,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
 
     private PaymentStatus GetPaymentStatus(InvoiceIssued invoiceIssued) {
         PaymentStatus status;
-        if(config.PaymentProvider){
+        if(this.config.PaymentProvider){
             // TODO provider communication
             status = PaymentStatus.requires_payment_method;
         } else {
@@ -151,7 +151,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         var tasks = new List<Task>();
 
         // Using strings below, but can also use byte arrays for both keys and values
-        if (config.LogRecords)
+        if (this.config.LogRecords)
         {
             var str = JsonSerializer.Serialize(new PaymentState() { orderPayments = orderPayments, orderPaymentCard = orderPaymentCard });
             var key = new StringBuilder(this.customerId.ToString()).Append('-').Append(invoiceIssued.orderId).ToString();
@@ -160,12 +160,12 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
 
         var paymentConfirmedWithItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, invoiceIssued.items, paymentTs, invoiceIssued.instanceId);
 
-        if(config.FeedbackEvents){
+        if(this.config.FeedbackEvents){
             // inform related stock actors to reduce the amount because the payment has succeeded
             foreach (var item in invoiceIssued.items)
             {
                 Task taskStock;
-                if (config.OrleansTransactions)
+                if (this.config.OrleansTransactions)
                 {
                     var stockActor = GetTxStockActor(item.seller_id, item.product_id.ToString());
                     taskStock = stockActor.ConfirmReservation(item.quantity);
@@ -187,10 +187,11 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
             var paymentConfirmedNoItems = new PaymentConfirmed(invoiceIssued.customer, invoiceIssued.orderId, invoiceIssued.totalInvoice, null, paymentTs, invoiceIssued.instanceId);
 
             Task taskOrder;
-            if (config.OrleansTransactions)
+            if (this.config.OrleansTransactions)
             {
                 taskOrder = this.GetTxOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems);
-            } else
+            }
+            else
             {
                 taskOrder = this.GetDefaultOrderActor(this.customerId).ProcessPaymentConfirmed(paymentConfirmedNoItems);
             }
@@ -201,7 +202,7 @@ public abstract class AbstractPaymentActor : Grain, IPaymentActor
         }
 
         var shipmentActorID = Helper.GetShipmentActorID(this.customerId, this.config.NumShipmentActors);
-        if(config.OrleansTransactions){
+        if(this.config.OrleansTransactions){
             var shipmentActor = this.GetTxShipmentActor(shipmentActorID);
             await shipmentActor.ProcessShipment(paymentConfirmedWithItems);
         }

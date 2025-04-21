@@ -229,7 +229,7 @@ public abstract class AbstractOrderActor : Grain, IOrderActor
         }
         await Task.WhenAll(tasks);
 
-        if (config.OrleansTransactions)
+        if (this.config.OrleansTransactions)
         {
             var paymentActor = this.GetTxPaymentActor(this.customerId);
             await paymentActor.ProcessPayment(invoice);

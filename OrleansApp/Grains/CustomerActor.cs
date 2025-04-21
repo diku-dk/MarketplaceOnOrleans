@@ -3,7 +3,6 @@ using Common.Events;
 using Microsoft.Extensions.Logging;
 using OrleansApp.Infra;
 using OrleansApp.Interfaces;
-using Orleans.Runtime;
 using Common.Config;
 
 namespace OrleansApp.Grains;
@@ -37,11 +36,13 @@ public sealed class CustomerActor : Grain, ICustomerActor
     public async Task SetCustomer(Customer customer)
     {
         this.customer.State = customer;
-        if(config.OrleansStorage)
+        if(this.config.OrleansStorage)
+        {
             await this.customer.WriteStateAsync();
+        }
     }
 
-    public async Task Clear()
+    public async Task Reset()
     {
         await this.customer.ClearStateAsync();
     }
@@ -54,22 +55,28 @@ public sealed class CustomerActor : Grain, ICustomerActor
     public async Task NotifyDelivery(DeliveryNotification deliveryNotificationd)
     {
         this.customer.State.delivery_count++;
-        if(config.OrleansStorage)
+        if(this.config.OrleansStorage)
+        {
             await this.customer.WriteStateAsync();
+        }
     }
 
     public async Task NotifyPaymentFailed(PaymentFailed paymentFailed)
     {
         this.customer.State.failed_payment_count++;
-        if(config.OrleansStorage)
+        if(this.config.OrleansStorage)
+        {
             await this.customer.WriteStateAsync();
+        }
     }
 
     public async Task NotifyPaymentConfirmed(PaymentConfirmed paymentConfirmed)
     {
         this.customer.State.success_payment_count++;
-        if(config.OrleansStorage)
+        if(this.config.OrleansStorage)
+        {
             await this.customer.WriteStateAsync();
+        }
     }
 
 }
