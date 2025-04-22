@@ -58,7 +58,7 @@ public class TransactionsTest : BaseTest
 
         await shipmentService.UpdateShipment("1");
 
-        // delay fro seller view actor to process shipment update
+        // delay for seller view actor to process shipment update
         await Task.Delay(5000);
 
         if(this.config.SellerViewPostgres){

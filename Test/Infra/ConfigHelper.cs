@@ -16,7 +16,7 @@ public class ConfigHelper
         NumShipmentActors = 1,
         UseDashboard = false,
         UseSwagger = false,
-        TrackCartHistory = false
+        TrackCartHistory = true
     };
 
     public static readonly AppConfig NonTransactionalDefaultAppConfig = new()

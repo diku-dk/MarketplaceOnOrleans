@@ -67,7 +67,8 @@ public class CartActor : Grain, ICartActor
 
         this.cart.State.items.Add(item);
 
-        if(this.orleansStorage){
+        if(this.orleansStorage)
+        {
             await this.cart.WriteStateAsync();
         }
     }
@@ -83,10 +84,11 @@ public class CartActor : Grain, ICartActor
                 // store cart items internally
                 this.history.TryAdd(customerCheckout.instanceId, new(this.cart.State.items));
             }
-            if(OrleansTransactions){
-                
+            if(OrleansTransactions)
+            {
                 await this.GrainFactory.GetGrain<ITransactionalOrderActor>(customerId).Checkout(checkout);
-            } else
+            }
+            else
             {
                 await this.GrainFactory.GetGrain<IOrderActor>(customerId).Checkout(checkout);
             }
@@ -103,13 +105,17 @@ public class CartActor : Grain, ICartActor
         this.cart.State.status = CartStatus.OPEN;
         this.cart.State.items.Clear();
         if(this.orleansStorage)
+        {
             await this.cart.WriteStateAsync();
+        }
     }
 
     public Task<List<CartItem>> GetHistory(string tid)
     {
         if(this.history.TryGetValue(tid, out List<CartItem> value))
+        {
             return Task.FromResult(value);
+        }
         return Task.FromResult(new List<CartItem>());
     }
 

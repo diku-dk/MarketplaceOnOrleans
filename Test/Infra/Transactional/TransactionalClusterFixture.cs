@@ -96,10 +96,15 @@ public sealed class TransactionalClusterFixture : IDisposable
                  })
                 .AddSingleton(ConfigHelper.TransactionalDefaultAppConfig);
 
-            if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords)
+            clientBuilder.UseTransactions();
+
+            if (ConfigHelper.TransactionalDefaultAppConfig.LogRecords){
                 clientBuilder.Services.AddSingleton<IAuditLogger, PostgresAuditLogger>();
+            }
             else
+            {
                 clientBuilder.Services.AddSingleton<IAuditLogger, EtcNullPersistence>();
+            }
 
             // for tests
             if (ConfigHelper.TransactionalDefaultAppConfig.SellerViewPostgres)

@@ -154,6 +154,12 @@ If you desire to modify the data model of seller view, although you can create a
 dotnet ef migrations add InitialMigration --project Orleans
 ```
 
+#### <a name="placement"></a>Distributed Deployment
+
+The current state of the project embraces the possibility of configuring a [cluster of silos](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/typical-configurations#unreliable-deployment-on-a-cluster-of-dedicated-servers), that is, a set of Orleans servers work cooperatively to execute grains concurrently.
+
+The grains use the [default random actor placement strategy](https://learn.microsoft.com/en-us/dotnet/orleans/implementation/load-balancing), where new grain activations are chosen a random silo for execution.
+
 
 ### <a name="replication"></a>Setting Up Redis Replication
 

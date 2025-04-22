@@ -1,7 +1,6 @@
 ﻿using Common.Entities;
 using Common.Requests;
 using OrleansApp.Interfaces.Replication;
-using OrleansApp.Grains;
 using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
 using Test.Infra;
@@ -20,7 +19,7 @@ public class ReplicationTest : BaseTest
         int productId = 100;
         int customerId = 100;
 
-        var productActor = _cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1, productId.ToString());
+        var productActor = this._cluster.GrainFactory.GetGrain<ITransactionalProductActor>(1, productId.ToString());
 
         await productActor.SetProduct( new Product()
         {
@@ -32,7 +31,7 @@ public class ReplicationTest : BaseTest
             version = 1.ToString(),
         });
 
-        var cartActor = _cluster.GrainFactory.GetGrain<IEventualCartActor>(customerId);
+        var cartActor = this._cluster.GrainFactory.GetGrain<IEventualCartActor>(customerId);
         CartItem cartItem = new CartItem() {
             SellerId = 1,
             ProductId = productId,
@@ -66,14 +65,14 @@ public class ReplicationTest : BaseTest
     public async Task TestTrackHistory()
     {
         int maxCustomers = 10;
-        await InitData(maxCustomers, 2);
+        await this.InitData(maxCustomers, 2);
 
         for(int i = 1; i <= maxCustomers; i++){
-            await BuildAndSendCheckout(i);
+            await this.BuildAndSendCheckout(i);
         }
 
         for(int i = 1; i <= maxCustomers; i++){
-            var cartActor = _cluster.GrainFactory.GetGrain<ICartActor>(i);
+            var cartActor = this._cluster.GrainFactory.GetGrain<ICartActor>(i);
             var carts = await cartActor.GetHistory(i.ToString());
             Assert.NotEmpty(carts);
             await cartActor.Seal();

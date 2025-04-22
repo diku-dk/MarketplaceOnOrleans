@@ -1,9 +1,9 @@
-﻿using Common.Entities;
+﻿using Common.Config;
+using Common.Entities;
 using Common.Requests;
-using OrleansApp.Interfaces;
 using Orleans.TestingHost;
+using OrleansApp.Interfaces;
 using OrleansApp.Transactional;
-using Common.Config;
 using OrleansApp.Infra.SellerDb;
 using Microsoft.EntityFrameworkCore;
 

@@ -189,7 +189,11 @@ builder.Host.UseOrleans(siloBuilder =>
     }
 
     if(useDash){
-      siloBuilder.UseDashboard(x => x.HostSelf = true);
+      siloBuilder.UseDashboard(x => {
+          // x.Host = "*";
+          // x.Port = 8080; // in case two silos are in the same machine, change the port to avoid conflict
+          x.HostSelf = true;
+        });
     }
 
     if (redisReplication)
